@@ -1,0 +1,52 @@
+steps:
+  # Build Backend
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/family-app/api:$COMMIT_SHA', './server']
+    id: 'build-api'
+
+  # Build Frontend
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/family-app/web:$COMMIT_SHA', './web']
+    id: 'build-web'
+
+  # Push Images
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/family-app/api:$COMMIT_SHA']
+    waitFor: ['build-api']
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '${_REGION}-docker.pkg.dev/${PROJECT_ID}/family-app/web:$COMMIT_SHA']
+    waitFor: ['build-web']
+
+  # Deploy API to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'family-api'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/family-app/api:$COMMIT_SHA'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+      - '--add-cloudsql-instances=${_INSTANCE_CONNECTION_NAME}'
+    id: 'deploy-api'
+
+  # Deploy Web to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'family-web'
+      - '--image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/family-app/web:$COMMIT_SHA'
+      - '--region=${_REGION}'
+      - '--platform=managed'
+      - '--allow-unauthenticated'
+    id: 'deploy-web'
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/family-app/api:$COMMIT_SHA'
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/family-app/web:$COMMIT_SHA'
+
+options:
+  machineType: 'E2_HIGHCPU_8'

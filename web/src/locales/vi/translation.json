@@ -1,0 +1,20 @@
+{
+  "login": {
+    "title": "Quản lý Tài sản Gia đình",
+    "subtitle": "Giải pháp toàn diện cho tài sản và chi tiêu",
+    "google_btn": "Đăng nhập với Google"
+  },
+  "dashboard": {
+    "total_assets": "Tổng tài sản",
+    "monthly_expense": "Chi tiêu tháng này",
+    "expiring_warranty": "Bảo hành sắp hết hạn",
+    "recent_activities": "Hoạt động gần đây"
+  },
+  "sidebar": {
+    "dashboard": "Tổng quan",
+    "assets": "Tài sản",
+    "expenses": "Chi phí",
+    "members": "Thành viên",
+    "settings": "Cài đặt"
+  }
+}

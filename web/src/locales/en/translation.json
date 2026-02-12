@@ -1,0 +1,20 @@
+{
+  "login": {
+    "title": "Family Asset Management",
+    "subtitle": "Comprehensive solution for assets and expenses",
+    "google_btn": "Login with Google"
+  },
+  "dashboard": {
+    "total_assets": "Total Assets",
+    "monthly_expense": "Monthly Expense",
+    "expiring_warranty": "Warranty Expiring Soon",
+    "recent_activities": "Recent Activities"
+  },
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "assets": "Assets",
+    "expenses": "Expenses",
+    "members": "Members",
+    "settings": "Settings"
+  }
+}
