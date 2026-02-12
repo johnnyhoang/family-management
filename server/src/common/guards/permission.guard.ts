@@ -31,8 +31,11 @@ export class PermissionGuard implements CanActivate {
 
     const { user } = context.switchToHttp().getRequest();
     if (!user) {
+      console.log('PermissionGuard: No user found in request');
       return false;
     }
+
+    console.log(`PermissionGuard: Checking ${check.action} on ${check.moduleId} for User ${user.email} (Role: ${user.role}, FamilyId: ${user.familyId})`);
 
     // System Admins have all permissions
     if (user.role === UserRole.SYSTEM_ADMIN) {
@@ -53,6 +56,7 @@ export class PermissionGuard implements CanActivate {
     });
 
     if (!permission) {
+      console.log(`PermissionGuard: No permission found for Role: ${user.role}, Module: ${check.moduleId}, FamilyId: ${user.familyId}`);
       throw new ForbiddenException('You do not have permission to access this module');
     }
 

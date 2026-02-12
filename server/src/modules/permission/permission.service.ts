@@ -58,10 +58,12 @@ export class PermissionService {
       { role: UserRole.FAMILY_ADMIN, moduleId: 'Asset', canView: true, canAdd: true, canEdit: true, canDelete: true },
       { role: UserRole.FAMILY_ADMIN, moduleId: 'Expense', canView: true, canAdd: true, canEdit: true, canDelete: true },
       { role: UserRole.FAMILY_ADMIN, moduleId: 'Category', canView: true, canAdd: true, canEdit: true, canDelete: true },
+      { role: UserRole.FAMILY_ADMIN, moduleId: 'Dashboard', canView: true },
       // Member permissions
       { role: UserRole.MEMBER, moduleId: 'Asset', canView: true, canAdd: true, canEdit: true },
       { role: UserRole.MEMBER, moduleId: 'Expense', canView: true, canAdd: true, canEdit: true },
       { role: UserRole.MEMBER, moduleId: 'Category', canView: true },
+      { role: UserRole.MEMBER, moduleId: 'Dashboard', canView: true },
     ];
 
     for (const p of defaultPermissions) {
