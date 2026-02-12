@@ -7,6 +7,9 @@ import { AssetList } from './pages/AssetList';
 import { ExpenseList } from './pages/ExpenseList';
 import { MemberList } from './pages/MemberList';
 import { CategoryList } from './pages/CategoryList';
+import { Login } from './pages/Login';
+import { LoginSuccess } from './pages/LoginSuccess';
+import { AuthGuard } from './components/auth/AuthGuard';
 import './index.css';
 import './i18n';
 
@@ -32,15 +35,19 @@ function App() {
       >
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<MainLayout />}>
-              <Route index element={<Dashboard />} />
-              <Route path="assets" element={<AssetList />} />
-              <Route path="expenses" element={<ExpenseList />} />
-              <Route path="categories" element={<CategoryList />} />
-              <Route path="members" element={<MemberList />} />
-              <Route path="settings" element={<div>Settings Page</div>} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/login-success" element={<LoginSuccess />} />
+
+            <Route element={<AuthGuard />}>
+              <Route path="/" element={<MainLayout />}>
+                <Route index element={<Dashboard />} />
+                <Route path="assets" element={<AssetList />} />
+                <Route path="expenses" element={<ExpenseList />} />
+                <Route path="categories" element={<CategoryList />} />
+                <Route path="members" element={<MemberList />} />
+                <Route path="settings" element={<div>Settings Page</div>} />
+              </Route>
             </Route>
-            <Route path="/login" element={<div>Login Page</div>} />
           </Routes>
         </BrowserRouter>
       </ConfigProvider>
