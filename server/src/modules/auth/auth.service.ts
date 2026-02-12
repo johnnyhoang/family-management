@@ -19,16 +19,19 @@ export class AuthService {
   ) {}
 
   async validateOAuthUser(profile: any) {
+    console.log(`AuthService: Validating user ${profile.email}`);
     let user = await this.userRepository.findOne({
       where: { email: profile.email },
     });
 
     if (!user) {
+      console.log(`AuthService: User ${profile.email} not found, creating new...`);
       const familyCount = await this.familyRepository.count();
       let family = await this.familyRepository.findOne({ where: { name: 'Default Family' } });
       let isNewFamily = false;
 
       if (!family) {
+        console.log('AuthService: Creating Default Family');
         family = this.familyRepository.create({ name: 'Default Family' });
         await this.familyRepository.save(family);
         isNewFamily = true;
@@ -37,6 +40,7 @@ export class AuthService {
       // If it's the first user or a new family, make them FAMILY_ADMIN
       const userCountInFamily = await this.userRepository.count({ where: { familyId: family.id } });
       const role = userCountInFamily === 0 ? UserRole.FAMILY_ADMIN : UserRole.MEMBER;
+      console.log(`AuthService: Users in family: ${userCountInFamily}, assigned role: ${role}`);
 
       user = this.userRepository.create({
         email: profile.email,
@@ -50,10 +54,15 @@ export class AuthService {
       // Seed permissions for the family
       await this.permissionService.seedDefaultPermissions(family.id);
     } else {
+      console.log(`AuthService: User ${profile.email} found with role: ${user.role}`);
       // Promotion logic: if they are the only user in the family and still a MEMBER, make them ADMIN
       if (user.role === UserRole.MEMBER) {
-        const userCount = await this.userRepository.count({ where: { familyId: user.familyId } });
+        const usersInFamily = await this.userRepository.find({ where: { familyId: user.familyId } });
+        const userCount = usersInFamily.length;
+        console.log(`AuthService: Family ${user.familyId} has ${userCount} users: ${usersInFamily.map(u => u.email).join(', ')}`);
+        
         if (userCount === 1) {
+          console.log(`AuthService: Promoting ${user.email} to FAMILY_ADMIN`);
           user.role = UserRole.FAMILY_ADMIN;
           await this.userRepository.save(user);
         }

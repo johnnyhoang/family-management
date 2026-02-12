@@ -38,12 +38,14 @@ export class PermissionGuard implements CanActivate {
     console.log(`PermissionGuard: Checking ${check.action} on ${check.moduleId} for User ${user.email} (Role: ${user.role}, FamilyId: ${user.familyId})`);
 
     // System Admins have all permissions
-    if (user.role === UserRole.SYSTEM_ADMIN) {
+    if (user.role === UserRole.SYSTEM_ADMIN || user.role === 'SYSTEM_ADMIN') {
+      console.log('PermissionGuard: Authorized as SYSTEM_ADMIN');
       return true;
     }
 
     // Family Admins have all permissions within their family
-    if (user.role === UserRole.FAMILY_ADMIN) {
+    if (user.role === UserRole.FAMILY_ADMIN || user.role === 'FAMILY_ADMIN') {
+      console.log('PermissionGuard: Authorized as FAMILY_ADMIN');
       return true;
     }
 
