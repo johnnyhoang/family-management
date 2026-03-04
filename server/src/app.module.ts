@@ -62,7 +62,12 @@ import { ScheduleModule } from '@nestjs/schedule';
     I18nModule.forRoot({
       fallbackLanguage: 'vi',
       loaderOptions: {
-        path: path.join(__dirname, 'i18n'),
+        path: path.join(
+          process.cwd(),
+          // In some environments process.cwd() might be the monorepo root
+          process.cwd().endsWith('server') ? '' : 'server',
+          process.env.NODE_ENV === 'production' ? 'dist/i18n' : 'src/i18n',
+        ),
         watch: true,
       },
       resolvers: [
