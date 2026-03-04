@@ -105,7 +105,9 @@ export const Dashboard = () => {
                                         <div>
                                             <p className="font-bold text-slate-800">{asset.name}</p>
                                             <p className="text-sm text-slate-500">
-                                                Hết hạn: <span className="font-medium text-amber-600">{new Date(asset.warrantyExpiredAt).toLocaleDateString('vi-VN')}</span>
+                                                Hết hạn: <span className="font-medium text-amber-600">
+                                                    {asset.warrantyExpiredAt ? new Date(asset.warrantyExpiredAt).toLocaleDateString('vi-VN') : 'Không rõ'}
+                                                </span>
                                             </p>
                                         </div>
                                     </div>

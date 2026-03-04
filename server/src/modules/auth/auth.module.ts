@@ -6,6 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { PermissionModule } from '../permission/permission.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from '../../common/entities/user.entity';
@@ -15,6 +16,7 @@ import { Family } from '../../common/entities/family.entity';
   imports: [
     TypeOrmModule.forFeature([User, Family]),
     PassportModule,
+    PermissionModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

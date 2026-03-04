@@ -4,6 +4,17 @@ import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Enable CORS
+  app.enableCors({
+    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
+  // Set global prefix
+  app.setGlobalPrefix('api/v1');
+
   // Prioritize PORT from environment (Cloud Run uses this)
   const port = process.env.PORT || 3173;
   
