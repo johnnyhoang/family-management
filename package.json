@@ -7,8 +7,8 @@
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix web\"",
     "start:server": "npm run start:dev --prefix server",
     "start:web": "npm run dev --prefix web",
-    "start": "npm run start:server && npm run start:web",
-    "build": "npm install --prefix server && npm run build --prefix server && npm install --prefix web && npm run build --prefix web",
+    "start": "concurrently \"npm run start:server\" \"npm run start:web\"",
+    "build": "npm run build --prefix server && npm run build --prefix web",
     "install:all": "npm install && npm install --prefix server && npm install --prefix web",
     "clean": "concurrently \"npm run clean --prefix server\" \"npm run clean --prefix web\""
   },
@@ -19,5 +19,9 @@
   "devDependencies": {
     "concurrently": "^9.2.1",
     "rimraf": "^6.1.2"
+  },
+  "overrides": {
+    "glob": "^11.0.0",
+    "minimatch": "^9.0.0"
   }
 }
