@@ -5,7 +5,7 @@ This guide provides step-by-step instructions for deploying the Family Asset & E
 ## 1. Infrastructure Requirements
 The system requires the following Google Cloud services:
 - **Cloud Run**: For hosting the `server` (API) and `web` (Frontend) containers.
-- **Cloud SQL (MySQL)**: For the database.
+- **Cloud SQL (PostgreSQL)**: For the database.
 - **Cloud Storage**: For asset images and documents.
 - **Cloud Build**: For the CI/CD pipeline.
 - **Artifact Registry**: To store Docker images.
@@ -15,8 +15,8 @@ The system requires the following Google Cloud services:
 
 ## 2. Infrastructure Setup (Manual Steps)
 
-### A. Cloud SQL (MySQL)
-1. Create a **Cloud SQL for MySQL** instance (v8.0).
+### A. Cloud SQL (PostgreSQL)
+1. Create a **Cloud SQL for PostgreSQL** instance (v15+).
 2. Create a database named `family_mgmt`.
 3. Create a user and password.
 4. **Cloud Run Connection**: 
