@@ -7,6 +7,7 @@
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix web\"",
     "start:server": "npm run start:dev --prefix server",
     "start:web": "npm run dev --prefix web",
+    "start": "npm run start:server && npm run start:web",
     "install:all": "npm install && npm install --prefix server && npm install --prefix web",
     "clean": "concurrently \"npm run clean --prefix server\" \"npm run clean --prefix web\""
   },
