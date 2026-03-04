@@ -29,20 +29,23 @@ import { ScheduleModule } from '@nestjs/schedule';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'mysql',
-        host: configService.get<string>('DB_HOST'),
-        port: configService.get<number>('DB_PORT'),
-        username: configService.get<string>('DB_USERNAME'),
-        password: configService.get<string>('DB_PASSWORD'),
-        database: configService.get<string>('DB_DATABASE'),
-        autoLoadEntities: true,
-        // Set synchronize: true for initial deployments as requested
-        synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
-        ssl: configService.get<string>('DB_SSL') === 'true' ? {
-          rejectUnauthorized: false
-        } : false,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const url = configService.get<string>('DATABASE_URL');
+        return {
+          type: 'postgres',
+          url: url || undefined,
+          host: url ? undefined : configService.get<string>('DB_HOST'),
+          port: url ? undefined : configService.get<number>('DB_PORT', 5432),
+          username: url ? undefined : configService.get<string>('DB_USERNAME'),
+          password: url ? undefined : configService.get<string>('DB_PASSWORD'),
+          database: url ? undefined : configService.get<string>('DB_DATABASE'),
+          autoLoadEntities: true,
+          synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
+          ssl: configService.get<string>('DB_SSL') === 'true' || !!url ? {
+            rejectUnauthorized: false
+          } : false,
+        };
+      },
     }),
     ...(process.env.REDIS_ENABLED !== 'false' ? [
       BullModule.forRootAsync({

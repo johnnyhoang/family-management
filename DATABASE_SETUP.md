@@ -1,21 +1,21 @@
 # Database Setup Guide
 
-This guide will help you set up the MySQL database for the Family Asset & Expense Management System.
+This guide will help you set up the PostgreSQL database for the Family Asset & Expense Management System.
 
 ## 1. Create the Database
-The application expects a database named `family_mgmt`. You can create it using a MySQL client (like MySQL Workbench, TablePlus, or the command line):
+The application expects a database named `family_mgmt`. You can create it using a PostgreSQL client (like pgAdmin, TablePlus, or the command line):
 
 ```sql
-CREATE DATABASE family_mgmt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE family_mgmt;
 ```
 
 ## 2. Configure Credentials
-Update your `server/.env` file with your local MySQL credentials.
+Update your `server/.env` file with your local PostgreSQL credentials.
 
 ```env
 DB_HOST=localhost
-DB_PORT=3306
-DB_USERNAME=your_username (usually 'root')
+DB_PORT=5432
+DB_USERNAME=your_username (usually 'postgres')
 DB_PASSWORD=your_password
 DB_DATABASE=family_mgmt
 DB_SYNCHRONIZE=true
@@ -33,4 +33,4 @@ Once the database is created and `.env` is updated, run:
 ```bash
 npm run dev
 ```
-The server will connect to MySQL and automatically generate the necessary tables. Check the console for "Application is running" or any connection errors.
+The server will connect to PostgreSQL and automatically generate the necessary tables. Check the console for "Application is running" or any connection errors.
