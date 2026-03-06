@@ -5,6 +5,8 @@ import { BullModule } from '@nestjs/bullmq';
 import { HeaderResolver, I18nModule } from 'nestjs-i18n';
 import * as path from 'path';
 
+console.log('APP_MODULE_FILE_LOADED');
+
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './modules/auth/auth.module';
@@ -47,7 +49,7 @@ import { ScheduleModule } from '@nestjs/schedule';
         };
       },
     }),
-    ...(process.env.REDIS_ENABLED !== 'false' ? [
+    ...(process.env.REDIS_ENABLED === 'true' ? [
       BullModule.forRootAsync({
         imports: [ConfigModule],
         inject: [ConfigService],
