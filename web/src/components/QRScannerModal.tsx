@@ -34,7 +34,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onCance
                             console.error("Failed to clear scanner", error);
                             onResult(decodedText);
                         });
-                    }, (error) => {
+                    }, () => {
                         // Suppress frequent scanning errors in log
                     });
 
