@@ -15,7 +15,7 @@ import { Family } from '../../common/entities/family.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Family]),
-    PassportModule,
+    PassportModule.register({ session: false }),
     PermissionModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

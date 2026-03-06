@@ -13,6 +13,9 @@ async function bootstrap() {
   console.log('--- BOOTSTRAP_START ---');
   const expressApp = express();
   
+  // Important for Passport OAuth behind proxies like Vercel
+  expressApp.set('trust proxy', 1);
+
   const nestApp = await NestFactory.create(
     AppModule,
     new ExpressAdapter(expressApp),
