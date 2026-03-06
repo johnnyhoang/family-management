@@ -1,77 +1,66 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import express from 'express';
 
-console.log('ENTRY_POINT_LOADED');
+console.log('--- VERCEL_FUNCTION_LOADED ---');
 
-const server = express();
-let cachedApp: any;
+let cachedHandler: any;
 
-const createServer = async (expressInstance: any) => {
-  console.log('CREATE_SERVER_START');
-  if (!cachedApp) {
-    console.log('NEST_FACTORY_CREATE_START');
-    const app = await NestFactory.create(
-      AppModule,
-      new ExpressAdapter(expressInstance),
-      { logger: ['error', 'warn', 'log', 'debug', 'verbose'] }
-    );
-    
-    app.enableCors({
-      origin: true,
-      credentials: true,
-    });
-    
-    app.setGlobalPrefix('api/v1');
-    
-    // Setup Swagger
-    const config = new DocumentBuilder()
-      .setTitle('Family Management API')
-      .setDescription('API documentation for Family Management System')
-      .setVersion('1.0')
-      .addBearerAuth()
-      .build();
-    const document = SwaggerModule.createDocument(app, config);
-    SwaggerModule.setup('api/docs', app, document);
-    
-    console.log('APP_INIT_START');
-    await app.init();
-    cachedApp = app;
-    console.log('APP_INIT_SUCCESS');
-  }
-  return cachedApp;
-};
+async function bootstrap() {
+  if (cachedHandler) return cachedHandler;
+  
+  console.log('--- BOOTSTRAP_START ---');
+  const expressApp = express();
+  
+  const nestApp = await NestFactory.create(
+    AppModule,
+    new ExpressAdapter(expressApp),
+    { logger: ['error', 'warn', 'log'] }
+  );
+
+  nestApp.enableCors({
+    origin: true,
+    credentials: true,
+  });
+
+  nestApp.setGlobalPrefix('api/v1');
+  
+  await nestApp.init();
+  cachedHandler = expressApp;
+  console.log('--- BOOTSTRAP_COMPLETE ---');
+  return cachedHandler;
+}
 
 export default async (req: any, res: any) => {
-  // Fast diagnostic path
-  if (req.url.endsWith('/api/v1/diagnostic')) {
+  // Ultra-fast diagnostic path (No AppModule, No NestJS)
+  if (req.url.includes('/api/v1/diagnostic')) {
+    console.log('DIAGNOSTIC_PATH_HIT');
     return res.status(200).json({
-      status: 'entry_point_ok',
-      initialized: !!cachedApp,
-      cwd: process.cwd(),
-      dirname: __dirname,
+      status: 'ok',
+      message: 'Vercel Function is alive!',
+      timestamp: new Date().toISOString(),
       node: process.version,
-      env: {
+      cwd: process.cwd(),
+      env_sample: {
+        DATABASE_URL: !!process.env.DATABASE_URL,
         NODE_ENV: process.env.NODE_ENV,
-        VERCEL: process.env.VERCEL,
-        DB_URL_SET: !!process.env.DATABASE_URL,
         REDIS_ENABLED: process.env.REDIS_ENABLED,
       }
     });
   }
 
   try {
-    const app = await createServer(server);
-    server(req, res);
+    const handler = await bootstrap();
+    return handler(req, res);
   } catch (err: any) {
-    console.error('NEST_FACTORY_ERROR:', err);
-    res.status(500).json({
+    console.error('--- BOOTSTRAP_ERROR ---');
+    console.error(err);
+    return res.status(500).json({
       statusCode: 500,
-      message: 'Internal Server Error during Nest initialization',
+      message: 'NestJS Initialization Failed',
       error: err.message,
-      stack: err.stack,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
   }
 };
