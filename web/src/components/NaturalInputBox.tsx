@@ -63,7 +63,10 @@ export const NaturalInputBox: React.FC = () => {
             );
 
             if (response.data.success && response.data.intent !== 'unknown') {
-                setParsedResult(response.data);
+                setParsedResult({
+                    ...response.data,
+                    originalText: inputValue // Keep the original input for the note
+                });
                 setShowModal(true);
                 message.success('Đã phân tích xong!');
             } else if (response.data.intent === 'unknown') {
@@ -85,13 +88,14 @@ export const NaturalInputBox: React.FC = () => {
             // Mapping intent to actual API endpoints
             let endpoint = '';
             switch (finalData.intent) {
-                case 'create_expense': endpoint = '/expenses'; break;
-                case 'create_income': endpoint = '/income'; break;
+                case 'create_expense':
+                case 'create_income': endpoint = '/expenses'; break;
                 case 'create_asset': endpoint = '/assets'; break;
                 case 'create_event': endpoint = '/calendar'; break;
                 default: message.error('Hành động chưa được hỗ trợ lưu tự động.'); return;
             }
 
+            console.log(`[NaturalInput] Saving to ${endpoint}:`, finalData.data);
             await api.post(endpoint, finalData.data);
 
             message.success('Đã lưu thành công!');

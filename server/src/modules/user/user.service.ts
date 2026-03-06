@@ -64,6 +64,13 @@ export class UserService {
     return this.userRepository.save(user);
   }
 
+  async update(familyId: string, id: string, data: Partial<User>) {
+    const user = await this.findOne(id, familyId);
+    if (data.fullName !== undefined) user.fullName = data.fullName;
+    if (data.otherNames !== undefined) user.otherNames = data.otherNames;
+    return this.userRepository.save(user);
+  }
+
   async remove(familyId: string, id: string) {
     const user = await this.findOne(id, familyId);
     // Prevent self-removal or removing the last admin could be added here

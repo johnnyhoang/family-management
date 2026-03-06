@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, ManyToMany, JoinTable } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Family } from './family.entity';
 import { User } from './user.entity';
@@ -49,6 +49,17 @@ export class CalendarEvent extends BaseEntity {
 
   @Column({ nullable: true })
   metadata: string; // JSON string for additional context (e.g., assetId, recurringId)
+
+  @Column({ nullable: true })
+  recurrenceRule: string;
+
+  @ManyToMany(() => User)
+  @JoinTable({
+    name: 'calendar_event_participants',
+    joinColumn: { name: 'calendarEventId', referencedColumnName: 'id' },
+    inverseJoinColumn: { name: 'userId', referencedColumnName: 'id' }
+  })
+  participants: User[];
 
   @Column()
   createdBy: string;

@@ -38,6 +38,13 @@ export class UserController {
     return this.userService.updateRole(req.user.familyId, id, role);
   }
 
+  @Patch(':id')
+  @ApiOperation({ summary: 'Update member details' })
+  @CheckPermission('User', 'edit')
+  async update(@Request() req, @Param('id') id: string, @Body() data: { fullName?: string; otherNames?: string }) {
+    return this.userService.update(req.user.familyId, id, data);
+  }
+
   @Delete(':id')
   @ApiOperation({ summary: 'Remove member from family' })
   @CheckPermission('User', 'delete')

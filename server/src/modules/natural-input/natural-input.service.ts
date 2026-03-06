@@ -41,7 +41,12 @@ export class NaturalInputService {
 
     const context = {
       categories: categories.map(c => ({ id: c.id, name: c.name, type: c.type })),
-      familyMembers: users.map(u => ({ id: u.id, name: u.fullName || u.email })),
+      familyMembers: users.map(u => ({ 
+        id: u.id, 
+        name: u.fullName, 
+        aliases: u.otherNames ? u.otherNames.split(',').map(n => n.trim()) : [],
+        email: u.email 
+      })),
       assets: assets.map(a => ({ id: a.id, name: a.name, category: a.category?.name })),
       currentDate: dayjs().format('YYYY-MM-DD'),
       currentTime: dayjs().format('HH:mm:ss'),
@@ -70,10 +75,15 @@ Convert the user's Vietnamese natural language input into structured JSON.
 ### SCHEMA RULES:
 - amount: number (normalize Vietnamese expressions like '4 triệu 365 ngàn' -> 4365000, '2tr5' -> 2500000).
 - currency: default 'VND'.
-- date: YYYY-MM-DD.
-- category: Map to the ID of the closest matching category from the provided context. If no match, provide a string name.
-- owner: Map to the ID or Name of the family member mentioned (chồng, vợ, con, etc.).
-- account: Bank name or account mentioned (HSBC, Techcom, etc.).
+- amount: number (For expenses/incomes).
+- purchasePrice: number (For create_asset).
+- categoryId: Map to the ID of the closest matching category from the provided context.
+- ownerId: The ID of the person who legally owns/stands name on the asset (e.g., 'xe của Khôi').
+  - IMPORTANT: Use ONLY the 'id' from the provided 'Family Members' context.
+- usedById: The ID of the person who actually uses the asset (e.g., 'xe Khôi đi').
+  - IMPORTANT: Use ONLY the 'id' from the provided 'Family Members' context.
+- assignedToUserId: The ID of the primary person responsible (DEPRECATED, use ownerId/usedById if possible).
+- assetId: The ID of the existing asset mentioned.
 
 ### RESPONSE FORMAT (MUST BE STRICT JSON):
 {
@@ -84,18 +94,29 @@ Convert the user's Vietnamese natural language input into structured JSON.
 }
 
 ### EXAMPLES:
-Input: "Hôm nay thanh toán thẻ HSBC của chồng 4 triệu 3 trăm 65 ngàn"
+Input: "Ngày mai đi bảo dưỡng xe SYM của Khôi"
 Output: {
-  "intent": "create_expense",
+  "intent": "update_asset",
+  "confidence": 0.9,
+  "data": {
+    "name": "xe SYM",
+    "description": "Bảo dưỡng xe SYM",
+    "expenseDate": "${dayjs().add(1, 'day').format('YYYY-MM-DD')}",
+    "ownerId": "7b098162-8e39-4f81-9964-6729359e1903",
+    "assetId": "550e8400-e29b-41d4-a716-446655440000"
+  }
+}
+
+Input: "Mua xe SH đứng tên Khôi cho Khuyên đi"
+Output: {
+  "intent": "create_asset",
   "confidence": 0.95,
   "data": {
-    "amount": 4365000,
-    "currency": "VND",
-    "category": "credit_card_payment",
-    "account": "HSBC",
-    "owner": "chồng",
-    "date": "${context.currentDate}",
-    "description": "Thanh toán thẻ HSBC"
+    "name": "xe SH",
+    "purchasePrice": 120000000,
+    "purchaseDate": "${dayjs().format('YYYY-MM-DD')}",
+    "ownerId": "7b098162-8e39-4f81-9964-6729359e1903",
+    "usedById": "f33e6ace-1ee1-4b3d-975f-de09344f28cb"
   }
 }
 `;

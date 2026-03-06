@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Button, Modal, Form, Input, Select, InputNumber, DatePicker, Space, Tag, message } from 'antd';
-import { Plus, Download, Edit2, Trash2, Search } from 'lucide-react';
+import { Plus, Download, Trash2, Search } from 'lucide-react';
 import { assetApi } from '../api/asset';
+import { userApi } from '../api/user';
 import type { Asset } from '../api/asset';
+import type { User } from '../api/user';
 import { categoryApi } from '../api/category';
 import dayjs from 'dayjs';
 
@@ -22,6 +24,11 @@ export const AssetList = () => {
     const { data: categories } = useQuery({
         queryKey: ['categories'],
         queryFn: () => categoryApi.findAll().then(res => res.data),
+    });
+
+    const { data: users } = useQuery({
+        queryKey: ['users'],
+        queryFn: () => userApi.findAll().then(res => res.data),
     });
 
     const createMutation = useMutation({
@@ -86,6 +93,18 @@ export const AssetList = () => {
             key: 'category',
         },
         {
+            title: 'Người đứng tên',
+            dataIndex: ['owner', 'fullName'],
+            key: 'owner',
+            render: (name: string, record: Asset) => name || record.owner?.email || '-',
+        },
+        {
+            title: 'Người sử dụng',
+            dataIndex: ['usedBy', 'fullName'],
+            key: 'usedBy',
+            render: (name: string, record: Asset) => name || record.usedBy?.email || '-',
+        },
+        {
             title: 'Giá trị',
             dataIndex: 'purchasePrice',
             key: 'purchasePrice',
@@ -104,25 +123,13 @@ export const AssetList = () => {
             title: 'Thao tác',
             key: 'action',
             render: (_: any, record: Asset) => (
-                <Space size="middle">
-                    <Button
-                        type="text"
-                        icon={<Edit2 size={16} className="text-blue-600" />}
-                        onClick={() => {
-                            setEditingAsset(record);
-                            form.setFieldsValue({
-                                ...record,
-                                purchaseDate: record.purchaseDate ? dayjs(record.purchaseDate) : null,
-                                warrantyExpiredAt: record.warrantyExpiredAt ? dayjs(record.warrantyExpiredAt) : null,
-                            });
-                            setIsModalOpen(true);
-                        }}
-                    />
+                <Space size="middle" onClick={(e) => e.stopPropagation()}>
                     <Button
                         type="text"
                         danger
                         icon={<Trash2 size={16} />}
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             Modal.confirm({
                                 title: 'Xác nhận xóa',
                                 content: `Bạn có chắc muốn xóa "${record.name}"?`,
@@ -193,6 +200,18 @@ export const AssetList = () => {
                         dataSource={assets}
                         loading={isLoading}
                         rowKey="id"
+                        onRow={(record) => ({
+                            onClick: () => {
+                                setEditingAsset(record);
+                                form.setFieldsValue({
+                                    ...record,
+                                    purchaseDate: record.purchaseDate ? dayjs(record.purchaseDate) : null,
+                                    warrantyExpiredAt: record.warrantyExpiredAt ? dayjs(record.warrantyExpiredAt) : null,
+                                });
+                                setIsModalOpen(true);
+                            },
+                            style: { cursor: 'pointer' }
+                        })}
                         pagination={{
                             pageSize: 10,
                             size: 'small',
@@ -254,6 +273,22 @@ export const AssetList = () => {
                         </Form.Item>
                         <Form.Item name="warrantyExpiredAt" label="Hết hạn bảo hành">
                             <DatePicker className="w-full" />
+                        </Form.Item>
+                        <Form.Item name="ownerId" label="Người đứng tên">
+                            <Select
+                                options={users?.map(u => ({ value: u.id, label: u.fullName || u.email }))}
+                                allowClear
+                                showSearch
+                                placeholder="Chọn người đứng tên..."
+                            />
+                        </Form.Item>
+                        <Form.Item name="usedById" label="Người sử dụng">
+                            <Select
+                                options={users?.map(u => ({ value: u.id, label: u.fullName || u.email }))}
+                                allowClear
+                                showSearch
+                                placeholder="Chọn người sử dụng..."
+                            />
                         </Form.Item>
                         <Form.Item name="description" label="Mô tả" className="col-span-2">
                             <Input.TextArea rows={3} />

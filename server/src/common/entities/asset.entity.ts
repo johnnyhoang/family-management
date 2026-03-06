@@ -70,6 +70,20 @@ export class Asset extends BaseEntity {
   @JoinColumn({ name: 'assignedToUserId' })
   assignedToUser: User;
 
+  @Column({ nullable: true })
+  ownerId: string;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'ownerId' })
+  owner: User;
+
+  @Column({ nullable: true })
+  usedById: string;
+
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'usedById' })
+  usedBy: User;
+
   @Column({ type: 'json', nullable: true })
   images: string[];
 

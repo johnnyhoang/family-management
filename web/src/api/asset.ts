@@ -11,6 +11,10 @@ export interface Asset {
   status: string;
   purchaseDate?: string;
   warrantyExpiredAt?: string;
+  ownerId?: string;
+  owner?: { fullName: string; email: string };
+  usedById?: string;
+  usedBy?: { fullName: string; email: string };
 }
 
 export const assetApi = {

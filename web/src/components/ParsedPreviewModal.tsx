@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, DatePicker, Radio, Space, Typography, Tag, Divider } from 'antd';
+import { Modal, Form, Input, InputNumber, DatePicker, Radio, Space, Typography, Tag, Divider, Select } from 'antd';
 import dayjs from 'dayjs';
+import { userApi } from '../api/user';
+import { categoryApi } from '../api/category';
+import { assetApi } from '../api/asset';
+import type { User } from '../api/user';
+import type { Category } from '../api/category';
+import type { Asset } from '../api/asset';
 
 const { Text } = Typography;
 
@@ -21,13 +27,56 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
 }) => {
     const [form] = Form.useForm();
     const [intent, setIntent] = useState<string>('');
+    const [users, setUsers] = useState<User[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
+    const [assets, setAssets] = useState<Asset[]>([]);
+
+    useEffect(() => {
+        if (visible) {
+            Promise.all([
+                userApi.findAll(),
+                categoryApi.findAll(),
+                assetApi.findAll()
+            ]).then(([userRes, catRes, assetRes]) => {
+                setUsers(userRes.data);
+                setCategories(catRes.data);
+                setAssets(assetRes.data);
+            });
+        }
+    }, [visible]);
 
     useEffect(() => {
         if (parsedData && visible) {
             setIntent(parsedData.intent);
+
+            // Map common aliases or legacy field names from AI
+            const rawData = parsedData.data || {};
+
+            // Helper to validate UUIDs to prevent backend errors from AI placeholders
+            const isUUID = (str: any) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
+            const sanitizeId = (id: any) => isUUID(id) ? id : undefined;
+
+            const mappedData = {
+                ...rawData,
+                // Expense mapping
+                expenseDate: rawData.expenseDate || rawData.date,
+                note: parsedData.originalText || rawData.note || rawData.description,
+                description: parsedData.originalText || rawData.description || rawData.note,
+                categoryId: sanitizeId(rawData.categoryId || rawData.category),
+                assignedToUserId: sanitizeId(rawData.assignedToUserId),
+                ownerId: sanitizeId(rawData.ownerId),
+                usedById: sanitizeId(rawData.usedById),
+                assetId: sanitizeId(rawData.assetId),
+                // Asset mapping
+                purchaseDate: rawData.purchaseDate || rawData.date,
+            };
+
             form.setFieldsValue({
-                ...parsedData.data,
-                date: parsedData.data?.date ? dayjs(parsedData.data.date) : dayjs(),
+                ...mappedData,
+                expenseDate: mappedData.expenseDate ? dayjs(mappedData.expenseDate) : dayjs(),
+                purchaseDate: mappedData.purchaseDate ? dayjs(mappedData.purchaseDate) : dayjs(),
+                date: mappedData.date ? dayjs(mappedData.date) : dayjs(), // For other intents
             });
         }
     }, [parsedData, visible, form]);
@@ -35,6 +84,8 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
     const handleFinish = (values: any) => {
         const formattedValues = {
             ...values,
+            expenseDate: values.expenseDate?.format('YYYY-MM-DD'),
+            purchaseDate: values.purchaseDate?.format('YYYY-MM-DD'),
             date: values.date?.format('YYYY-MM-DD'),
         };
         onConfirm({
@@ -44,6 +95,9 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
     };
 
     const renderFormFields = () => {
+        const userOptions = users.map(u => ({ label: u.fullName || u.email, value: u.id }));
+        const assetOptions = assets.map(a => ({ label: a.name, value: a.id }));
+
         switch (intent) {
             case 'create_expense':
             case 'create_income':
@@ -51,43 +105,70 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                     <>
                         <Form.Item name="amount" label="Số tiền" rules={[{ required: true }]}>
                             <InputNumber
-                                style={{ width: '100% ' }}
+                                style={{ width: '100%' }}
                                 formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                 parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
                                 addonAfter="VND"
                             />
                         </Form.Item>
-                        <Form.Item name="category" label="Danh mục">
-                            <Input placeholder="Ví dụ: Ăn uống, Di chuyển..." />
+                        <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
+                            <Select
+                                options={categories
+                                    .filter(c => intent === 'create_expense' ? c.type === 'EXPENSE' : c.type === 'INCOME')
+                                    .map(c => ({ label: c.name, value: c.id }))
+                                }
+                                placeholder="Chọn danh mục..."
+                                showSearch
+                                filterOption={(input, option) => (option?.label ?? '').toLowerCase().includes(input.toLowerCase())}
+                            />
                         </Form.Item>
-                        <Form.Item name="account" label="Tài khoản/Ngân hàng">
-                            <Input placeholder="Ví dụ: HSBC, Tiền mặt..." />
+                        <Form.Item name="assignedToUserId" label="Người thực hiện (Không bắt buộc)">
+                            <Select options={userOptions} placeholder="Chọn thành viên..." allowClear />
                         </Form.Item>
-                        <Form.Item name="owner" label="Người thực hiện">
-                            <Input placeholder="Ví dụ: Chồng, Vợ..." />
+                        <Form.Item name="assetId" label="Liên quan đến tài sản (Không bắt buộc)">
+                            <Select options={assetOptions} placeholder="Chọn tài sản..." allowClear showSearch />
                         </Form.Item>
-                        <Form.Item name="date" label="Ngày">
+                        <Form.Item name="expenseDate" label="Ngày giao dịch" rules={[{ required: true }]}>
                             <DatePicker style={{ width: '100%' }} />
                         </Form.Item>
-                        <Form.Item name="description" label="Ghi chú">
+                        <Form.Item name="note" label="Ghi chú">
                             <Input.TextArea autoSize />
                         </Form.Item>
                     </>
                 );
             case 'create_asset':
+            case 'update_asset':
                 return (
                     <>
                         <Form.Item name="name" label="Tên tài sản" rules={[{ required: true }]}>
                             <Input />
                         </Form.Item>
-                        <Form.Item name="purchase_price" label="Giá mua">
-                            <InputNumber style={{ width: '100%' }} addonAfter="VND" />
+                        <Form.Item name="categoryId" label="Loại tài sản">
+                            <Select
+                                options={categories
+                                    .filter(c => c.type === 'ASSET')
+                                    .map(c => ({ label: c.name, value: c.id }))
+                                }
+                                placeholder="Chọn loại tài sản..."
+                                showSearch
+                            />
                         </Form.Item>
-                        <Form.Item name="purchase_date" label="Ngày mua">
-                            <Input placeholder="YYYY-MM-DD" />
+                        {intent === 'create_asset' && (
+                            <Form.Item name="purchasePrice" label="Giá mua">
+                                <InputNumber style={{ width: '100%' }} addonAfter="VND" />
+                            </Form.Item>
+                        )}
+                        <Form.Item name="purchaseDate" label="Ngày mua/cập nhật">
+                            <DatePicker style={{ width: '100%' }} />
                         </Form.Item>
-                        <Form.Item name="owner" label="Người sở hữu">
-                            <Input />
+                        <Form.Item name="ownerId" label="Người đứng tên (Không bắt buộc)">
+                            <Select options={userOptions} placeholder="Chọn thành viên..." allowClear showSearch />
+                        </Form.Item>
+                        <Form.Item name="usedById" label="Người sử dụng (Không bắt buộc)">
+                            <Select options={userOptions} placeholder="Chọn thành viên..." allowClear showSearch />
+                        </Form.Item>
+                        <Form.Item name="description" label="Ghi chú/Mô tả">
+                            <Input.TextArea autoSize />
                         </Form.Item>
                     </>
                 );
