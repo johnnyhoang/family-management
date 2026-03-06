@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../src/app.module';
 import { INestApplication } from '@nestjs/common';
 
@@ -10,6 +11,12 @@ async function getApp(): Promise<INestApplication> {
     cachedApp = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
     });
+
+    cachedApp.useGlobalPipes(new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }));
 
     cachedApp.enableCors({
       origin: true,

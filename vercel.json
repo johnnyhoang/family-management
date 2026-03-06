@@ -2,6 +2,16 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "web/dist",
+  "functions": {
+    "server/api/index.ts": {
+      "includeFiles": [
+        "server/dist/i18n/**/*",
+        "server/dist/migrations/**/*",
+        "server/src/i18n/**/*"
+      ],
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     {
       "source": "/api/v1/:path*",

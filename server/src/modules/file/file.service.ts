@@ -10,10 +10,23 @@ export class FileService {
   private bucketName: string;
 
   constructor(private configService: ConfigService) {
-    this.storage = new Storage({
-      projectId: this.configService.get<string>('GCS_PROJECT_ID')!,
-      keyFilename: this.configService.get<string>('GCS_KEY_FILE')!,
-    });
+    const keyJson = this.configService.get<string>('GCS_KEY_JSON');
+    const keyFilename = this.configService.get<string>('GCS_KEY_FILE');
+    const projectId = this.configService.get<string>('GCS_PROJECT_ID');
+
+    const options: any = { projectId };
+    
+    if (keyJson) {
+      try {
+        options.credentials = JSON.parse(keyJson);
+      } catch (e) {
+        console.error('Failed to parse GCS_KEY_JSON:', e);
+      }
+    } else if (keyFilename) {
+      options.keyFilename = keyFilename;
+    }
+
+    this.storage = new Storage(options);
     this.bucketName = this.configService.get<string>('GCS_BUCKET')!;
   }
 
