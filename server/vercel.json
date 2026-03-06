@@ -3,7 +3,9 @@
   "outputDirectory": "dist",
   "functions": {
     "api/index.ts": {
-      "includeFiles": "src/i18n/**"
+      "includeFiles": "src/i18n/**",
+      "maxDuration": 30,
+      "memory": 1024
     }
   },
   "rewrites": [

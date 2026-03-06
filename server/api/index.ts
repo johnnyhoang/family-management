@@ -49,11 +49,15 @@ export default async (req: any, res: any) => {
   if (req.url.endsWith('/api/v1/diagnostic')) {
     return res.status(200).json({
       status: 'entry_point_ok',
+      initialized: !!cachedApp,
       cwd: process.cwd(),
+      dirname: __dirname,
+      node: process.version,
       env: {
         NODE_ENV: process.env.NODE_ENV,
         VERCEL: process.env.VERCEL,
         DB_URL_SET: !!process.env.DATABASE_URL,
+        REDIS_ENABLED: process.env.REDIS_ENABLED,
       }
     });
   }
