@@ -62,12 +62,16 @@ import { ScheduleModule } from '@nestjs/schedule';
     I18nModule.forRoot({
       fallbackLanguage: 'vi',
       loaderOptions: {
-        path: path.join(
-          process.cwd(),
-          // Vercel deployment points root to 'server' folder
-          process.env.VERCEL ? '' : (process.cwd().endsWith('server') ? '' : 'server'),
-          process.env.NODE_ENV === 'production' ? 'dist/i18n' : 'src/i18n',
-        ),
+        path: (() => {
+          const basePath = process.cwd();
+          const isProd = process.env.NODE_ENV === 'production';
+          // Vercel might have different CWD based on root settings
+          const subDir = process.env.VERCEL ? '' : (basePath.endsWith('server') ? '' : 'server');
+          const i18nPath = isProd ? 'dist/i18n' : 'src/i18n';
+          const fullPath = path.join(basePath, subDir, i18nPath);
+          console.log(`I18N_PATH_RESOLVED: ${fullPath}`);
+          return fullPath;
+        })(),
         watch: process.env.NODE_ENV !== 'production',
       },
       resolvers: [
