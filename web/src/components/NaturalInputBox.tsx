@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Button, Card, Typography, Space, message, Tag, Popover, List, Tooltip } from 'antd';
-import { SendOutlined, AudioOutlined, MutedOutlined, HistoryOutlined, RedoOutlined } from '@ant-design/icons';
+import { SendOutlined, AudioOutlined, MutedOutlined, HistoryOutlined, RedoOutlined, QrcodeOutlined } from '@ant-design/icons';
 import api from '../api/client';
 import { naturalInputApi } from '../api/natural-input';
 import type { NaturalInputHistory } from '../api/natural-input';
 import { ParsedPreviewModal } from './ParsedPreviewModal';
+import { QRScannerModal } from './QRScannerModal';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -18,6 +19,7 @@ export const NaturalInputBox: React.FC = () => {
     const [showModal, setShowModal] = useState(false);
     const [history, setHistory] = useState<NaturalInputHistory[]>([]);
     const [showHistory, setShowHistory] = useState(false);
+    const [showQRScanner, setShowQRScanner] = useState(false);
 
     // Web Speech API
     const [recognition, setRecognition] = useState<any>(null);
@@ -103,6 +105,12 @@ export const NaturalInputBox: React.FC = () => {
         setInputValue(text);
         setShowHistory(false);
         message.info('Đã tải lại tin nhắn!');
+    };
+
+    const handleQRResult = (result: string) => {
+        setInputValue((prev) => (prev ? `${prev} ${result}` : result));
+        setShowQRScanner(false);
+        message.success('Đã quét xong mã QR!');
     };
 
     const historyContent = (
@@ -206,6 +214,12 @@ export const NaturalInputBox: React.FC = () => {
                             onClick={toggleListening}
                             title={isListening ? 'Dừng nói' : 'Nhập bằng giọng nói'}
                         />
+                        <Button
+                            shape="circle"
+                            icon={<QrcodeOutlined />}
+                            onClick={() => setShowQRScanner(true)}
+                            title="Quét mã QR"
+                        />
                         <Popover
                             content={historyContent}
                             title="Lịch sử nhập liệu"
@@ -238,6 +252,11 @@ export const NaturalInputBox: React.FC = () => {
                 onConfirm={handleConfirm}
                 parsedData={parsedResult}
                 loading={loading}
+            />
+            <QRScannerModal
+                visible={showQRScanner}
+                onCancel={() => setShowQRScanner(false)}
+                onResult={handleQRResult}
             />
         </Card>
     );
