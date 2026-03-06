@@ -136,14 +136,20 @@ export const AssetList = () => {
     ];
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 font-display">Quản lý tài sản</h1>
-                    <p className="text-slate-500">Theo dõi và quản lý tài sản trong gia đình</p>
+                    <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">Quản lý tài sản</h1>
+                    <p className="text-sm text-slate-500">Theo dõi và quản lý tài sản trong gia đình</p>
                 </div>
-                <Space>
-                    <Button icon={<Download size={18} />} onClick={handleExport}>Xuất CSV</Button>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <Button
+                        icon={<Download size={18} />}
+                        onClick={handleExport}
+                        className="flex-1 sm:flex-none"
+                    >
+                        Xuất CSV
+                    </Button>
                     <Button
                         type="primary"
                         icon={<Plus size={18} />}
@@ -152,40 +158,50 @@ export const AssetList = () => {
                             form.resetFields();
                             setIsModalOpen(true);
                         }}
+                        className="flex-1 sm:flex-none"
                     >
                         Thêm tài sản
                     </Button>
-                </Space>
+                </div>
             </div>
 
-            <div className="glass-card p-6">
-                <div className="mb-4 flex gap-4">
+            <div className="glass-card p-4 lg:p-6 overflow-hidden">
+                <div className="mb-4 flex flex-col sm:flex-row gap-3">
                     <Input
                         placeholder="Tìm kiếm tài sản..."
                         prefix={<Search size={16} className="text-slate-400" />}
-                        className="max-w-xs"
+                        className="w-full sm:max-w-xs"
                         onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                     />
                     <Select
                         placeholder="Loại trạng thái"
-                        className="w-40"
+                        className="w-full sm:w-40"
                         allowClear
                         onChange={(val) => setFilters({ ...filters, status: val })}
                         options={[
                             { value: 'ACTIVE', label: 'Hoạt động' },
                             { value: 'BROKEN', label: 'Hỏng' },
                             { value: 'SOLD', label: 'Đã bán' },
+                            { value: 'LOST', label: 'Mất' },
                         ]}
                     />
                 </div>
 
-                <Table
-                    columns={columns}
-                    dataSource={assets}
-                    loading={isLoading}
-                    rowKey="id"
-                    pagination={{ pageSize: 10 }}
-                />
+                <div className="overflow-x-auto">
+                    <Table
+                        columns={columns}
+                        dataSource={assets}
+                        loading={isLoading}
+                        rowKey="id"
+                        pagination={{
+                            pageSize: 10,
+                            size: 'small',
+                            showSizeChanger: false
+                        }}
+                        scroll={{ x: 800 }}
+                        size={window.innerWidth < 768 ? 'small' : 'middle'}
+                    />
+                </div>
             </div>
 
             <Modal

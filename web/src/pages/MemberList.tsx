@@ -110,28 +110,37 @@ export const MemberList = () => {
     ];
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 font-display">Thành viên gia đình</h1>
-                    <p className="text-slate-500">Quản lý những người có quyền truy cập vào tài sản gia đình</p>
+                    <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">Thành viên gia đình</h1>
+                    <p className="text-sm text-slate-500">Quản lý những người có quyền truy cập vào tài sản gia đình</p>
                 </div>
                 <Button
                     type="primary"
                     icon={<UserPlus size={18} />}
                     onClick={() => setIsInviteModalOpen(true)}
+                    className="w-full sm:w-auto"
                 >
                     Mời thành viên
                 </Button>
             </div>
 
-            <div className="glass-card p-6">
-                <Table
-                    columns={columns}
-                    dataSource={members}
-                    loading={isLoading}
-                    rowKey="id"
-                />
+            <div className="glass-card p-4 lg:p-6 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <Table
+                        columns={columns}
+                        dataSource={members}
+                        loading={isLoading}
+                        rowKey="id"
+                        scroll={{ x: 600 }}
+                        size={window.innerWidth < 768 ? 'small' : 'middle'}
+                        pagination={{
+                            size: 'small',
+                            showSizeChanger: false
+                        }}
+                    />
+                </div>
             </div>
 
             <Modal

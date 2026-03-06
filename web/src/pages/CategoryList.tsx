@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Input, Space, message } from 'antd';
+import { Table, Button, Modal, Form, Input, Space, message, Select, Tag } from 'antd';
 import { Plus, Edit2, Trash2, FolderTree } from 'lucide-react';
 import { categoryApi } from '../api/category';
 import type { Category } from '../api/category';
@@ -58,8 +58,19 @@ export const CategoryList = () => {
             ),
         },
         {
+            title: 'Loại',
+            dataIndex: 'type',
+            key: 'type',
+            render: (type: string) => (
+                <Tag color={type === 'ASSET' ? 'blue' : 'orange'}>
+                    {type === 'ASSET' ? 'Tài sản' : 'Chi phí'}
+                </Tag>
+            ),
+        },
+        {
             title: 'Thao tác',
             key: 'action',
+            width: 100,
             render: (_: any, record: Category) => (
                 <Space size="middle">
                     <Button
@@ -89,11 +100,11 @@ export const CategoryList = () => {
     ];
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 font-display">Danh mục</h1>
-                    <p className="text-slate-500">Quản lý các loại tài sản và chi phí</p>
+                    <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">Danh mục</h1>
+                    <p className="text-sm text-slate-500">Quản lý các loại tài sản và chi phí</p>
                 </div>
                 <Button
                     type="primary"
@@ -103,19 +114,24 @@ export const CategoryList = () => {
                         form.resetFields();
                         setIsModalOpen(true);
                     }}
+                    className="w-full sm:w-auto"
                 >
                     Thêm danh mục
                 </Button>
             </div>
 
-            <div className="glass-card p-6">
-                <Table
-                    columns={columns}
-                    dataSource={categories}
-                    loading={isLoading}
-                    rowKey="id"
-                    pagination={false}
-                />
+            <div className="glass-card p-4 lg:p-6 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <Table
+                        columns={columns}
+                        dataSource={categories}
+                        loading={isLoading}
+                        rowKey="id"
+                        pagination={false}
+                        scroll={{ x: 500 }}
+                        size={window.innerWidth < 768 ? 'small' : 'middle'}
+                    />
+                </div>
             </div>
 
             <Modal
@@ -143,6 +159,17 @@ export const CategoryList = () => {
                         rules={[{ required: true, message: 'Vui lòng nhập tên danh mục' }]}
                     >
                         <Input placeholder="Ví dụ: Đồ điện tử, Tiền điện, ..." />
+                    </Form.Item>
+                    <Form.Item
+                        name="type"
+                        label="Loại danh mục"
+                        rules={[{ required: true, message: 'Vui lòng chọn loại danh mục' }]}
+                        initialValue="EXPENSE"
+                    >
+                        <Select options={[
+                            { value: 'ASSET', label: 'Tài sản' },
+                            { value: 'EXPENSE', label: 'Chi phí' },
+                        ]} />
                     </Form.Item>
                 </Form>
             </Modal>

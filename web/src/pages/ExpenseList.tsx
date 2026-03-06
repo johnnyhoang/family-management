@@ -1,17 +1,22 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Input, Select, InputNumber, DatePicker, Space, Tag, message, Switch, Row, Col } from 'antd';
-import { Plus, Download, Trash2, Wallet } from 'lucide-react';
+import { Table, Button, Modal, Form, Input, Select, InputNumber, DatePicker, Tag, message, Switch, Row, Col, Divider, Radio } from 'antd';
+import { Plus, Download, Trash2, Wallet, PlusCircle } from 'lucide-react';
 import { expenseApi } from '../api/expense';
 import type { Expense } from '../api/expense';
 import { assetApi } from '../api/asset';
+import { categoryApi } from '../api/category';
 import dayjs from 'dayjs';
 
 export const ExpenseList = () => {
     const queryClient = useQueryClient();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [form] = Form.useForm();
-    const [filters, setFilters] = useState<any>({});
+    const [filters, setFilters] = useState<any>({ direction: 'EXPENSE' });
+
+    // Quick add category state
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const inputRef = useRef<any>(null);
 
     const { data: expenses, isLoading } = useQuery({
         queryKey: ['expenses', filters],
@@ -23,13 +28,27 @@ export const ExpenseList = () => {
         queryFn: () => assetApi.findAll().then(res => res.data),
     });
 
+    const { data: categories } = useQuery({
+        queryKey: ['categories'],
+        queryFn: () => categoryApi.findAll().then(res => res.data),
+    });
+
     const createMutation = useMutation({
         mutationFn: (data: Partial<Expense>) => expenseApi.create(data),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['expenses'] });
-            message.success('Chi phí đã được ghi nhận');
+            message.success('Giao dịch đã được ghi nhận');
             setIsModalOpen(false);
             form.resetFields();
+        },
+    });
+
+    const addCategoryMutation = useMutation({
+        mutationFn: (name: string) => categoryApi.create({ name, type: filters.direction || 'EXPENSE' }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['categories'] });
+            message.success('Đã thêm danh mục mới');
+            setNewCategoryName('');
         },
     });
 
@@ -47,12 +66,23 @@ export const ExpenseList = () => {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `expenses-${dayjs().format('YYYY-MM-DD')}.csv`);
+            link.setAttribute('download', `transactions-${dayjs().format('YYYY-MM-DD')}.csv`);
             document.body.appendChild(link);
             link.click();
             link.remove();
         } catch (error) {
             message.error('Lỗi khi xuất dữ liệu');
+        }
+    };
+
+    const onNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setNewCategoryName(event.target.value);
+    };
+
+    const addItem = (e: React.MouseEvent<HTMLButtonElement | HTMLAnchorElement>) => {
+        e.preventDefault();
+        if (newCategoryName) {
+            addCategoryMutation.mutate(newCategoryName);
         }
     };
 
@@ -67,16 +97,25 @@ export const ExpenseList = () => {
             title: 'Số tiền',
             dataIndex: 'amount',
             key: 'amount',
-            render: (val: number) => <span className="font-bold text-slate-900">{val?.toLocaleString()} VND</span>,
+            render: (val: number, record: Expense) => {
+                const isIncome = record.category?.type === 'INCOME';
+                return (
+                    <span className={`font-bold ${isIncome ? 'text-green-600' : 'text-red-500'}`}>
+                        {isIncome ? '+' : '-'}{Number(val)?.toLocaleString()} VND
+                    </span>
+                );
+            },
         },
         {
-            title: 'Loại chi phí',
-            dataIndex: 'type',
-            key: 'type',
-            render: (type: string) => <Tag color="orange">{type}</Tag>,
+            title: 'Danh mục',
+            dataIndex: ['category', 'name'],
+            key: 'category',
+            render: (name: string, record: Expense) => (
+                <Tag color={record.category?.type === 'INCOME' ? 'green' : 'orange'}>{name}</Tag>
+            ),
         },
         {
-            title: 'Tài sản liên quan',
+            title: 'Tài sản',
             dataIndex: ['asset', 'name'],
             key: 'asset',
             render: (name: string) => name || '-',
@@ -90,12 +129,6 @@ export const ExpenseList = () => {
             ),
         },
         {
-            title: 'Ghi chú',
-            dataIndex: 'note',
-            key: 'note',
-            ellipsis: true,
-        },
-        {
             title: 'Thao tác',
             key: 'action',
             render: (_: any, record: Expense) => (
@@ -106,7 +139,7 @@ export const ExpenseList = () => {
                     onClick={() => {
                         Modal.confirm({
                             title: 'Xác nhận xóa',
-                            content: `Mục chi phí này sẽ bị xóa vĩnh viễn`,
+                            content: `Bản ghi này sẽ bị xóa vĩnh viễn`,
                             onOk: () => deleteMutation.mutate(record.id),
                         });
                     }}
@@ -116,29 +149,50 @@ export const ExpenseList = () => {
     ];
 
     return (
-        <div className="space-y-6">
-            <div className="flex justify-between items-center">
+        <div className="space-y-4 lg:space-y-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-slate-900 font-display">Chi phí gia đình</h1>
-                    <p className="text-slate-500">Quản lý các khoản chi tiêu và hóa đơn định kỳ</p>
+                    <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">
+                        Quản lý Thu chi
+                    </h1>
+                    <p className="text-sm text-slate-500">Theo dõi dòng tiền thu vào và chi ra trong gia đình</p>
                 </div>
-                <Space>
-                    <Button icon={<Download size={18} />} onClick={handleExport}>Xuất CSV</Button>
+                <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                    <Button
+                        icon={<Download size={18} />}
+                        onClick={handleExport}
+                        className="flex-1 sm:flex-none"
+                    >
+                        Xuất CSV
+                    </Button>
                     <Button
                         type="primary"
                         icon={<Plus size={18} />}
                         onClick={() => setIsModalOpen(true)}
+                        className="flex-1 sm:flex-none"
                     >
-                        Ghi nhận chi phí
+                        Ghi nhận
                     </Button>
-                </Space>
+                </div>
             </div>
 
-            <div className="glass-card p-6">
-                <Row gutter={16} className="mb-4">
-                    <Col span={6}>
+            <div className="glass-card p-4 lg:p-6 overflow-hidden">
+                <div className="mb-6 flex flex-col lg:flex-row gap-4">
+                    <Radio.Group
+                        value={filters.direction || 'EXPENSE'}
+                        onChange={(e) => setFilters({ ...filters, direction: e.target.value })}
+                        buttonStyle="solid"
+                        className="flex-shrink-0"
+                    >
+                        <Radio.Button value="EXPENSE" className="px-6">Chi ra (-)</Radio.Button>
+                        <Radio.Button value="INCOME" className="px-6">Thu vào (+)</Radio.Button>
+                        <Radio.Button value={undefined} className="px-6">Tất cả</Radio.Button>
+                    </Radio.Group>
+
+                    <div className="flex flex-1 flex-col sm:flex-row gap-3">
                         <DatePicker.RangePicker
-                            className="w-full"
+                            className="flex-1"
+                            placeholder={['Từ ngày', 'Đến ngày']}
                             onChange={(dates) => {
                                 setFilters({
                                     ...filters,
@@ -147,34 +201,41 @@ export const ExpenseList = () => {
                                 });
                             }}
                         />
-                    </Col>
-                    <Col span={4}>
                         <Select
                             placeholder="Tài sản"
-                            className="w-full"
+                            className="w-full sm:w-48"
                             allowClear
                             onChange={(val) => setFilters({ ...filters, assetId: val })}
                             options={assets?.map(a => ({ value: a.id, label: a.name }))}
                         />
-                    </Col>
-                </Row>
+                    </div>
+                </div>
 
-                <Table
-                    columns={columns}
-                    dataSource={expenses}
-                    loading={isLoading}
-                    rowKey="id"
-                    pagination={{ pageSize: 10 }}
-                />
+                <div className="overflow-x-auto">
+                    <Table
+                        columns={columns}
+                        dataSource={expenses}
+                        loading={isLoading}
+                        rowKey="id"
+                        pagination={{
+                            pageSize: 10,
+                            size: 'small',
+                            showSizeChanger: false
+                        }}
+                        scroll={{ x: 800 }}
+                        size={window.innerWidth < 768 ? 'small' : 'middle'}
+                    />
+                </div>
             </div>
 
             <Modal
-                title="Ghi nhận chi phí mới"
+                title={filters.direction === 'INCOME' ? "Ghi nhận khoản thu" : "Ghi nhận chi phí"}
                 open={isModalOpen}
                 onCancel={() => setIsModalOpen(false)}
                 onOk={() => form.submit()}
                 confirmLoading={createMutation.isPending}
                 width={500}
+                className="rounded-2xl"
             >
                 <Form
                     form={form}
@@ -189,24 +250,43 @@ export const ExpenseList = () => {
                     className="mt-4"
                 >
                     <Form.Item name="amount" label="Số tiền (VND)" rules={[{ required: true }]}>
-                        <InputNumber className="w-full" prefix={<Wallet size={16} className="text-slate-400 mr-2" />} />
+                        <InputNumber
+                            className="w-full h-12 text-lg font-bold"
+                            formatter={val => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                            parser={val => val!.replace(/\$\s?|(,*)/g, '')}
+                            prefix={<Wallet size={18} className="text-slate-400 mr-2" />}
+                        />
                     </Form.Item>
 
                     <Row gutter={16}>
                         <Col span={12}>
-                            <Form.Item name="type" label="Loại chi phí" rules={[{ required: true }]}>
-                                <Select options={[
-                                    { value: 'ELECTRICITY', label: 'Điện' },
-                                    { value: 'WATER', label: 'Nước' },
-                                    { value: 'INTERNET', label: 'Internet' },
-                                    { value: 'MAINTENANCE', label: 'Bảo trì' },
-                                    { value: 'REPAIR', label: 'Sửa chữa' },
-                                    { value: 'OTHER', label: 'Khác' },
-                                ]} />
+                            <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
+                                <Select
+                                    placeholder="Chọn danh mục"
+                                    options={categories?.filter(c => !filters.direction || c.type === filters.direction).map(c => ({ value: c.id, label: c.name }))}
+                                    dropdownRender={(menu) => (
+                                        <>
+                                            {menu}
+                                            <Divider style={{ margin: '8px 0' }} />
+                                            <Space style={{ padding: '0 8px 4px' }}>
+                                                <Input
+                                                    placeholder="Thêm mới..."
+                                                    ref={inputRef}
+                                                    value={newCategoryName}
+                                                    onChange={onNameChange}
+                                                    onKeyDown={(e) => e.stopPropagation()}
+                                                />
+                                                <Button type="text" icon={<PlusCircle size={16} />} onClick={addItem} loading={addCategoryMutation.isPending}>
+                                                    Thêm
+                                                </Button>
+                                            </Space>
+                                        </>
+                                    )}
+                                />
                             </Form.Item>
                         </Col>
                         <Col span={12}>
-                            <Form.Item name="expenseDate" label="Ngày chi" initialValue={dayjs()}>
+                            <Form.Item name="expenseDate" label="Ngày thực hiện" initialValue={dayjs()}>
                                 <DatePicker className="w-full" />
                             </Form.Item>
                         </Col>
@@ -216,30 +296,32 @@ export const ExpenseList = () => {
                         <Select allowClear options={assets?.map(a => ({ value: a.id, label: a.name }))} />
                     </Form.Item>
 
-                    <div className="flex items-center gap-4 mb-4">
-                        <span className="text-slate-600">Định kỳ</span>
-                        <Form.Item name="isRecurring" valuePropName="checked" noStyle>
-                            <Switch />
-                        </Form.Item>
-                        <Form.Item
-                            noStyle
-                            shouldUpdate={(prev, curr) => prev.isRecurring !== curr.isRecurring}
-                        >
-                            {({ getFieldValue }) => getFieldValue('isRecurring') ? (
-                                <Form.Item name="recurringCycle" noStyle>
-                                    <Select className="flex-1" options={[
-                                        { value: 'DAILY', label: 'Hàng ngày' },
-                                        { value: 'WEEKLY', label: 'Hàng tuần' },
-                                        { value: 'MONTHLY', label: 'Hàng tháng' },
-                                        { value: 'YEARLY', label: 'Hàng năm' },
-                                    ]} />
-                                </Form.Item>
-                            ) : null}
-                        </Form.Item>
+                    <div className="bg-slate-50 p-4 rounded-xl mb-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Switch size="small" onChange={(checked) => form.setFieldValue('isRecurring', checked)} />
+                                <span className="text-sm font-medium text-slate-600">Định kỳ / Lặp lại</span>
+                            </div>
+                            <Form.Item
+                                noStyle
+                                shouldUpdate={(prev, curr) => prev.isRecurring !== curr.isRecurring}
+                            >
+                                {({ getFieldValue }) => getFieldValue('isRecurring') ? (
+                                    <Form.Item name="recurringCycle" noStyle initialValue="MONTHLY">
+                                        <Select className="w-32" size="small" options={[
+                                            { value: 'DAILY', label: 'Hằng ngày' },
+                                            { value: 'WEEKLY', label: 'Hằng tuần' },
+                                            { value: 'MONTHLY', label: 'Hằng tháng' },
+                                            { value: 'YEARLY', label: 'Hằng năm' },
+                                        ]} />
+                                    </Form.Item>
+                                ) : null}
+                            </Form.Item>
+                        </div>
                     </div>
 
                     <Form.Item name="note" label="Ghi chú">
-                        <Input.TextArea rows={3} />
+                        <Input.TextArea rows={2} placeholder="Nhập ghi chú thêm..." />
                     </Form.Item>
                 </Form>
             </Modal>

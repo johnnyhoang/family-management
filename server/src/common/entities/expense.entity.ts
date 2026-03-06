@@ -1,22 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Asset } from './asset.entity';
-
-export enum ExpenseType {
-  PURCHASE = 'PURCHASE',
-  MAINTENANCE = 'MAINTENANCE',
-  REPAIR = 'REPAIR',
-  ELECTRICITY = 'ELECTRICITY',
-  WATER = 'WATER',
-  INTERNET = 'INTERNET',
-  GAS = 'GAS',
-  RENT = 'RENT',
-  TAX = 'TAX',
-  INSURANCE = 'INSURANCE',
-  SUBSCRIPTION = 'SUBSCRIPTION',
-  DEPRECIATION = 'DEPRECIATION',
-  OTHER = 'OTHER',
-}
+import { Category } from './category.entity';
 
 export enum RecurringCycle {
   DAILY = 'DAILY',
@@ -37,12 +22,12 @@ export class Expense extends BaseEntity {
   @JoinColumn({ name: 'assetId' })
   asset: Asset;
 
-  @Column({
-    type: 'enum',
-    enum: ExpenseType,
-    default: ExpenseType.OTHER,
-  })
-  type: ExpenseType;
+  @Column()
+  categoryId: string;
+
+  @ManyToOne(() => Category)
+  @JoinColumn({ name: 'categoryId' })
+  category: Category;
 
   @Column({ type: 'decimal', precision: 15, scale: 2 })
   amount: number;

@@ -13,14 +13,19 @@ export class ExpenseService {
   async findAll(familyId: string, filters: any = {}) {
     const query = this.expenseRepository.createQueryBuilder('expense')
       .leftJoinAndSelect('expense.asset', 'asset')
+      .leftJoinAndSelect('expense.category', 'category')
       .where('expense.familyId = :familyId', { familyId });
 
     if (filters.assetId) {
       query.andWhere('expense.assetId = :assetId', { assetId: filters.assetId });
     }
 
-    if (filters.type) {
-      query.andWhere('expense.type = :type', { type: filters.type });
+    if (filters.categoryId) {
+      query.andWhere('expense.categoryId = :categoryId', { categoryId: filters.categoryId });
+    }
+
+    if (filters.direction) {
+      query.andWhere('category.type = :direction', { direction: filters.direction });
     }
 
     if (filters.startDate && filters.endDate) {
@@ -57,7 +62,7 @@ export class ExpenseService {
   async findOne(id: string, familyId: string) {
     return this.expenseRepository.findOne({
       where: { id, familyId },
-      relations: ['asset'],
+      relations: ['asset', 'category'],
     });
   }
 
@@ -78,7 +83,7 @@ export class ExpenseService {
       columns: [
         { key: 'id', header: 'ID' },
         { key: 'amount', header: 'Số tiền' },
-        { key: 'type', header: 'Loại chi phí' },
+        { key: ['category', 'name'], header: 'Danh mục' },
         { key: 'description', header: 'Mô tả' },
         { key: 'expenseDate', header: 'Ngày chi' },
         { key: 'assetId', header: 'ID Tài sản' },

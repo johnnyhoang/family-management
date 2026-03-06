@@ -4,6 +4,7 @@ import { BaseEntity } from './base.entity';
 export enum CategoryType {
   ASSET = 'ASSET',
   EXPENSE = 'EXPENSE',
+  INCOME = 'INCOME',
 }
 
 @Entity('categories')

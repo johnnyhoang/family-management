@@ -9,6 +9,7 @@ import { MemberList } from './pages/MemberList';
 import { CategoryList } from './pages/CategoryList';
 import { Login } from './pages/Login';
 import { LoginSuccess } from './pages/LoginSuccess';
+import { Settings } from './pages/Settings';
 import { AuthGuard } from './components/auth/AuthGuard';
 import './index.css';
 import './i18n';
@@ -29,8 +30,24 @@ function App() {
         theme={{
           token: {
             colorPrimary: '#0ea5e9',
-            borderRadius: 8,
+            borderRadius: 12,
+            fontFamily: 'Inter, system-ui, sans-serif',
+            colorBgContainer: '#ffffff',
+            colorTextBase: '#1e293b',
           },
+          components: {
+            Button: {
+              borderRadius: 10,
+              controlHeight: 40,
+              fontWeight: 600,
+            },
+            Card: {
+              borderRadiusLG: 16,
+            },
+            Table: {
+              borderRadiusLG: 16,
+            }
+          }
         }}
       >
         <BrowserRouter>
@@ -45,7 +62,7 @@ function App() {
                 <Route path="expenses" element={<ExpenseList />} />
                 <Route path="categories" element={<CategoryList />} />
                 <Route path="members" element={<MemberList />} />
-                <Route path="settings" element={<div>Settings Page</div>} />
+                <Route path="settings" element={<Settings />} />
               </Route>
             </Route>
           </Routes>
