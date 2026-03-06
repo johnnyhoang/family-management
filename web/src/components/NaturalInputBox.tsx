@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Button, Card, Typography, Space, message, Tag } from 'antd';
 import { SendOutlined, AudioOutlined, MutedOutlined } from '@ant-design/icons';
-import axios from 'axios';
+import api from '../api/client';
 import { ParsedPreviewModal } from './ParsedPreviewModal';
 
 const { TextArea } = Input;
@@ -57,11 +57,9 @@ export const NaturalInputBox: React.FC = () => {
 
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
-            const response = await axios.post(
-                '/api/v1/natural-input/parse',
-                { message: inputValue },
-                { headers: { Authorization: `Bearer ${token}` } }
+            const response = await api.post(
+                '/natural-input/parse',
+                { message: inputValue }
             );
 
             if (response.data.success && response.data.intent !== 'unknown') {
@@ -84,20 +82,17 @@ export const NaturalInputBox: React.FC = () => {
     const handleConfirm = async (finalData: any) => {
         setLoading(true);
         try {
-            const token = localStorage.getItem('token');
             // Mapping intent to actual API endpoints
             let endpoint = '';
             switch (finalData.intent) {
-                case 'create_expense': endpoint = '/api/v1/expenses'; break;
-                case 'create_income': endpoint = '/api/v1/income'; break; // Verify this endpoint
-                case 'create_asset': endpoint = '/api/v1/assets'; break;
-                case 'create_event': endpoint = '/api/v1/calendar'; break;
+                case 'create_expense': endpoint = '/expenses'; break;
+                case 'create_income': endpoint = '/income'; break;
+                case 'create_asset': endpoint = '/assets'; break;
+                case 'create_event': endpoint = '/calendar'; break;
                 default: message.error('Hành động chưa được hỗ trợ lưu tự động.'); return;
             }
 
-            await axios.post(endpoint, finalData.data, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.post(endpoint, finalData.data);
 
             message.success('Đã lưu thành công!');
             setShowModal(false);
