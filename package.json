@@ -3,14 +3,14 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "workspaces": [
+    "server",
+    "web"
+  ],
   "scripts": {
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix web\"",
-    "start:server": "npm run start:dev --prefix server",
-    "start:web": "npm run dev --prefix web",
-    "start": "concurrently \"npm run start:server\" \"npm run start:web\"",
-    "build": "npm run build --prefix server && npm run build --prefix web",
-    "install:all": "npm install && npm install --prefix server && npm install --prefix web",
-    "clean": "concurrently \"npm run clean --prefix server\" \"npm run clean --prefix web\""
+    "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w web\"",
+    "build": "npm run build -w server && npm run build -w web",
+    "clean": "concurrently \"npm run clean -w server\" \"npm run clean -w web\""
   },
   "keywords": [],
   "author": "",

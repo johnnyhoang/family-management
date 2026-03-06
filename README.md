@@ -6,18 +6,17 @@ A production-ready solution for managing family wealth and spending.
 
 ### 1. Prerequisites
 - Node.js 20+
-- MySQL Server
-- Redis (for BullMQ)
+- Supabase Account
+- Vercel Account
 
 ### 2. Setup
 ```bash
 # Install dependencies for the entire monorepo
 npm install
-npm run install:all
 
 # Configure environment
-cp server/.env.example server/.env
-# Update server/.env with your local DB and Redis credentials
+# Copy .env.example to server/.env and web/.env
+# Update with your Supabase and Vercel credentials
 ```
 
 ### 3. Development
@@ -32,8 +31,6 @@ npm run dev
 ## 📖 Documentation
 - **[Requirements & Specs](./REQUIREMENTS.md)**: Original detailed project specifications.
 - **[AI Handover & Technical Guide](./AI_HANDOVER.md)**: Technical architecture and extension guide.
-- **[Deployment & CI/CD Guide](./DEPLOYMENT.md)**: Google Cloud setup and automation.
-- **[Implementation Walkthrough](file:///C:/Users/hoa.hoang/.gemini/antigravity/brain/1038cf4c-e9c7-404d-aee0-38a9cc521d01/walkthrough.md)**: Details on what was built and verified.
 
 ## 🛠 Features
 - **Multi-tenancy**: Strict data isolation per family.
@@ -43,8 +40,10 @@ npm run dev
 - **Smart Notifications**: Automated warranty and maintenance reminders.
 - **Internationalization**: Full Vietnamese support (i18n ready).
 
-## 🐋 Deployment
-Dockerfiles are provided for both `server` and `web` services. The system is designed for **Google Cloud Run** and **Google Cloud SQL**.
+## ☁️ Deployment
+The system is optimized for **Vercel** (hosting) and **Supabase** (PostgreSQL database).
+- **Backend**: Deployed as Vercel Serverless Functions (NestJS).
+- **Frontend**: Deployed as a Vercel Static Site (React/Vite).
 
 ---
 *Built with NestJS, React, and TypeORM.*
