@@ -15,8 +15,9 @@ A production-ready solution for managing family wealth and spending.
 npm install
 
 # Configure environment
-# Copy .env.example to server/.env and web/.env
-# Update with your Supabase and Vercel credentials
+# 1. Server: Copy server/.env.example to server/.env
+# 2. Web: Copy web/.env.example to web/.env
+# Update both with your Supabase and Vercel credentials
 ```
 
 ### 3. Development
