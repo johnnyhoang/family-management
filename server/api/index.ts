@@ -1,69 +1,57 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
-import { ExpressAdapter } from '@nestjs/platform-express';
-import express from 'express';
+import { INestApplication } from '@nestjs/common';
 
-console.log('--- VERCEL_FUNCTION_LOADED ---');
+let cachedApp: INestApplication;
 
-let cachedHandler: any;
+async function getApp(): Promise<INestApplication> {
+  if (!cachedApp) {
+    console.log('--- NEST_BOOTSTRAP_START ---');
+    cachedApp = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn', 'log'],
+    });
 
-async function bootstrap() {
-  if (cachedHandler) return cachedHandler;
-  
-  console.log('--- BOOTSTRAP_START ---');
-  const expressApp = express();
-  
-  // Important for Passport OAuth behind proxies like Vercel
-  expressApp.set('trust proxy', 1);
+    cachedApp.enableCors({
+      origin: true,
+      credentials: true,
+    });
 
-  const nestApp = await NestFactory.create(
-    AppModule,
-    new ExpressAdapter(expressApp),
-    { logger: ['error', 'warn', 'log'] }
-  );
+    cachedApp.setGlobalPrefix('api/v1');
 
-  nestApp.enableCors({
-    origin: true,
-    credentials: true,
-  });
+    // Get the underlying express instance to set proxy trust
+    const expressInstance = cachedApp.getHttpAdapter().getInstance();
+    if (expressInstance && typeof expressInstance.set === 'function') {
+      expressInstance.set('trust proxy', 1);
+    }
 
-  nestApp.setGlobalPrefix('api/v1');
-  
-  await nestApp.init();
-  cachedHandler = expressApp;
-  console.log('--- BOOTSTRAP_COMPLETE ---');
-  return cachedHandler;
+    await cachedApp.init();
+    console.log('--- NEST_BOOTSTRAP_COMPLETE ---');
+  }
+  return cachedApp;
 }
 
 export default async (req: any, res: any) => {
   // Ultra-fast diagnostic path (No AppModule, No NestJS)
   if (req.url.includes('/api/v1/diagnostic')) {
-    console.log('DIAGNOSTIC_PATH_HIT');
     return res.status(200).json({
       status: 'ok',
       message: 'Vercel Function is alive!',
       timestamp: new Date().toISOString(),
       node: process.version,
-      cwd: process.cwd(),
-      env_sample: {
-        DATABASE_URL: !!process.env.DATABASE_URL,
-        NODE_ENV: process.env.NODE_ENV,
-        REDIS_ENABLED: process.env.REDIS_ENABLED,
-      }
     });
   }
 
   try {
-    const handler = await bootstrap();
-    return handler(req, res);
+    const app = await getApp();
+    const instance = app.getHttpAdapter().getInstance();
+    return instance(req, res);
   } catch (err: any) {
-    console.error('--- BOOTSTRAP_ERROR ---');
+    console.error('--- VERCEL_HANDLER_ERROR ---');
     console.error(err);
     return res.status(500).json({
       statusCode: 500,
-      message: 'NestJS Initialization Failed',
+      message: 'Server Initialization Failed',
       error: err.message,
-      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined
     });
   }
 };
