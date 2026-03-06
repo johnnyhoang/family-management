@@ -6,6 +6,9 @@ import { CategoryService } from '../category/category.service';
 import { UserService } from '../user/user.service';
 import { AssetService } from '../asset/asset.service';
 import { MoneyParserService } from './money-parser.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { NaturalInputHistory } from './entities/natural-input-history.entity';
 
 @Injectable()
 export class NaturalInputService {
@@ -17,6 +20,8 @@ export class NaturalInputService {
     private userService: UserService,
     private assetService: AssetService,
     private moneyParser: MoneyParserService,
+    @InjectRepository(NaturalInputHistory)
+    private historyRepository: Repository<NaturalInputHistory>,
   ) {
     const apiKey = this.configService.get<string>('OPENAI_API_KEY');
     this.openai = new OpenAI({
@@ -53,7 +58,76 @@ export class NaturalInputService {
       dayOfWeek: dayjs().format('dddd'),
     };
 
-    const systemPrompt = `
+    const result = await this.callOpenAIWithRetry(this.getSystemPrompt(context), normalizedMessage);
+
+    // 3. Save to history (if successful parse)
+    if (result.success) {
+      await this.historyRepository.save({
+        familyId,
+        userId: context.familyMembers.find(u => u.id === context.familyMembers[0].id)?.id, // Temporary fallback or need to pass userId
+        inputMessage: message,
+        intent: result.intent,
+        confidence: result.confidence,
+        resultData: result.data,
+      });
+    }
+
+    return result;
+  }
+
+  // Refactored to accept userId
+  async parseWithUser(message: string, familyId: string, userId: string) {
+    if (!this.configService.get('OPENAI_API_KEY')) {
+      return { success: false, reason: 'openai_api_key_missing' };
+    }
+
+    const normalizedMessage = this.moneyParser.normalizeText(message);
+
+    const [categories, users, assets] = await Promise.all([
+      this.categoryService.findAll(familyId),
+      this.userService.findAll(familyId),
+      this.assetService.findAll(familyId),
+    ]);
+
+    const context = {
+      categories: categories.map(c => ({ id: c.id, name: c.name, type: c.type })),
+      familyMembers: users.map(u => ({ 
+        id: u.id, 
+        name: u.fullName, 
+        aliases: u.otherNames ? u.otherNames.split(',').map(n => n.trim()) : [],
+        email: u.email 
+      })),
+      assets: assets.map(a => ({ id: a.id, name: a.name, category: a.category?.name })),
+      currentDate: dayjs().format('YYYY-MM-DD'),
+      currentTime: dayjs().format('HH:mm:ss'),
+      dayOfWeek: dayjs().format('dddd'),
+    };
+
+    const result = await this.callOpenAIWithRetry(this.getSystemPrompt(context), normalizedMessage);
+
+    await this.historyRepository.save({
+      familyId,
+      userId,
+      inputMessage: message,
+      intent: result.intent,
+      confidence: result.confidence,
+      resultData: result.data,
+    });
+
+    return result;
+  }
+
+  async getHistory(familyId: string, limit = 20) {
+    return this.historyRepository.find({
+      where: { familyId },
+      order: { createdAt: 'DESC' },
+      take: limit,
+      relations: ['user'],
+    });
+  }
+
+  private getSystemPrompt(context: any) {
+    return `
 You are an AI Natural Input Engine for a personal management app.
 Convert the user's Vietnamese natural language input into structured JSON.
 
@@ -136,8 +210,6 @@ Output: {
   }
 }
 `;
-
-    return this.callOpenAIWithRetry(systemPrompt, normalizedMessage);
   }
 
   private async callOpenAIWithRetry(systemPrompt: string, userMessage: string, retries = 1) {

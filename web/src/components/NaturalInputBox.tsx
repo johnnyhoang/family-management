@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Input, Button, Card, Typography, Space, message, Tag } from 'antd';
-import { SendOutlined, AudioOutlined, MutedOutlined } from '@ant-design/icons';
+import { Input, Button, Card, Typography, Space, message, Tag, Popover, List, Tooltip } from 'antd';
+import { SendOutlined, AudioOutlined, MutedOutlined, HistoryOutlined, RedoOutlined } from '@ant-design/icons';
 import api from '../api/client';
+import { naturalInputApi } from '../api/natural-input';
+import type { NaturalInputHistory } from '../api/natural-input';
 import { ParsedPreviewModal } from './ParsedPreviewModal';
+import dayjs from 'dayjs';
 
 const { TextArea } = Input;
 const { Title } = Typography;
@@ -13,6 +16,8 @@ export const NaturalInputBox: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [parsedResult, setParsedResult] = useState<any>(null);
     const [showModal, setShowModal] = useState(false);
+    const [history, setHistory] = useState<NaturalInputHistory[]>([]);
+    const [showHistory, setShowHistory] = useState(false);
 
     // Web Speech API
     const [recognition, setRecognition] = useState<any>(null);
@@ -49,6 +54,21 @@ export const NaturalInputBox: React.FC = () => {
         }
     };
 
+    const fetchHistory = async () => {
+        try {
+            const response = await naturalInputApi.getHistory();
+            setHistory(response.data);
+        } catch (error) {
+            console.error('Failed to fetch history:', error);
+        }
+    };
+
+    useEffect(() => {
+        if (showHistory) {
+            fetchHistory();
+        }
+    }, [showHistory]);
+
     const handleParse = async () => {
         if (!inputValue.trim()) {
             message.warning('Vui lòng nhập nội dung');
@@ -57,15 +77,12 @@ export const NaturalInputBox: React.FC = () => {
 
         setLoading(true);
         try {
-            const response = await api.post(
-                '/natural-input/parse',
-                { message: inputValue }
-            );
+            const response = await naturalInputApi.parse(inputValue);
 
             if (response.data.success && response.data.intent !== 'unknown') {
                 setParsedResult({
                     ...response.data,
-                    originalText: inputValue // Keep the original input for the note
+                    originalText: inputValue
                 });
                 setShowModal(true);
                 message.success('Đã phân tích xong!');
@@ -81,6 +98,53 @@ export const NaturalInputBox: React.FC = () => {
             setLoading(false);
         }
     };
+
+    const handleReuse = (text: string) => {
+        setInputValue(text);
+        setShowHistory(false);
+        message.info('Đã tải lại tin nhắn!');
+    };
+
+    const historyContent = (
+        <div style={{ width: 350, maxHeight: 400, overflowY: 'auto' }}>
+            <List
+                itemLayout="horizontal"
+                dataSource={history}
+                renderItem={(item) => (
+                    <List.Item
+                        actions={[
+                            <Tooltip title="Dùng lại">
+                                <Button
+                                    type="text"
+                                    icon={<RedoOutlined />}
+                                    onClick={() => handleReuse(item.inputMessage)}
+                                />
+                            </Tooltip>
+                        ]}
+                    >
+                        <List.Item.Meta
+                            title={
+                                <Space>
+                                    <Tag color={item.confidence > 0.8 ? 'green' : 'orange'}>
+                                        {Math.round(item.confidence * 100)}% Match
+                                    </Tag>
+                                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                                        {dayjs(item.createdAt).format('DD/MM HH:mm')}
+                                    </span>
+                                </Space>
+                            }
+                            description={
+                                <div style={{ color: '#1e293b', fontWeight: 500 }}>
+                                    {item.inputMessage}
+                                </div>
+                            }
+                        />
+                    </List.Item>
+                )}
+                locale={{ emptyText: 'Chưa có lịch sử nhập liệu' }}
+            />
+        </div>
+    );
 
     const handleConfirm = async (finalData: any) => {
         setLoading(true);
@@ -101,6 +165,7 @@ export const NaturalInputBox: React.FC = () => {
             message.success('Đã lưu thành công!');
             setShowModal(false);
             setInputValue('');
+            fetchHistory(); // Refresh history after successful save
         } catch (error) {
             console.error('Save error:', error);
             message.error('Lỗi khi lưu dữ liệu vào hệ thống');
@@ -141,6 +206,20 @@ export const NaturalInputBox: React.FC = () => {
                             onClick={toggleListening}
                             title={isListening ? 'Dừng nói' : 'Nhập bằng giọng nói'}
                         />
+                        <Popover
+                            content={historyContent}
+                            title="Lịch sử nhập liệu"
+                            trigger="click"
+                            open={showHistory}
+                            onOpenChange={setShowHistory}
+                            placement="bottomRight"
+                        >
+                            <Button
+                                shape="circle"
+                                icon={<HistoryOutlined />}
+                                title="Xem lịch sử"
+                            />
+                        </Popover>
                         <Button
                             type="primary"
                             shape="circle"
