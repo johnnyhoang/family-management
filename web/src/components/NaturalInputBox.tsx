@@ -196,16 +196,16 @@ export const NaturalInputBox: React.FC = () => {
                 <SendOutlined style={{ color: '#0ea5e9' }} />
                 Trợ lý Nhập liệu Thông minh <Tag color="gold">AI Powered</Tag>
             </Title>
-            <div style={{ position: 'relative' }}>
+            <div>
                 <TextArea
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="Bạn muốn thực hiện việc gì? Ví dụ: 'Nhận lương 25 triệu', 'HSBC 4 triệu cho chồng'..."
                     autoSize={{ minRows: 2, maxRows: 6 }}
-                    style={{ paddingRight: 90, borderRadius: 12, border: '1px solid #e2e8f0' }}
+                    style={{ borderRadius: 12, border: '1px solid #e2e8f0', marginBottom: 12 }}
                 />
-                <div style={{ position: 'absolute', right: 8, bottom: 8 }}>
-                    <Space>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space size="small">
                         <Button
                             type={isListening ? 'primary' : 'default'}
                             danger={isListening}
@@ -226,7 +226,7 @@ export const NaturalInputBox: React.FC = () => {
                             trigger="click"
                             open={showHistory}
                             onOpenChange={setShowHistory}
-                            placement="bottomRight"
+                            placement="bottomLeft"
                         >
                             <Button
                                 shape="circle"
@@ -234,15 +234,16 @@ export const NaturalInputBox: React.FC = () => {
                                 title="Xem lịch sử"
                             />
                         </Popover>
-                        <Button
-                            type="primary"
-                            shape="circle"
-                            icon={<SendOutlined />}
-                            loading={loading}
-                            onClick={handleParse}
-                            title="Gửi"
-                        />
                     </Space>
+                    <Button
+                        type="primary"
+                        icon={<SendOutlined />}
+                        loading={loading}
+                        onClick={handleParse}
+                        style={{ borderRadius: 20, paddingLeft: 20, paddingRight: 20 }}
+                    >
+                        Gửi AI
+                    </Button>
                 </div>
             </div>
 
