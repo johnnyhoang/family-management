@@ -7,6 +7,7 @@ export enum UserRole {
   FAMILY_ADMIN = 'FAMILY_ADMIN',
   MEMBER = 'MEMBER',
   RELATIVE = 'RELATIVE',
+  VIEWER = 'VIEWER',
 }
 
 @Entity('users')
@@ -14,7 +15,7 @@ export class User extends BaseEntity {
   @Column({ unique: true })
   email: string;
 
-  @Column()
+  @Column({ nullable: true })
   fullName: string;
 
   @Column({ nullable: true })

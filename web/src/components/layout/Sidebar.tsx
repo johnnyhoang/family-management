@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
     LayoutDashboard,
@@ -22,6 +22,12 @@ const navigation = [
 
 export const Sidebar = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        localStorage.removeItem('token');
+        navigate('/login');
+    };
 
     return (
         <aside className="w-64 glass-card h-screen fixed left-0 top-0 flex flex-col p-4">
@@ -46,7 +52,10 @@ export const Sidebar = () => {
                 ))}
             </nav>
 
-            <button className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 mt-auto">
+            <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 mt-auto w-full"
+            >
                 <LogOut size={20} />
                 <span>Đăng xuất</span>
             </button>

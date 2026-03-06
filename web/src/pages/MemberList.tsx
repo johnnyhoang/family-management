@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Button, Modal, Form, Input, Select, Space, Tag, message, Avatar } from 'antd';
-import { UserPlus, Shield, Trash2, Mail } from 'lucide-react';
+import { UserPlus, Shield, Trash2, Mail, Users } from 'lucide-react';
 import { userApi } from '../api/user';
 import type { User } from '../api/user';
 
@@ -16,7 +16,8 @@ export const MemberList = () => {
     });
 
     const inviteMutation = useMutation({
-        mutationFn: ({ email, role }: { email: string; role: string }) => userApi.invite(email, role),
+        mutationFn: (values: { email: string; role: string; fullName: string }) =>
+            userApi.invite(values.email, values.role, values.fullName),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['members'] });
             message.success('Đã gửi lời mời tham gia gia đình');
@@ -130,7 +131,6 @@ export const MemberList = () => {
                     dataSource={members}
                     loading={isLoading}
                     rowKey="id"
-                    pagination={false}
                 />
             </div>
 
@@ -147,6 +147,12 @@ export const MemberList = () => {
                     onFinish={(values) => inviteMutation.mutate(values)}
                     className="mt-4"
                 >
+                    <Form.Item
+                        name="fullName"
+                        label="Họ và tên"
+                    >
+                        <Input prefix={<Users size={16} className="text-slate-400 mr-2" />} placeholder="Nguyễn Văn A" />
+                    </Form.Item>
                     <Form.Item
                         name="email"
                         label="Địa chỉ Email"
