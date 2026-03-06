@@ -78,15 +78,24 @@ export class ExpenseService {
     const expenses = await this.findAll(familyId, filters);
     const { stringify } = await import('csv-stringify/sync');
 
-    return stringify(expenses, {
+    const flattenedData = expenses.map(e => ({
+      id: e.id,
+      amount: e.amount,
+      category: e.category?.name || '',
+      description: e.note || '',
+      expenseDate: e.expenseDate,
+      asset: e.asset?.name || '',
+    }));
+
+    return stringify(flattenedData, {
       header: true,
       columns: [
         { key: 'id', header: 'ID' },
         { key: 'amount', header: 'Số tiền' },
-        { key: ['category', 'name'], header: 'Danh mục' },
+        { key: 'category', header: 'Danh mục' },
         { key: 'description', header: 'Mô tả' },
-        { key: 'expenseDate', header: 'Ngày chi' },
-        { key: 'assetId', header: 'ID Tài sản' },
+        { key: 'expenseDate', header: 'Ngày' },
+        { key: 'asset', header: 'Tài sản' },
       ],
     });
   }

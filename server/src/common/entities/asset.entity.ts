@@ -44,6 +44,12 @@ export class Asset extends BaseEntity {
   @Column({ type: 'date', nullable: true })
   warrantyExpiredAt: Date;
 
+  @Column({ type: 'date', nullable: true })
+  nextMaintenanceDate: Date;
+
+  @Column({ type: 'int', nullable: true })
+  maintenanceIntervalDays: number;
+
   @Column({ nullable: true })
   serialNumber: string;
 

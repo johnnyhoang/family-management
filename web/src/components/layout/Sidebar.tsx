@@ -8,7 +8,8 @@ import {
     Settings,
     LogOut,
     FolderTree,
-    X
+    X,
+    CalendarDays
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -17,6 +18,7 @@ const navigation = [
     { name: 'sidebar.assets', href: '/assets', icon: Package },
     { name: 'sidebar.expenses', href: '/expenses', icon: Receipt },
     { name: 'sidebar.categories', href: '/categories', icon: FolderTree },
+    { name: 'sidebar.calendar', href: '/calendar', icon: CalendarDays },
     { name: 'sidebar.members', href: '/members', icon: Users },
     { name: 'sidebar.settings', href: '/settings', icon: Settings },
 ];

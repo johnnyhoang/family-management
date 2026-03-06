@@ -10,6 +10,7 @@ import { CategoryList } from './pages/CategoryList';
 import { Login } from './pages/Login';
 import { LoginSuccess } from './pages/LoginSuccess';
 import { Settings } from './pages/Settings';
+import { CalendarPage } from './pages/CalendarPage';
 import { AuthGuard } from './components/auth/AuthGuard';
 import './index.css';
 import './i18n';
@@ -62,6 +63,7 @@ function App() {
                 <Route path="expenses" element={<ExpenseList />} />
                 <Route path="categories" element={<CategoryList />} />
                 <Route path="members" element={<MemberList />} />
+                <Route path="calendar" element={<CalendarPage />} />
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Route>

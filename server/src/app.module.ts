@@ -21,6 +21,8 @@ import { AdminModule } from './modules/admin/admin.module';
 import { PermissionModule } from './modules/permission/permission.module';
 import { FileModule } from './modules/file/file.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CalendarModule } from './modules/calendar/calendar.module';
+import { NaturalInputModule } from './modules/natural-input/natural-input.module';
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { ScheduleModule } from '@nestjs/schedule';
           database: url ? undefined : configService.get<string>('DB_DATABASE'),
           autoLoadEntities: true,
           synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
+          migrationsRun: true,
+          migrations: [path.join(__dirname, '/migrations/*{.ts,.js}')],
           ssl: configService.get<string>('DB_SSL') === 'true' || !!url ? {
             rejectUnauthorized: false
           } : false,
@@ -101,6 +105,8 @@ import { ScheduleModule } from '@nestjs/schedule';
     AdminModule,
     PermissionModule,
     FileModule,
+    CalendarModule,
+    NaturalInputModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

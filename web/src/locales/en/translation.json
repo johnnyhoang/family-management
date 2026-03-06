@@ -14,6 +14,8 @@
     "dashboard": "Dashboard",
     "assets": "Assets",
     "expenses": "Expenses",
+    "categories": "Categories",
+    "calendar": "Family Calendar",
     "members": "Members",
     "settings": "Settings"
   }

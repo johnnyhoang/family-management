@@ -6,6 +6,7 @@ import {
 import { Package, Receipt, AlertTriangle, Clock } from 'lucide-react';
 import api from '../api/client';
 import { cn } from '../utils/cn';
+import { NaturalInputBox } from '../components/NaturalInputBox';
 
 const COLORS = ['#0ea5e9', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b'];
 
@@ -33,6 +34,8 @@ export const Dashboard = () => {
                 <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight font-display">Tổng quan gia đình</h1>
                 <p className="text-slate-500 mt-1 text-sm lg:text-base">Hôm nay là {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
             </header>
+
+            <NaturalInputBox />
 
             {/* Stats Overview */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
