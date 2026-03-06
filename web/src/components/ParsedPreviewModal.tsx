@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, DatePicker, Select, Radio, Space, Typography, Tag, Divider, message } from 'antd';
+import { Modal, Form, Input, InputNumber, DatePicker, Radio, Space, Typography, Tag, Divider } from 'antd';
 import dayjs from 'dayjs';
 
-const { Text, Title } = Typography;
+const { Text } = Typography;
 
 interface ParsedPreviewModalProps {
     visible: boolean;
@@ -155,7 +155,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 {renderFormFields()}
 
                 <div style={{ marginTop: 8, textAlign: 'right' }}>
-                    <Text type="secondary" size="small">
+                    <Text type="secondary">
                         Độ tin cậy AI: <Tag color={parsedData?.confidence > 0.8 ? 'green' : 'orange'}>
                             {(parsedData?.confidence * 100 || 0).toFixed(0)}%
                         </Tag>

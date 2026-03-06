@@ -3,7 +3,7 @@ import api from './client';
 export interface Category {
   id: string;
   name: string;
-  type: 'ASSET' | 'EXPENSE';
+  type: 'ASSET' | 'EXPENSE' | 'INCOME';
   parentId?: string;
 }
 
