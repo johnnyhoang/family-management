@@ -13,6 +13,8 @@ import { NaturalInputHistory } from './entities/natural-input-history.entity';
 @Injectable()
 export class NaturalInputService {
   private openai: OpenAI;
+  private contextCache: { [familyId: string]: { data: any, expires: number } } = {};
+  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
   constructor(
     private configService: ConfigService,
@@ -38,26 +40,7 @@ export class NaturalInputService {
     const normalizedMessage = this.moneyParser.normalizeText(message);
 
     // 2. Fetch Context
-    const [categories, users, assets] = await Promise.all([
-      this.categoryService.findAll(familyId),
-      this.userService.findAll(familyId),
-      this.assetService.findAll(familyId),
-    ]);
-
-    const context = {
-      categories: categories.map(c => ({ id: c.id, name: c.name, type: c.type })),
-      familyMembers: users.map(u => ({ 
-        id: u.id, 
-        name: u.fullName, 
-        aliases: u.otherNames ? u.otherNames.split(',').map(n => n.trim()) : [],
-        email: u.email 
-      })),
-      assets: assets.map(a => ({ id: a.id, name: a.name, category: a.category?.name })),
-      currentDate: dayjs().format('YYYY-MM-DD'),
-      currentTime: dayjs().format('HH:mm:ss'),
-      dayOfWeek: dayjs().format('dddd'),
-    };
-
+    const context = await this.getParsedContext(familyId);
     const result = await this.callOpenAIWithRetry(this.getSystemPrompt(context), normalizedMessage);
 
     // 3. Save to history (if successful parse)
@@ -83,26 +66,7 @@ export class NaturalInputService {
 
     const normalizedMessage = this.moneyParser.normalizeText(message);
 
-    const [categories, users, assets] = await Promise.all([
-      this.categoryService.findAll(familyId),
-      this.userService.findAll(familyId),
-      this.assetService.findAll(familyId),
-    ]);
-
-    const context = {
-      categories: categories.map(c => ({ id: c.id, name: c.name, type: c.type })),
-      familyMembers: users.map(u => ({ 
-        id: u.id, 
-        name: u.fullName, 
-        aliases: u.otherNames ? u.otherNames.split(',').map(n => n.trim()) : [],
-        email: u.email 
-      })),
-      assets: assets.map(a => ({ id: a.id, name: a.name, category: a.category?.name })),
-      currentDate: dayjs().format('YYYY-MM-DD'),
-      currentTime: dayjs().format('HH:mm:ss'),
-      dayOfWeek: dayjs().format('dddd'),
-    };
-
+    const context = await this.getParsedContext(familyId);
     const result = await this.callOpenAIWithRetry(this.getSystemPrompt(context), normalizedMessage);
 
     await this.historyRepository.save({
@@ -124,6 +88,47 @@ export class NaturalInputService {
       take: limit,
       relations: ['user'],
     });
+  }
+
+  private async getParsedContext(familyId: string) {
+    const cached = this.contextCache[familyId];
+    if (cached && cached.expires > Date.now()) {
+      return {
+        ...cached.data,
+        currentDate: dayjs().format('YYYY-MM-DD'),
+        currentTime: dayjs().format('HH:mm:ss'),
+        dayOfWeek: dayjs().format('dddd'),
+      };
+    }
+
+    const [categories, users, assets] = await Promise.all([
+      this.categoryService.findAll(familyId),
+      this.userService.findAll(familyId),
+      this.assetService.findAll(familyId),
+    ]);
+
+    const data = {
+      categories: categories.map(c => ({ id: c.id, name: c.name, type: c.type })),
+      familyMembers: users.map(u => ({ 
+        id: u.id, 
+        name: u.fullName, 
+        aliases: u.otherNames ? u.otherNames.split(',').map(n => n.trim()) : [],
+        email: u.email 
+      })),
+      assets: assets.map(a => ({ id: a.id, name: a.name, category: a.category?.name })),
+    };
+
+    this.contextCache[familyId] = {
+      data,
+      expires: Date.now() + this.CACHE_TTL,
+    };
+
+    return {
+      ...data,
+      currentDate: dayjs().format('YYYY-MM-DD'),
+      currentTime: dayjs().format('HH:mm:ss'),
+      dayOfWeek: dayjs().format('dddd'),
+    };
   }
 
   private getSystemPrompt(context: any) {
@@ -215,7 +220,7 @@ Output: {
   private async callOpenAIWithRetry(systemPrompt: string, userMessage: string, retries = 1) {
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
