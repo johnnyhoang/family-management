@@ -19,6 +19,7 @@ import dayjs, { Dayjs } from 'dayjs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { calendarApi } from '../api/calendar';
 import type { CalendarEvent } from '../api/calendar';
+import { userApi } from '../api/user';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const { Title, Text } = Typography;
@@ -35,11 +36,27 @@ export const CalendarPage = () => {
         queryFn: () => calendarApi.getAll(),
     });
 
+    const { data: users = [] } = useQuery({
+        queryKey: ['users'],
+        queryFn: () => userApi.findAll().then(res => res.data),
+    });
+
     const createMutation = useMutation({
         mutationFn: (values: any) => calendarApi.create(values),
         onSuccess: () => {
             message.success('Thêm sự kiện thành công');
             setIsModalVisible(false);
+            form.resetFields();
+            queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
+        },
+    });
+
+    const updateMutation = useMutation({
+        mutationFn: (values: any) => calendarApi.update(selectedEvent.id, values),
+        onSuccess: () => {
+            message.success('Cập nhật sự kiện thành công');
+            setIsModalVisible(false);
+            setSelectedEvent(null);
             form.resetFields();
             queryClient.invalidateQueries({ queryKey: ['calendar-events'] });
         },
@@ -70,12 +87,30 @@ export const CalendarPage = () => {
         // Show events for this day or open modal
     };
 
-    const handleCreate = (values: any) => {
-        createMutation.mutate({
+    const handleSave = (values: any) => {
+        const payload = {
             ...values,
             startDate: values.startDate.toISOString(),
             endDate: values.endDate?.toISOString(),
+            participantIds: values.participantIds,
+        };
+
+        if (selectedEvent) {
+            updateMutation.mutate(payload);
+        } else {
+            createMutation.mutate(payload);
+        }
+    };
+
+    const handleEdit = (event: CalendarEvent) => {
+        setSelectedEvent(event);
+        form.setFieldsValue({
+            ...event,
+            startDate: dayjs(event.startDate),
+            endDate: event.endDate ? dayjs(event.endDate) : undefined,
+            participantIds: event.participants?.map(p => p.id),
         });
+        setIsModalVisible(true);
     };
 
     return (
@@ -129,15 +164,20 @@ export const CalendarPage = () => {
                                             animate={{ opacity: 1, x: 0 }}
                                             className="p-4 rounded-xl border border-slate-100 bg-white/80 hover:bg-white transition-all shadow-sm group relative"
                                         >
-                                            <div className="flex items-start justify-between mb-2">
-                                                <Title level={5} className="!m-0 !text-slate-800">{event.title}</Title>
-                                                <Tag color={event.type === 'MAINTENANCE' ? 'orange' : 'blue'}>
-                                                    {event.type}
-                                                </Tag>
+                                            <div
+                                                className="cursor-pointer"
+                                                onClick={() => handleEdit(event)}
+                                            >
+                                                <div className="flex items-start justify-between mb-2">
+                                                    <Title level={5} className="!m-0 !text-slate-800">{event.title}</Title>
+                                                    <Tag color={event.type === 'MAINTENANCE' ? 'orange' : 'blue'}>
+                                                        {event.type}
+                                                    </Tag>
+                                                </div>
+                                                <Text type="secondary" className="block mb-3 line-clamp-2">
+                                                    {event.description || 'Không có mô tả'}
+                                                </Text>
                                             </div>
-                                            <Text type="secondary" className="block mb-3 line-clamp-2">
-                                                {event.description || 'Không có mô tả'}
-                                            </Text>
                                             <Space className="w-full text-slate-500 text-sm">
                                                 <div className="flex items-center gap-1.5">
                                                     <Clock className="w-3.5 h-3.5" />
@@ -167,15 +207,26 @@ export const CalendarPage = () => {
                 title={selectedEvent ? "Sửa sự kiện" : "Thêm sự kiện mới"}
                 open={isModalVisible}
                 onCancel={() => setIsModalVisible(false)}
-                footer={null}
-                destroyOnClose
-                className="premium-modal"
-                width={500}
+                footer={[
+                    <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-4 w-full">
+                        {selectedEvent?.createdAt && (
+                            <span>Tạo bởi {selectedEvent.creator?.fullName || selectedEvent.creator?.email || 'Hệ thống'} lúc {dayjs(selectedEvent.createdAt).format('HH:mm DD/MM/YYYY')}</span>
+                        )}
+                        {selectedEvent?.updatedAt && selectedEvent.updatedBy && (
+                            <span>Cập nhật cuối bởi {selectedEvent.updater?.fullName || selectedEvent.updater?.email || '-'} lúc {dayjs(selectedEvent.updatedAt).format('HH:mm DD/MM/YYYY')}</span>
+                        )}
+                    </div>,
+                    <Button key="cancel" onClick={() => setIsModalVisible(false)}>Hủy</Button>,
+                    <Button key="submit" type="primary" onClick={() => form.submit()} loading={createMutation.isPending || updateMutation.isPending}>
+                        {selectedEvent ? 'Cập nhật' : 'Tạo mới'}
+                    </Button>
+                ]}
+                width={550}
             >
                 <Form
                     form={form}
                     layout="vertical"
-                    onFinish={handleCreate}
+                    onFinish={handleSave}
                     className="mt-6"
                     initialValues={{ type: 'EVENT', isFullDay: false }}
                 >
@@ -202,15 +253,46 @@ export const CalendarPage = () => {
                         </Form.Item>
                         <Form.Item
                             name="reminderMinutes"
-                            label="Báo trước (phút)"
+                            label="Báo trước"
                         >
-                            <Select className="h-10">
-                                <Select.Option value={0}>Không báo</Select.Option>
-                                <Select.Option value={15}>15 phút</Select.Option>
-                                <Select.Option value={30}>30 phút</Select.Option>
-                                <Select.Option value={60}>1 tiếng</Select.Option>
-                                <Select.Option value={1440}>1 ngày</Select.Option>
+                            <Select className="h-10" placeholder="Chọn thời gian nhắc">
+                                <Select.Option value={0}>Khi bắt đầu</Select.Option>
+                                <Select.Option value={5}>5 phút trước</Select.Option>
+                                <Select.Option value={15}>15 phút trước</Select.Option>
+                                <Select.Option value={30}>30 phút trước</Select.Option>
+                                <Select.Option value={60}>1 tiếng trước</Select.Option>
+                                <Select.Option value={120}>2 tiếng trước</Select.Option>
+                                <Select.Option value={1440}>1 ngày trước</Select.Option>
+                                <Select.Option value={2880}>2 ngày trước</Select.Option>
+                                <Select.Option value={10080}>1 tuần trước</Select.Option>
                             </Select>
+                        </Form.Item>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <Form.Item
+                            name="recurrenceRule"
+                            label="Lặp lại"
+                        >
+                            <Select className="h-10" placeholder="Chế độ lặp">
+                                <Select.Option value={undefined}>Không lặp</Select.Option>
+                                <Select.Option value="DAILY">Hàng ngày</Select.Option>
+                                <Select.Option value="WEEKLY">Hàng tuần</Select.Option>
+                                <Select.Option value="MONTHLY">Hàng tháng</Select.Option>
+                                <Select.Option value="YEARLY">Hàng năm</Select.Option>
+                            </Select>
+                        </Form.Item>
+                        <Form.Item
+                            name="participantIds"
+                            label="Người tham gia / Nhắc cho ai"
+                        >
+                            <Select
+                                mode="multiple"
+                                className="w-full"
+                                placeholder="Chọn người nhắc"
+                                options={users.map(u => ({ value: u.id, label: u.fullName || u.email }))}
+                                allowClear
+                            />
                         </Form.Item>
                     </div>
 

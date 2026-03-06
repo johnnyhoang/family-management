@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Input, Select, Space, Tag, message, Avatar } from 'antd';
+import { Table, Button, Modal, Form, Input, Select, Space, Tag, message, Avatar, Tooltip } from 'antd';
 import { UserPlus, Shield, Trash2, Mail, Users } from 'lucide-react';
 import { userApi } from '../api/user';
 import type { User } from '../api/user';
@@ -8,7 +8,10 @@ import type { User } from '../api/user';
 export const MemberList = () => {
     const queryClient = useQueryClient();
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
+    const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+    const [editingUser, setEditingUser] = useState<User | null>(null);
     const [form] = Form.useForm();
+    const [editForm] = Form.useForm();
 
     const { data: members, isLoading } = useQuery({
         queryKey: ['members'],
@@ -29,6 +32,17 @@ export const MemberList = () => {
         },
     });
 
+    const updateMutation = useMutation({
+        mutationFn: ({ id, data }: { id: string; data: Partial<User> }) => userApi.update(id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['members'] });
+            message.success('Đã cập nhật thông tin thành viên');
+            setIsEditModalOpen(false);
+            setEditingUser(null);
+            editForm.resetFields();
+        },
+    });
+
     const updateRoleMutation = useMutation({
         mutationFn: ({ id, role }: { id: string; role: string }) => userApi.updateRole(id, role),
         onSuccess: () => {
@@ -45,6 +59,12 @@ export const MemberList = () => {
         },
     });
 
+    const handleEdit = (user: User) => {
+        setEditingUser(user);
+        editForm.setFieldsValue(user);
+        setIsEditModalOpen(true);
+    };
+
     const columns = [
         {
             title: 'Thành viên',
@@ -60,6 +80,14 @@ export const MemberList = () => {
                         <div className="text-xs text-slate-500">{record.email}</div>
                     </div>
                 </Space>
+            ),
+        },
+        {
+            title: 'Tên khác (AI)',
+            dataIndex: 'otherNames',
+            key: 'otherNames',
+            render: (text: string) => (
+                <span className="text-slate-600 italic text-sm">{text || '-'}</span>
             ),
         },
         {
@@ -93,18 +121,23 @@ export const MemberList = () => {
             title: 'Thao tác',
             key: 'action',
             render: (_: any, record: User) => (
-                <Button
-                    type="text"
-                    danger
-                    icon={<Trash2 size={16} />}
-                    onClick={() => {
-                        Modal.confirm({
-                            title: 'Xác nhận xóa',
-                            content: `Bạn có chắc muốn xóa "${record.fullName || record.email}" khỏi gia đình?`,
-                            onOk: () => removeMutation.mutate(record.id),
-                        });
-                    }}
-                />
+                <Space onClick={(e) => e.stopPropagation()}>
+                    <Tooltip title="Xóa">
+                        <Button
+                            type="text"
+                            danger
+                            icon={<Trash2 size={16} />}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                Modal.confirm({
+                                    title: 'Xác nhận xóa',
+                                    content: `Bạn có chắc muốn xóa "${record.fullName || record.email}" khỏi gia đình?`,
+                                    onOk: () => removeMutation.mutate(record.id),
+                                });
+                            }}
+                        />
+                    </Tooltip>
+                </Space>
             ),
         },
     ];
@@ -133,6 +166,10 @@ export const MemberList = () => {
                         dataSource={members}
                         loading={isLoading}
                         rowKey="id"
+                        onRow={(record) => ({
+                            onClick: () => handleEdit(record),
+                            style: { cursor: 'pointer' }
+                        })}
                         scroll={{ x: 600 }}
                         size={window.innerWidth < 768 ? 'small' : 'middle'}
                         pagination={{
@@ -142,6 +179,40 @@ export const MemberList = () => {
                     />
                 </div>
             </div>
+
+            <Modal
+                title="Sửa thông tin thành viên"
+                open={isEditModalOpen}
+                onCancel={() => {
+                    setIsEditModalOpen(false);
+                    setEditingUser(null);
+                    editForm.resetFields();
+                }}
+                onOk={() => editForm.submit()}
+                confirmLoading={updateMutation.isPending}
+            >
+                <Form
+                    form={editForm}
+                    layout="vertical"
+                    onFinish={(values) => updateMutation.mutate({ id: editingUser!.id, data: values })}
+                    className="mt-4"
+                >
+                    <Form.Item
+                        name="fullName"
+                        label="Họ và tên"
+                        rules={[{ required: true }]}
+                    >
+                        <Input prefix={<Users size={16} className="text-slate-400 mr-2" />} />
+                    </Form.Item>
+                    <Form.Item
+                        name="otherNames"
+                        label="Tên gọi khác (Biệt danh)"
+                        extra="Các tên cách nhau bằng dấu phẩy. VD: Con trai, Tí, Bin"
+                    >
+                        <Input placeholder="Tên để AI nhận diện (Khôi, Vợ, Chồng...)" />
+                    </Form.Item>
+                </Form>
+            </Modal>
 
             <Modal
                 title="Mời thành viên mới"

@@ -11,6 +11,7 @@ import dayjs from 'dayjs';
 export const ExpenseList = () => {
     const queryClient = useQueryClient();
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
     const [form] = Form.useForm();
     const [filters, setFilters] = useState<any>({ direction: 'EXPENSE' });
 
@@ -39,6 +40,17 @@ export const ExpenseList = () => {
             queryClient.invalidateQueries({ queryKey: ['expenses'] });
             message.success('Giao dịch đã được ghi nhận');
             setIsModalOpen(false);
+            form.resetFields();
+        },
+    });
+
+    const updateMutation = useMutation({
+        mutationFn: (data: Partial<Expense>) => expenseApi.update(editingExpense!.id, data),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['expenses'] });
+            message.success('Đã cập nhật giao dịch');
+            setIsModalOpen(false);
+            setEditingExpense(null);
             form.resetFields();
         },
     });
@@ -132,21 +144,33 @@ export const ExpenseList = () => {
             title: 'Thao tác',
             key: 'action',
             render: (_: any, record: Expense) => (
-                <Button
-                    type="text"
-                    danger
-                    icon={<Trash2 size={16} />}
-                    onClick={() => {
-                        Modal.confirm({
-                            title: 'Xác nhận xóa',
-                            content: `Bản ghi này sẽ bị xóa vĩnh viễn`,
-                            onOk: () => deleteMutation.mutate(record.id),
-                        });
-                    }}
-                />
+                <Space>
+                    <Button
+                        type="text"
+                        icon={<Trash2 size={16} />}
+                        danger
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            Modal.confirm({
+                                title: 'Xác nhận xóa',
+                                content: `Bản ghi này sẽ bị xóa vĩnh viễn`,
+                                onOk: () => deleteMutation.mutate(record.id),
+                            });
+                        }}
+                    />
+                </Space>
             ),
         },
     ];
+
+    const handleEdit = (expense: Expense) => {
+        setEditingExpense(expense);
+        form.setFieldsValue({
+            ...expense,
+            expenseDate: dayjs(expense.expenseDate),
+        });
+        setIsModalOpen(true);
+    };
 
     return (
         <div className="space-y-4 lg:space-y-6">
@@ -217,6 +241,10 @@ export const ExpenseList = () => {
                         dataSource={expenses}
                         loading={isLoading}
                         rowKey="id"
+                        onRow={(record) => ({
+                            onClick: () => handleEdit(record),
+                            className: 'cursor-pointer hover:bg-slate-50 transition-colors'
+                        })}
                         pagination={{
                             pageSize: 10,
                             size: 'small',
@@ -229,13 +257,33 @@ export const ExpenseList = () => {
             </div>
 
             <Modal
-                title={filters.direction === 'INCOME' ? "Ghi nhận khoản thu" : "Ghi nhận chi phí"}
+                title={editingExpense ? "Sửa giao dịch" : (filters.direction === 'INCOME' ? "Ghi nhận khoản thu" : "Ghi nhận chi phí")}
                 open={isModalOpen}
-                onCancel={() => setIsModalOpen(false)}
+                onCancel={() => {
+                    setIsModalOpen(false);
+                    setEditingExpense(null);
+                    form.resetFields();
+                }}
                 onOk={() => form.submit()}
-                confirmLoading={createMutation.isPending}
+                confirmLoading={createMutation.isPending || updateMutation.isPending}
                 width={500}
                 className="rounded-2xl"
+                footer={[
+                    <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-4 w-full">
+                        {editingExpense?.createdAt && (
+                            <span>Tạo bởi {editingExpense.creator?.fullName || editingExpense.creator?.email || 'Hệ thống'} lúc {dayjs(editingExpense.createdAt).format('HH:mm DD/MM/YYYY')}</span>
+                        )}
+                        {editingExpense?.updatedAt && editingExpense.updatedBy && (
+                            <span>Cập nhật cuối bởi {editingExpense.updater?.fullName || editingExpense.updater?.email || '-'} lúc {dayjs(editingExpense.updatedAt).format('HH:mm DD/MM/YYYY')}</span>
+                        )}
+                    </div>,
+                    <Button key="cancel" onClick={() => { setIsModalOpen(false); setEditingExpense(null); form.resetFields(); }}>
+                        Hủy
+                    </Button>,
+                    <Button key="submit" type="primary" onClick={() => form.submit()} loading={createMutation.isPending || updateMutation.isPending}>
+                        {editingExpense ? 'Cập nhật' : 'Ghi nhận'}
+                    </Button>
+                ]}
             >
                 <Form
                     form={form}
@@ -245,7 +293,11 @@ export const ExpenseList = () => {
                             ...values,
                             expenseDate: values.expenseDate?.toISOString(),
                         };
-                        createMutation.mutate(data);
+                        if (editingExpense) {
+                            updateMutation.mutate(data);
+                        } else {
+                            createMutation.mutate(data);
+                        }
                     }}
                     className="mt-4"
                 >

@@ -48,8 +48,8 @@ export class AssetService {
     return this.assetRepository.save(asset);
   }
 
-  async update(id: string, familyId: string, data: Partial<Asset>) {
-    await this.assetRepository.update({ id, familyId }, data);
+  async update(id: string, familyId: string, userId: string, data: Partial<Asset>) {
+    await this.assetRepository.update({ id, familyId }, { ...data, updatedBy: userId });
     return this.findOne(id, familyId);
   }
 

@@ -63,7 +63,7 @@ export class AssetController {
   @CheckPermission('Asset', 'edit')
   @ApiOperation({ summary: 'Update asset' })
   update(@Req() req, @Param('id') id: string, @Body() data: Partial<Asset>) {
-    return this.assetService.update(id, req.user.familyId, data);
+    return this.assetService.update(id, req.user.familyId, req.user.id, data);
   }
 
   @Delete(':id')

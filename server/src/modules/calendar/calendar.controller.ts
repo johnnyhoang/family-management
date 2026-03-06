@@ -62,7 +62,7 @@ export class CalendarController {
     @Param('id') id: string,
     @Body() updateDto: UpdateCalendarEventDto,
   ) {
-    return this.calendarService.update(id, req.user.familyId, updateDto);
+    return this.calendarService.update(id, req.user.familyId, req.user.id, updateDto);
   }
 
   @Delete(':id')

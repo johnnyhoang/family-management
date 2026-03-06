@@ -16,8 +16,8 @@ export default new DataSource({
   username: url ? undefined : configService.get<string>('DB_USERNAME'),
   password: url ? undefined : configService.get<string>('DB_PASSWORD'),
   database: url ? undefined : configService.get<string>('DB_DATABASE'),
-  entities: [path.join(__dirname, '/**/entities/*.entity{.ts,.js}')],
-  migrations: [path.join(__dirname, '/migrations/*{.ts,.js}')],
+  entities: [path.join(process.cwd(), 'src/**/entities/*.entity{.ts,.js}')],
+  migrations: [path.join(process.cwd(), 'src/migrations/*{.ts,.js}')],
   synchronize: false,
   ssl: configService.get<string>('DB_SSL') === 'true' || !!url ? {
     rejectUnauthorized: false

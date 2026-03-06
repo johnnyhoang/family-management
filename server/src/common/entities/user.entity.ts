@@ -18,6 +18,9 @@ export class User extends BaseEntity {
   @Column({ nullable: true })
   fullName: string;
 
+  @Column({ type: 'text', nullable: true, comment: 'Comma-separated aliases' })
+  otherNames: string;
+
   @Column({ nullable: true })
   googleId: string;
 

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Button, Modal, Form, Input, Space, message, Select, Tag } from 'antd';
-import { Plus, Edit2, Trash2, FolderTree } from 'lucide-react';
+import { Plus, Trash2, FolderTree } from 'lucide-react';
 import { categoryApi } from '../api/category';
 import type { Category } from '../api/category';
 
@@ -72,21 +72,13 @@ export const CategoryList = () => {
             key: 'action',
             width: 100,
             render: (_: any, record: Category) => (
-                <Space size="middle">
-                    <Button
-                        type="text"
-                        icon={<Edit2 size={16} className="text-blue-600" />}
-                        onClick={() => {
-                            setEditingCategory(record);
-                            form.setFieldsValue(record);
-                            setIsModalOpen(true);
-                        }}
-                    />
+                <Space size="middle" onClick={(e) => e.stopPropagation()}>
                     <Button
                         type="text"
                         danger
                         icon={<Trash2 size={16} />}
-                        onClick={() => {
+                        onClick={(e) => {
+                            e.stopPropagation();
                             Modal.confirm({
                                 title: 'Xác nhận xóa',
                                 content: `Bạn có chắc muốn xóa danh mục "${record.name}"?`,
@@ -127,6 +119,14 @@ export const CategoryList = () => {
                         dataSource={categories}
                         loading={isLoading}
                         rowKey="id"
+                        onRow={(record) => ({
+                            onClick: () => {
+                                setEditingCategory(record);
+                                form.setFieldsValue(record);
+                                setIsModalOpen(true);
+                            },
+                            style: { cursor: 'pointer' }
+                        })}
                         pagination={false}
                         scroll={{ x: 500 }}
                         size={window.innerWidth < 768 ? 'small' : 'middle'}
