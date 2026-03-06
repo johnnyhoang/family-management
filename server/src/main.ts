@@ -21,7 +21,9 @@ async function bootstrap() {
   });
 
   // Set global prefix
-  app.setGlobalPrefix('api/v1');
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/', 'status'],
+  });
 
   // Setup Swagger
   const config = new DocumentBuilder()

@@ -23,7 +23,9 @@ async function getApp(): Promise<INestApplication> {
       credentials: true,
     });
 
-    cachedApp.setGlobalPrefix('api/v1');
+    cachedApp.setGlobalPrefix('api/v1', {
+      exclude: ['/', 'status'],
+    });
 
     // Get the underlying express instance to set proxy trust
     const expressInstance = cachedApp.getHttpAdapter().getInstance();
