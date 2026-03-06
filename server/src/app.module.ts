@@ -64,11 +64,11 @@ import { ScheduleModule } from '@nestjs/schedule';
       loaderOptions: {
         path: path.join(
           process.cwd(),
-          // In some environments process.cwd() might be the monorepo root
-          process.cwd().endsWith('server') ? '' : 'server',
+          // Vercel deployment points root to 'server' folder
+          process.env.VERCEL ? '' : (process.cwd().endsWith('server') ? '' : 'server'),
           process.env.NODE_ENV === 'production' ? 'dist/i18n' : 'src/i18n',
         ),
-        watch: true,
+        watch: process.env.NODE_ENV !== 'production',
       },
       resolvers: [
         new HeaderResolver(['lang']),

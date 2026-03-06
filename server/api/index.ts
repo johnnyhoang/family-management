@@ -38,6 +38,16 @@ const createServer = async (expressInstance: any) => {
 };
 
 export default async (req: any, res: any) => {
-  await createServer(server);
-  server(req, res);
+  try {
+    const app = await createServer(server);
+    server(req, res);
+  } catch (err: any) {
+    console.error('NEST_FACTORY_ERROR:', err);
+    res.status(500).json({
+      statusCode: 500,
+      message: 'Internal Server Error during Nest initialization',
+      error: err.message,
+      stack: process.env.NODE_ENV === 'development' ? err.stack : undefined,
+    });
+  }
 };
