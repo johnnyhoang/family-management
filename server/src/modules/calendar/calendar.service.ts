@@ -13,16 +13,23 @@ export class CalendarService {
   ) {}
 
   async create(familyId: string, createdBy: string, createDto: CreateCalendarEventDto) {
+    const { participantIds, ...data } = createDto;
     const event = this.calendarEventRepository.create({
-      ...createDto,
+      ...data,
       familyId,
       createdBy,
     });
+    
+    if (participantIds?.length) {
+      event.participants = participantIds.map(id => ({ id } as any));
+    }
+    
     return this.calendarEventRepository.save(event);
   }
 
   async findAll(familyId: string, startDate?: Date, endDate?: Date) {
     const queryBuilder = this.calendarEventRepository.createQueryBuilder('event')
+      .leftJoinAndSelect('event.participants', 'participants')
       .where('event.familyId = :familyId', { familyId });
 
     if (startDate && endDate) {
@@ -38,6 +45,7 @@ export class CalendarService {
   async findOne(id: string, familyId: string) {
     const event = await this.calendarEventRepository.findOne({
       where: { id, familyId },
+      relations: ['participants'],
     });
     if (!event) {
       throw new NotFoundException(`Calendar event with ID ${id} not found`);
@@ -45,9 +53,17 @@ export class CalendarService {
     return event;
   }
 
-  async update(id: string, familyId: string, updateDto: UpdateCalendarEventDto) {
+  async update(id: string, familyId: string, userId: string, updateDto: UpdateCalendarEventDto) {
     const event = await this.findOne(id, familyId);
-    Object.assign(event, updateDto);
+    const { participantIds, ...data } = updateDto;
+    
+    Object.assign(event, data);
+    event.updatedBy = userId;
+    
+    if (participantIds !== undefined) {
+      event.participants = participantIds.map(pid => ({ id: pid } as any));
+    }
+    
     return this.calendarEventRepository.save(event);
   }
 

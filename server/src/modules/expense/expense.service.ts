@@ -66,6 +66,28 @@ export class ExpenseService {
     });
   }
 
+  async update(id: string, familyId: string, userId: string, data: Partial<Expense>) {
+    const expense = await this.findOne(id, familyId);
+    if (!expense) return null;
+    
+    Object.assign(expense, data);
+    expense.updatedBy = userId;
+    
+    // Recalculate nextOccurrence if recurring info changed
+    if (expense.isRecurring && expense.recurringCycle && expense.expenseDate) {
+      const nextDate = new Date(expense.expenseDate);
+      switch (expense.recurringCycle) {
+        case 'DAILY' as any: nextDate.setDate(nextDate.getDate() + 1); break;
+        case 'WEEKLY' as any: nextDate.setDate(nextDate.getDate() + 7); break;
+        case 'MONTHLY' as any: nextDate.setMonth(nextDate.getMonth() + 1); break;
+        case 'YEARLY' as any: nextDate.setFullYear(nextDate.getFullYear() + 1); break;
+      }
+      expense.nextOccurrenceDate = nextDate;
+    }
+
+    return this.expenseRepository.save(expense);
+  }
+
   async delete(id: string, familyId: string) {
     const expense = await this.findOne(id, familyId);
     if (expense) {

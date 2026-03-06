@@ -5,7 +5,6 @@ import { Plus, Download, Trash2, Search } from 'lucide-react';
 import { assetApi } from '../api/asset';
 import { userApi } from '../api/user';
 import type { Asset } from '../api/asset';
-import type { User } from '../api/user';
 import { categoryApi } from '../api/category';
 import dayjs from 'dayjs';
 
@@ -230,6 +229,22 @@ export const AssetList = () => {
                 onOk={() => form.submit()}
                 confirmLoading={createMutation.isPending || updateMutation.isPending}
                 width={600}
+                footer={[
+                    <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-4 w-full">
+                        {editingAsset?.createdAt && (
+                            <span>Tạo bởi {editingAsset.creator?.fullName || editingAsset.creator?.email || 'Hệ thống'} lúc {dayjs(editingAsset.createdAt).format('HH:mm DD/MM/YYYY')}</span>
+                        )}
+                        {editingAsset?.updatedAt && editingAsset.updatedBy && (
+                            <span>Cập nhật cuối bởi {editingAsset.updater?.fullName || editingAsset.updater?.email || '-'} lúc {dayjs(editingAsset.updatedAt).format('HH:mm DD/MM/YYYY')}</span>
+                        )}
+                    </div>,
+                    <Button key="cancel" onClick={() => { setIsModalOpen(false); setEditingAsset(null); form.resetFields(); }}>
+                        Hủy
+                    </Button>,
+                    <Button key="submit" type="primary" onClick={() => form.submit()} loading={createMutation.isPending || updateMutation.isPending}>
+                        {editingAsset ? 'Cập nhật' : 'Thêm tài sản'}
+                    </Button>
+                ]}
             >
                 <Form
                     form={form}

@@ -7,6 +7,12 @@ export interface User {
   otherNames?: string;
   role: string;
   status: string;
+  createdBy?: string;
+  creator?: { fullName: string; email: string };
+  updatedBy?: string;
+  updater?: { fullName: string; email: string };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export const userApi = {

@@ -20,7 +20,7 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "dev": "npm run start:dev",
     "clean": "rimraf dist",
-    "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli.js",
+    "typeorm": "ts-node --transpile-only -r tsconfig-paths/register ../node_modules/typeorm/cli.js",
     "migration:generate": "npm run typeorm -- migration:generate -d src/data-source.ts",
     "migration:run": "npm run typeorm -- migration:run -d src/data-source.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/data-source.ts"

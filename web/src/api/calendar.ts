@@ -12,6 +12,13 @@ export interface CalendarEvent {
   reminderMinutes: number;
   type: 'EVENT' | 'MAINTENANCE' | 'PAYMENT' | 'REMINDER';
   metadata?: string;
+  recurrenceRule?: string;
+  participants?: any[];
+  participantIds?: string[];
+  createdBy?: string;
+  creator?: { fullName: string; email: string };
+  updatedBy?: string;
+  updater?: { fullName: string; email: string };
 }
 
 export const calendarApi = {

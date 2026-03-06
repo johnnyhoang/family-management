@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
@@ -47,6 +48,12 @@ export class ExpenseController {
   @CheckPermission('Expense', 'add')
   create(@Req() req, @Body() data: Partial<Expense>) {
     return this.expenseService.create(req.user.familyId, req.user.id, data);
+  }
+
+  @Put(':id')
+  @CheckPermission('Expense', 'edit')
+  update(@Req() req, @Param('id') id: string, @Body() data: Partial<Expense>) {
+    return this.expenseService.update(id, req.user.familyId, req.user.id, data);
   }
 
   @Delete(':id')

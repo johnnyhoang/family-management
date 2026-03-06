@@ -70,6 +70,9 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 assetId: sanitizeId(rawData.assetId),
                 // Asset mapping
                 purchaseDate: rawData.purchaseDate || rawData.date,
+                // Event mapping
+                recurrenceRule: rawData.recurrenceRule,
+                participantIds: rawData.participantIds || (rawData.participants ? rawData.participants.map((p: any) => typeof p === 'string' ? sanitizeId(p) : sanitizeId(p.id)) : []),
             };
 
             form.setFieldsValue({
@@ -87,6 +90,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
             expenseDate: values.expenseDate?.format('YYYY-MM-DD'),
             purchaseDate: values.purchaseDate?.format('YYYY-MM-DD'),
             date: values.date?.format('YYYY-MM-DD'),
+            participantIds: values.participantIds,
         };
         onConfirm({
             intent,
@@ -184,6 +188,17 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         </Form.Item>
                         <Form.Item name="time" label="Giờ">
                             <Input placeholder="HH:mm" />
+                        </Form.Item>
+                        <Form.Item name="recurrenceRule" label="Lặp lại">
+                            <Select placeholder="Chọn chế độ lặp" allowClear>
+                                <Select.Option value="DAILY">Hàng ngày</Select.Option>
+                                <Select.Option value="WEEKLY">Hàng tuần</Select.Option>
+                                <Select.Option value="MONTHLY">Hàng tháng</Select.Option>
+                                <Select.Option value="YEARLY">Hàng năm</Select.Option>
+                            </Select>
+                        </Form.Item>
+                        <Form.Item name="participantIds" label="Người tham gia / Nhắc cho ai">
+                            <Select mode="multiple" options={userOptions} placeholder="Chọn thành viên..." allowClear showSearch />
                         </Form.Item>
                         <Form.Item name="description" label="Mô tả">
                             <Input.TextArea autoSize />

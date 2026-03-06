@@ -84,6 +84,9 @@ Convert the user's Vietnamese natural language input into structured JSON.
   - IMPORTANT: Use ONLY the 'id' from the provided 'Family Members' context.
 - assignedToUserId: The ID of the primary person responsible (DEPRECATED, use ownerId/usedById if possible).
 - assetId: The ID of the existing asset mentioned.
+- recurrenceRule: For events/tasks. Options: 'DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'. (Detect from words like 'mỗi ngày', 'hàng tuần', 'lặp lại').
+- participantIds: Array of IDs of family members involved or mentioned (e.g., 'nhắc cả nhà', 'cho Khuyên và Khôi').
+- reminderMinutes: Number of minutes before the event to notify.
 
 ### RESPONSE FORMAT (MUST BE STRICT JSON):
 {
@@ -117,6 +120,19 @@ Output: {
     "purchaseDate": "${dayjs().format('YYYY-MM-DD')}",
     "ownerId": "7b098162-8e39-4f81-9964-6729359e1903",
     "usedById": "f33e6ace-1ee1-4b3d-975f-de09344f28cb"
+  }
+}
+
+Input: "Nhắc cả nhà đi ăn tối lúc 7h tối mai lặp lại hàng tuần"
+Output: {
+  "intent": "create_event",
+  "confidence": 0.9,
+  "data": {
+    "title": "Đi ăn tối cả nhà",
+    "date": "${dayjs().add(1, 'day').format('YYYY-MM-DD')}",
+    "time": "19:00",
+    "recurrenceRule": "WEEKLY",
+    "participantIds": ["7b098162-8e39-4f81-9964-6729359e1903", "f33e6ace-1ee1-4b3d-975f-de09344f28cb"]
   }
 }
 `;

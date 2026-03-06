@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsDateString, IsBoolean, IsInt, IsEnum, Min } from 'class-validator';
+import { IsString, IsOptional, IsDateString, IsBoolean, IsInt, IsEnum, Min, IsArray, IsUUID } from 'class-validator';
 import { CalendarEventType } from '../../../common/entities/calendar-event.entity';
 
 export class CreateCalendarEventDto {
@@ -36,4 +36,13 @@ export class CreateCalendarEventDto {
   @IsString()
   @IsOptional()
   metadata?: string;
+
+  @IsString()
+  @IsOptional()
+  recurrenceRule?: string;
+
+  @IsArray()
+  @IsUUID('4', { each: true })
+  @IsOptional()
+  participantIds?: string[];
 }
