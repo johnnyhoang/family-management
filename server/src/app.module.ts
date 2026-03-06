@@ -29,6 +29,7 @@ import { NaturalInputModule } from './modules/natural-input/natural-input.module
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
@@ -46,7 +47,11 @@ import { NaturalInputModule } from './modules/natural-input/natural-input.module
           autoLoadEntities: true,
           synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
           migrationsRun: true,
-          migrations: [path.join(__dirname, '/migrations/*{.ts,.js}')],
+          migrations: [
+            path.join(process.cwd(), 'dist/migrations/*{.ts,.js}'),
+            path.join(process.cwd(), 'server/dist/migrations/*{.ts,.js}'),
+            path.join(__dirname, '/migrations/*{.ts,.js}')
+          ],
           ssl: configService.get<string>('DB_SSL') === 'true' || !!url ? {
             rejectUnauthorized: false
           } : false,

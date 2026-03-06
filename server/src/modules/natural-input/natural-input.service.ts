@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
-import * as dayjs from 'dayjs';
+import dayjs from 'dayjs';
 import { CategoryService } from '../category/category.service';
 import { UserService } from '../user/user.service';
 import { AssetService } from '../asset/asset.service';

@@ -22,7 +22,7 @@ export class Expense extends BaseEntity {
   @JoinColumn({ name: 'assetId' })
   asset: Asset;
 
-  @Column()
+  @Column({ nullable: true })
   categoryId: string;
 
   @ManyToOne(() => Category)
