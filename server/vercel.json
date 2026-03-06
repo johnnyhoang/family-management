@@ -3,10 +3,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/index.ts": {
-      "includeFiles": [
-        "src/i18n/**",
-        "dist/migrations/**"
-      ],
+      "includeFiles": "{src/i18n/**,dist/migrations/**}",
       "maxDuration": 30
     }
   },
