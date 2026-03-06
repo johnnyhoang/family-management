@@ -1,4 +1,5 @@
 import api from './client';
+import type { Category } from './category';
 
 export interface Expense {
   id: string;
@@ -11,6 +12,7 @@ export interface Expense {
   note?: string;
   assetId?: string;
   asset?: { name: string };
+  category?: Category;
 }
 
 export const expenseApi = {
