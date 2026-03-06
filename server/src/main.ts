@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,6 +15,16 @@ async function bootstrap() {
 
   // Set global prefix
   app.setGlobalPrefix('api/v1');
+
+  // Setup Swagger
+  const config = new DocumentBuilder()
+    .setTitle('Family Management API')
+    .setDescription('API documentation for Family Management System')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document);
 
   // Prioritize PORT from environment (Cloud Run uses this)
   const port = process.env.PORT || 3173;

@@ -2,11 +2,6 @@
   "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "web/dist",
-  "functions": {
-    "server/api/index.ts": {
-      "runtime": "@vercel/node"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/v1/:path*",

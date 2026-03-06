@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { ExpressAdapter } from '@nestjs/platform-express';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import express from 'express';
 
 const server = express();
@@ -19,6 +20,16 @@ const createServer = async (expressInstance: any) => {
     });
     
     app.setGlobalPrefix('api/v1');
+    
+    // Setup Swagger
+    const config = new DocumentBuilder()
+      .setTitle('Family Management API')
+      .setDescription('API documentation for Family Management System')
+      .setVersion('1.0')
+      .addBearerAuth()
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document);
     
     await app.init();
     cachedApp = app;
