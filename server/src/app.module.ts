@@ -65,14 +65,24 @@ import { ScheduleModule } from '@nestjs/schedule';
       fallbackLanguage: 'vi',
       loaderOptions: {
         path: (() => {
-          const basePath = process.cwd();
-          const isProd = process.env.NODE_ENV === 'production';
-          // Vercel might have different CWD based on root settings
-          const subDir = process.env.VERCEL ? '' : (basePath.endsWith('server') ? '' : 'server');
-          const i18nPath = isProd ? 'dist/i18n' : 'src/i18n';
-          const fullPath = path.join(basePath, subDir, i18nPath);
-          console.log(`I18N_PATH_RESOLVED: ${fullPath}`);
-          return fullPath;
+          const fs = require('fs');
+          const pathsToTry = [
+            path.join(process.cwd(), 'dist/i18n'),
+            path.join(process.cwd(), 'server/dist/i18n'),
+            path.join(process.cwd(), 'src/i18n'),
+            path.join(process.cwd(), 'server/src/i18n'),
+            path.join(__dirname, '../i18n'),
+            path.join(__dirname, 'i18n'),
+          ];
+
+          for (const p of pathsToTry) {
+            if (fs.existsSync(p)) {
+              console.log(`I18N_PATH_FOUND: ${p}`);
+              return p;
+            }
+          }
+          console.warn('I18N_PATH_NOT_FOUND, falling back to dist/i18n');
+          return path.join(process.cwd(), 'dist/i18n');
         })(),
         watch: process.env.NODE_ENV !== 'production',
       },
