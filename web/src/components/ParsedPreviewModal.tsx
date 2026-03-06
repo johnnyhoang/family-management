@@ -71,6 +71,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 // Asset mapping
                 purchaseDate: rawData.purchaseDate || rawData.date,
                 // Event mapping
+                startDate: rawData.startDate || rawData.date,
                 recurrenceRule: rawData.recurrenceRule,
                 participantIds: rawData.participantIds || (rawData.participants ? rawData.participants.map((p: any) => typeof p === 'string' ? sanitizeId(p) : sanitizeId(p.id)) : []),
             };
@@ -79,6 +80,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 ...mappedData,
                 expenseDate: mappedData.expenseDate ? dayjs(mappedData.expenseDate) : dayjs(),
                 purchaseDate: mappedData.purchaseDate ? dayjs(mappedData.purchaseDate) : dayjs(),
+                startDate: mappedData.startDate ? dayjs(mappedData.startDate) : dayjs(),
                 date: mappedData.date ? dayjs(mappedData.date) : dayjs(), // For other intents
             });
         }
@@ -92,6 +94,15 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
             date: values.date?.format('YYYY-MM-DD'),
             participantIds: values.participantIds,
         };
+
+        if (intent === 'create_event' || intent === 'create_task') {
+            let start = values.startDate ? dayjs(values.startDate) : dayjs();
+            if (values.time && typeof values.time === 'string' && values.time.includes(':')) {
+                const [hours, minutes] = values.time.split(':');
+                start = start.hour(parseInt(hours) || 0).minute(parseInt(minutes) || 0).second(0).millisecond(0);
+            }
+            formattedValues.startDate = start.toISOString();
+        }
         onConfirm({
             intent,
             data: formattedValues,
@@ -183,7 +194,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         <Form.Item name="title" label="Tiêu đề" rules={[{ required: true }]}>
                             <Input />
                         </Form.Item>
-                        <Form.Item name="date" label="Ngày">
+                        <Form.Item name="startDate" label="Ngày" rules={[{ required: true }]}>
                             <DatePicker style={{ width: '100%' }} />
                         </Form.Item>
                         <Form.Item name="time" label="Giờ">

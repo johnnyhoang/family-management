@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Input, Button, Card, Typography, Space, message, Tag, Popover, List, Tooltip } from 'antd';
-import { SendOutlined, AudioOutlined, MutedOutlined, HistoryOutlined, RedoOutlined } from '@ant-design/icons';
+import { SendOutlined, AudioOutlined, MutedOutlined, HistoryOutlined, RedoOutlined, QrcodeOutlined } from '@ant-design/icons';
 import api from '../api/client';
 import { naturalInputApi } from '../api/natural-input';
 import type { NaturalInputHistory } from '../api/natural-input';
 import { ParsedPreviewModal } from './ParsedPreviewModal';
+import { QRScannerModal } from './QRScannerModal';
 import dayjs from 'dayjs';
 
 const { TextArea } = Input;
@@ -18,6 +19,7 @@ export const NaturalInputBox: React.FC = () => {
     const [showModal, setShowModal] = useState(false);
     const [history, setHistory] = useState<NaturalInputHistory[]>([]);
     const [showHistory, setShowHistory] = useState(false);
+    const [showQRScanner, setShowQRScanner] = useState(false);
 
     // Web Speech API
     const [recognition, setRecognition] = useState<any>(null);
@@ -105,6 +107,12 @@ export const NaturalInputBox: React.FC = () => {
         message.info('Đã tải lại tin nhắn!');
     };
 
+    const handleQRResult = (result: string) => {
+        setInputValue((prev) => (prev ? `${prev} ${result}` : result));
+        setShowQRScanner(false);
+        message.success('Đã quét xong mã QR!');
+    };
+
     const historyContent = (
         <div style={{ width: 350, maxHeight: 400, overflowY: 'auto' }}>
             <List
@@ -188,16 +196,16 @@ export const NaturalInputBox: React.FC = () => {
                 <SendOutlined style={{ color: '#0ea5e9' }} />
                 Trợ lý Nhập liệu Thông minh <Tag color="gold">AI Powered</Tag>
             </Title>
-            <div style={{ position: 'relative' }}>
+            <div>
                 <TextArea
                     value={inputValue}
                     onChange={(e) => setInputValue(e.target.value)}
                     placeholder="Bạn muốn thực hiện việc gì? Ví dụ: 'Nhận lương 25 triệu', 'HSBC 4 triệu cho chồng'..."
                     autoSize={{ minRows: 2, maxRows: 6 }}
-                    style={{ paddingRight: 90, borderRadius: 12, border: '1px solid #e2e8f0' }}
+                    style={{ borderRadius: 12, border: '1px solid #e2e8f0', marginBottom: 12 }}
                 />
-                <div style={{ position: 'absolute', right: 8, bottom: 8 }}>
-                    <Space>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <Space size="small">
                         <Button
                             type={isListening ? 'primary' : 'default'}
                             danger={isListening}
@@ -206,13 +214,19 @@ export const NaturalInputBox: React.FC = () => {
                             onClick={toggleListening}
                             title={isListening ? 'Dừng nói' : 'Nhập bằng giọng nói'}
                         />
+                        <Button
+                            shape="circle"
+                            icon={<QrcodeOutlined />}
+                            onClick={() => setShowQRScanner(true)}
+                            title="Quét mã QR"
+                        />
                         <Popover
                             content={historyContent}
                             title="Lịch sử nhập liệu"
                             trigger="click"
                             open={showHistory}
                             onOpenChange={setShowHistory}
-                            placement="bottomRight"
+                            placement="bottomLeft"
                         >
                             <Button
                                 shape="circle"
@@ -220,15 +234,16 @@ export const NaturalInputBox: React.FC = () => {
                                 title="Xem lịch sử"
                             />
                         </Popover>
-                        <Button
-                            type="primary"
-                            shape="circle"
-                            icon={<SendOutlined />}
-                            loading={loading}
-                            onClick={handleParse}
-                            title="Gửi"
-                        />
                     </Space>
+                    <Button
+                        type="primary"
+                        icon={<SendOutlined />}
+                        loading={loading}
+                        onClick={handleParse}
+                        style={{ borderRadius: 20, paddingLeft: 20, paddingRight: 20 }}
+                    >
+                        Gửi AI
+                    </Button>
                 </div>
             </div>
 
@@ -238,6 +253,11 @@ export const NaturalInputBox: React.FC = () => {
                 onConfirm={handleConfirm}
                 parsedData={parsedResult}
                 loading={loading}
+            />
+            <QRScannerModal
+                visible={showQRScanner}
+                onCancel={() => setShowQRScanner(false)}
+                onResult={handleQRResult}
             />
         </Card>
     );

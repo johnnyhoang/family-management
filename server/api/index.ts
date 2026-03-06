@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../src/app.module';
 import { INestApplication } from '@nestjs/common';
 
@@ -11,12 +12,20 @@ async function getApp(): Promise<INestApplication> {
       logger: ['error', 'warn', 'log'],
     });
 
+    cachedApp.useGlobalPipes(new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }));
+
     cachedApp.enableCors({
       origin: true,
       credentials: true,
     });
 
-    cachedApp.setGlobalPrefix('api/v1');
+    cachedApp.setGlobalPrefix('api/v1', {
+      exclude: ['/', 'status'],
+    });
 
     // Get the underlying express instance to set proxy trust
     const expressInstance = cachedApp.getHttpAdapter().getInstance();
