@@ -7,7 +7,8 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3173',
+        // localhost → ::1 trên Windows hay gây ECONNREFUSED khi Nest bind IPv4
+        target: 'http://127.0.0.1:3173',
         changeOrigin: true,
       },
     },

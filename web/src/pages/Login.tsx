@@ -1,10 +1,10 @@
 import { Button } from 'antd';
 import { LogIn } from 'lucide-react';
+import { apiBaseUrl } from '../api/client';
 
 export const Login = () => {
     const handleGoogleLogin = () => {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3173/api/v1';
-        window.location.href = `${apiUrl}/auth/google`;
+        window.location.href = `${apiBaseUrl}/auth/google`;
     };
 
     return (
