@@ -48,7 +48,13 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
             </button>
 
             <div className="flex items-center gap-3 mb-8 px-2">
-                <div className="w-10 h-10 bg-primary-600 rounded-xl flex items-center justify-center text-white font-bold shadow-lg shadow-primary-200">FA</div>
+                <img
+                    src="/logo.svg"
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="w-10 h-10 rounded-xl shadow-lg shadow-primary-200 shrink-0"
+                />
                 <h1 className="font-bold text-lg text-slate-800 tracking-tight">FamilyAsset</h1>
             </div>
 

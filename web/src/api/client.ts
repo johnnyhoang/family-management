@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Dev: để trống VITE_API_URL → dùng /api/v1 (Vite proxy tới server), tránh trỏ nhầm URL deploy cũ
 const raw = import.meta.env.VITE_API_URL?.trim() ?? '';
+// Dev: để trống VITE_API_URL → dùng /api/v1 (Vite proxy tới server), tránh trỏ nhầm URL deploy cũ
 export const apiBaseUrl = raw !== '' ? raw.replace(/\/$/, '') : '/api/v1';
 
 const api = axios.create({
