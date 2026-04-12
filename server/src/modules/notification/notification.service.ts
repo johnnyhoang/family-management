@@ -2,15 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from './notification.entity';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
 
 @Injectable()
 export class NotificationService {
   constructor(
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
-    @InjectQueue('notifications') private notificationQueue: Queue,
   ) {}
 
   async create(familyId: string, userId: string, title: string, message: string, metadata?: any) {
@@ -36,7 +33,20 @@ export class NotificationService {
     return this.notificationRepository.findOne({ where: { id, userId } });
   }
 
-  async scheduleNotification(data: any, delay: number) {
-    await this.notificationQueue.add('send-notification', data, { delay });
+  /**
+   * Lên lịch tạo notification sau `delay` ms (bộ nhớ process).
+   * Mất job nếu process restart trước khi hết delay — chấp nhận được cho dev/single instance.
+   */
+  async scheduleNotification(
+    data: { familyId: string; userId: string; title: string; message: string; metadata?: any },
+    delay: number,
+  ): Promise<void> {
+    setTimeout(async () => {
+      try {
+        await this.create(data.familyId, data.userId, data.title, data.message, data.metadata);
+      } catch (err) {
+        console.error('scheduleNotification failed', err);
+      }
+    }, delay);
   }
 }

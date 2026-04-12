@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { BullModule } from '@nestjs/bullmq';
 import { HeaderResolver, I18nModule } from 'nestjs-i18n';
 import * as path from 'path';
 
@@ -58,18 +57,6 @@ import { NaturalInputModule } from './modules/natural-input/natural-input.module
         };
       },
     }),
-    ...(process.env.REDIS_ENABLED === 'true' ? [
-      BullModule.forRootAsync({
-        imports: [ConfigModule],
-        inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
-          connection: {
-            host: configService.get<string>('REDIS_HOST'),
-            port: configService.get<number>('REDIS_PORT'),
-          },
-        }),
-      }),
-    ] : []),
     I18nModule.forRoot({
       fallbackLanguage: 'vi',
       loaderOptions: {

@@ -81,6 +81,6 @@ Strict JSON schema required:
 ---
 
 ## 8. Development Roadmap
-- [ ] Implement Redis-based caching for context data.
+- [ ] Cache context data (in-memory hoặc bảng DB) nếu cần tối ưu.
 - [ ] Log user corrections (from `ParsedPreviewModal`) to a database table for model fine-tuning.
 - [ ] Add more local rule-based parsing for dates and bank accounts.

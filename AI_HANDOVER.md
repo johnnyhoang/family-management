@@ -13,7 +13,6 @@ A production-ready, multi-tenant system for managing family assets and expenses.
 | **Backend** | NestJS, TypeORM, MySQL (Google Cloud SQL) |
 | **Frontend** | React, TypeScript, Vite, Tailwind CSS, Ant Design |
 | **Auth** | Google OAuth2, JWT |
-| **Process Queue** | BullMQ (via Redis) |
 | **Scheduling** | NestJS Schedule (Cron) |
 | **Storage** | Google Cloud Storage |
 | **I18n** | nestjs-i18n (Backend), react-i18next (Frontend) |
@@ -53,7 +52,7 @@ family-management/
 ### Backend
 - **Auth**: `GoogleStrategy` for login, `JwtStrategy` for API protection.
 - **Permissions**: `PermissionGuard` queries the `Permission` entity based on the user's role and the required `moduleId`.
-- **Notifications**: `MaintenanceScheduler` runs daily at midnight to check for expiring warranties and pushes jobs to BullMQ.
+- **Notifications**: Thông báo lưu PostgreSQL; lịch trễ trong process dùng `setTimeout` (mất khi restart); cron có thể dùng cho tác vụ định kỳ.
 
 ### Frontend
 - **Design**: "Glassmorphism" aesthetic using Tailwind's backdrop-blur and Ant Design tokens.

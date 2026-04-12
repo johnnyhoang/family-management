@@ -49,7 +49,7 @@ Configurable per **Module** and **Asset Category**.
 - **Events**: Recurring expenses, Maintenance, Warranty expiration, Due dates.
 - **Channels**: Push notifications only.
 - **Logic**: Configurable "notify before X days".
-- **Stack**: BullMQ for scheduling + NestJS Schedule (Cron).
+- **Stack**: NestJS Schedule (Cron); hàng đợi trễ trong bộ nhớ process (không Redis).
 
 ## 7. Category Management
 - **Default categories**: Provided by the system (Common practical categories).
