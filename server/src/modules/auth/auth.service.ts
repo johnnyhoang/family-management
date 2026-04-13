@@ -6,6 +6,7 @@ import { User, UserRole } from '../../common/entities/user.entity';
 import { Family } from '../../common/entities/family.entity';
 
 import { PermissionService } from '../permission/permission.service';
+import { CategoryService } from '../category/category.service';
 
 @Injectable()
 export class AuthService {
@@ -16,6 +17,7 @@ export class AuthService {
     @InjectRepository(Family)
     private familyRepository: Repository<Family>,
     private permissionService: PermissionService,
+    private categoryService: CategoryService,
   ) {}
 
   async validateOAuthUser(profile: any) {
@@ -53,6 +55,7 @@ export class AuthService {
 
       // Seed permissions for the family
       await this.permissionService.seedDefaultPermissions(family.id);
+      await this.categoryService.ensureDefaultIncomeCategories(family.id);
     } else {
       console.log(`AuthService: User ${profile.email} found with role: ${user.role}`);
       // Promotion logic: if they are the only user in the family and still a MEMBER, make them ADMIN
@@ -75,6 +78,7 @@ export class AuthService {
       
       // Ensure permissions are seeded even for existing families (idempotent)
       await this.permissionService.seedDefaultPermissions(user.familyId);
+      await this.categoryService.ensureDefaultIncomeCategories(user.familyId);
     }
 
     return this.generateToken(user);

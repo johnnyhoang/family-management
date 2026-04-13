@@ -7,6 +7,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PermissionModule } from '../permission/permission.module';
+import { CategoryModule } from '../category/category.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from '../../common/entities/user.entity';
@@ -17,6 +18,7 @@ import { Family } from '../../common/entities/family.entity';
     TypeOrmModule.forFeature([User, Family]),
     PassportModule.register({ session: false }),
     PermissionModule,
+    CategoryModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

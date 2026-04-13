@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Table, Button, Modal, Form, Input, Select, InputNumber, DatePicker, Tag, message, Switch, Row, Col, Divider, Radio, Space } from 'antd';
 import { Plus, Download, Trash2, Wallet, PlusCircle } from 'lucide-react';
@@ -97,6 +97,23 @@ export const ExpenseList = () => {
             addCategoryMutation.mutate(newCategoryName);
         }
     };
+
+    const categorySelectOptions = useMemo(() => {
+        const dir = filters.direction as 'EXPENSE' | 'INCOME' | undefined;
+        return categories
+            ?.filter((c) => {
+                if (c.type !== 'EXPENSE' && c.type !== 'INCOME') return false;
+                if (!dir) return true;
+                return c.type === dir;
+            })
+            .map((c) => ({ value: c.id, label: c.name }));
+    }, [categories, filters.direction]);
+
+    useEffect(() => {
+        if (isModalOpen && !editingExpense) {
+            form.setFieldValue('categoryId', undefined);
+        }
+    }, [filters.direction, isModalOpen, editingExpense, form]);
 
     const columns = [
         {
@@ -315,7 +332,12 @@ export const ExpenseList = () => {
                             <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
                                 <Select
                                     placeholder="Chọn danh mục"
-                                    options={categories?.filter(c => !filters.direction || c.type === filters.direction).map(c => ({ value: c.id, label: c.name }))}
+                                    options={categorySelectOptions}
+                                    notFoundContent={
+                                        filters.direction === 'INCOME'
+                                            ? 'Chưa có danh mục thu — nhập tên phía dưới và bấm Thêm'
+                                            : 'Chưa có danh mục — nhập tên phía dưới và bấm Thêm'
+                                    }
                                     dropdownRender={(menu) => (
                                         <>
                                             {menu}

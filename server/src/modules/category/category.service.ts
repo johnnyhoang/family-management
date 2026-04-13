@@ -11,10 +11,29 @@ export class CategoryService {
   ) {}
 
   async findAll(familyId: string, type?: CategoryType) {
+    const where = type ? { familyId, type } : { familyId };
     return this.categoryRepository.find({
-      where: { familyId, type },
+      where,
       relations: ['children'],
     });
+  }
+
+  /** Tạo danh mục thu mặc định nếu gia đình chưa có (tránh form Thu vào không có lựa chọn). */
+  async ensureDefaultIncomeCategories(familyId: string): Promise<void> {
+    const n = await this.categoryRepository.count({
+      where: { familyId, type: CategoryType.INCOME },
+    });
+    if (n > 0) return;
+    const defaults = [
+      { name: 'Lương / Thu nhập chính', type: CategoryType.INCOME, isDefault: true },
+      { name: 'Thưởng, quà, hoàn tiền', type: CategoryType.INCOME, isDefault: true },
+      { name: 'Lãi đầu tư, cổ tức', type: CategoryType.INCOME, isDefault: true },
+    ];
+    for (const d of defaults) {
+      await this.categoryRepository.save(
+        this.categoryRepository.create({ ...d, familyId }),
+      );
+    }
   }
 
   async create(familyId: string, data: Partial<Category>) {
