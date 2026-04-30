@@ -8,7 +8,7 @@
     "web"
   ],
   "scripts": {
-    "dev": "concurrently \"npm run dev -w server\" \"npm run dev -w web\"",
+    "dev": "concurrently -n API,WEB -c blue,green \"npm run dev -w server\" \"npm run dev -w web\"",
     "build": "npm run build -w server && npm run build -w web",
     "commit": "git add . && git commit -m",
     "clean": "concurrently \"npm run clean -w server\" \"npm run clean -w web\""
