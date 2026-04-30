@@ -3,7 +3,7 @@ node_modules/
 dist/
 build/
 .npm
-package-lock.json (if you prefer, but usually kept in small teams)
+# Giữ package-lock.json trong repo để cài đặt tái lập được
 
 # Environment
 .env

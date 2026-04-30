@@ -123,7 +123,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                                 style={{ width: '100%' }}
                                 formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                                 parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-                                addonAfter="VND"
+                                addonAfter="đồng"
                             />
                         </Form.Item>
                         <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
@@ -170,7 +170,12 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         </Form.Item>
                         {intent === 'create_asset' && (
                             <Form.Item name="purchasePrice" label="Giá mua">
-                                <InputNumber style={{ width: '100%' }} addonAfter="VND" />
+                                <InputNumber
+                                    style={{ width: '100%' }}
+                                    formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+                                    parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+                                    addonAfter="đồng"
+                                />
                             </Form.Item>
                         )}
                         <Form.Item name="purchaseDate" label="Ngày mua/cập nhật">

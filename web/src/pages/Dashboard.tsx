@@ -7,6 +7,7 @@ import { Package, Receipt, AlertTriangle, Clock } from 'lucide-react';
 import api from '../api/client';
 import { cn } from '../utils/cn';
 import { NaturalInputBox } from '../components/NaturalInputBox';
+import { formatVndAmount } from '../utils/currency';
 
 const COLORS = ['#0ea5e9', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b'];
 
@@ -23,7 +24,7 @@ export const Dashboard = () => {
 
     const summaryCards = [
         { label: 'Tổng tài sản', value: stats?.totalAssets || 0, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
-        { label: 'Chi tiêu tháng này', value: `${(stats?.monthlyExpenses || 0).toLocaleString()} VND`, icon: Receipt, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        { label: 'Chi tiêu tháng này', value: formatVndAmount(stats?.monthlyExpenses || 0), icon: Receipt, color: 'text-emerald-600', bg: 'bg-emerald-50' },
         { label: 'Bảo hành sắp hết hạn', value: stats?.expiringAssets?.length || 0, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50' },
         { label: 'Nhắc nhở sắp tới', value: 0, icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     ];
@@ -81,7 +82,7 @@ export const Dashboard = () => {
                                     </Pie>
                                     <Tooltip
                                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                        formatter={(val: any) => `${(val || 0).toLocaleString()} VND`}
+                                        formatter={(val: any) => formatVndAmount(val || 0)}
                                     />
                                     <Legend iconType="circle" />
                                 </PieChart>

@@ -7,6 +7,7 @@ import type { Expense } from '../api/expense';
 import { assetApi } from '../api/asset';
 import { categoryApi } from '../api/category';
 import dayjs from 'dayjs';
+import { formatVndAmount } from '../utils/currency';
 
 export const ExpenseList = () => {
     const queryClient = useQueryClient();
@@ -130,7 +131,7 @@ export const ExpenseList = () => {
                 const isIncome = record.category?.type === 'INCOME';
                 return (
                     <span className={`font-bold ${isIncome ? 'text-green-600' : 'text-red-500'}`}>
-                        {isIncome ? '+' : '-'}{Number(val)?.toLocaleString()} VND
+                        {formatVndAmount(val, { forceSign: isIncome ? 'plus' : 'minus' })}
                     </span>
                 );
             },
@@ -318,12 +319,13 @@ export const ExpenseList = () => {
                     }}
                     className="mt-4"
                 >
-                    <Form.Item name="amount" label="Số tiền (VND)" rules={[{ required: true }]}>
+                    <Form.Item name="amount" label="Số tiền" rules={[{ required: true }]}>
                         <InputNumber
                             className="w-full h-12 text-lg font-bold"
                             formatter={val => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                             parser={val => val!.replace(/\$\s?|(,*)/g, '')}
                             prefix={<Wallet size={18} className="text-slate-400 mr-2" />}
+                            addonAfter="đồng"
                         />
                     </Form.Item>
 

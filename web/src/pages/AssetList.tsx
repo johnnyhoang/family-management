@@ -7,6 +7,7 @@ import { userApi } from '../api/user';
 import type { Asset } from '../api/asset';
 import { categoryApi } from '../api/category';
 import dayjs from 'dayjs';
+import { formatVndAmount } from '../utils/currency';
 
 export const AssetList = () => {
     const queryClient = useQueryClient();
@@ -107,7 +108,7 @@ export const AssetList = () => {
             title: 'Giá trị',
             dataIndex: 'purchasePrice',
             key: 'purchasePrice',
-            render: (val: number) => <span>{val?.toLocaleString()} VND</span>,
+            render: (val: number) => <span>{formatVndAmount(val)}</span>,
         },
         {
             title: 'Trạng thái',
@@ -278,10 +279,10 @@ export const AssetList = () => {
                             ]} />
                         </Form.Item>
                         <Form.Item name="purchasePrice" label="Giá mua">
-                            <InputNumber className="w-full" formatter={val => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+                            <InputNumber className="w-full" formatter={val => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} addonAfter="đồng" />
                         </Form.Item>
                         <Form.Item name="currentValue" label="Giá hiện tại">
-                            <InputNumber className="w-full" formatter={val => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} />
+                            <InputNumber className="w-full" formatter={val => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')} addonAfter="đồng" />
                         </Form.Item>
                         <Form.Item name="purchaseDate" label="Ngày mua">
                             <DatePicker className="w-full" />
