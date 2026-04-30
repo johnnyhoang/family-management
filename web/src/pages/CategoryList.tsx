@@ -20,7 +20,7 @@ export const CategoryList = () => {
   const selectedType = Form.useWatch('type', form) as CategoryType | undefined;
   const selectedLevel = Form.useWatch('level', form) as CategoryLevel | undefined;
 
-  const { data: categories, isLoading } = useQuery({
+  const { data: categories, isLoading, isError } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoryApi.findAll().then((res) => res.data),
   });
@@ -213,6 +213,7 @@ export const CategoryList = () => {
       </div>
 
       <div className="glass-card p-4 lg:p-6 overflow-hidden">
+        {isError && <div className="mb-3 p-3 rounded-lg bg-red-50 text-red-600 text-sm">Không thể tải danh sách danh mục. Vui lòng thử lại.</div>}
         <div className="overflow-x-auto">
           <Table
             columns={columns}

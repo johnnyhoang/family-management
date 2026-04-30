@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { CalendarEvent } from '../../common/entities/calendar-event.entity';
+import { User } from '../../common/entities/user.entity';
 import { CreateCalendarEventDto } from './dto/create-calendar-event.dto';
 import { UpdateCalendarEventDto } from './dto/update-calendar-event.dto';
 
@@ -21,7 +22,7 @@ export class CalendarService {
     });
     
     if (participantIds?.length) {
-      event.participants = participantIds.map(id => ({ id } as any));
+      event.participants = participantIds.map(id => ({ id } as User));
     }
     
     return this.calendarEventRepository.save(event);
@@ -61,7 +62,7 @@ export class CalendarService {
     event.updatedBy = userId;
     
     if (participantIds !== undefined) {
-      event.participants = participantIds.map(pid => ({ id: pid } as any));
+      event.participants = participantIds.map(pid => ({ id: pid } as User));
     }
     
     return this.calendarEventRepository.save(event);

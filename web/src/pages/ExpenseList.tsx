@@ -36,7 +36,7 @@ export const ExpenseList = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const inputRef = useRef<any>(null);
 
-  const { data: expenses, isLoading } = useQuery({
+  const { data: expenses, isLoading, isError } = useQuery({
     queryKey: ['expenses', filters],
     queryFn: () => expenseApi.findAll(filters).then((res) => res.data),
   });
@@ -397,6 +397,7 @@ export const ExpenseList = () => {
           </Button>
         </div>
 
+        {isError && <div className="mb-3 p-3 rounded-lg bg-red-50 text-red-600 text-sm">Không thể tải danh sách giao dịch. Vui lòng thử lại.</div>}
         <div className="overflow-x-auto">
           <Table
             columns={columns}

@@ -84,7 +84,7 @@ export class ExpenseService {
 
   async update(id: string, familyId: string, userId: string, data: Partial<Expense>) {
     const expense = await this.findOne(id, familyId);
-    if (!expense) return null;
+    if (!expense) throw new NotFoundException('Giao dịch không tồn tại');
 
     const entryType = await this.resolveEntryType(familyId, data, expense);
     Object.assign(expense, data);
@@ -103,10 +103,8 @@ export class ExpenseService {
 
   async delete(id: string, familyId: string) {
     const expense = await this.findOne(id, familyId);
-    if (expense) {
-      return this.expenseRepository.softRemove(expense);
-    }
-    return null;
+    if (!expense) throw new NotFoundException('Giao dịch không tồn tại');
+    return this.expenseRepository.softRemove(expense);
   }
 
   async exportToCsv(familyId: string, filters: any = {}): Promise<string> {

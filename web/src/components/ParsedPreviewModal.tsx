@@ -81,6 +81,8 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 ownerId: sanitizeId(rawData.ownerId),
                 usedById: sanitizeId(rawData.usedById),
                 assetId: sanitizeId(rawData.assetId),
+                entryType: rawData.entryType ?? undefined,
+                isTransfer: rawData.isTransfer ?? false,
                 // Asset mapping
                 purchaseDate: rawData.purchaseDate || rawData.date,
                 // Event mapping
@@ -100,9 +102,13 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
     }, [parsedData, visible, form]);
 
     const handleFinish = async (values: any) => {
+        const resolvedEntryType = values.entryType
+            ?? (intent === 'create_income' ? 'INCOME' : intent === 'create_expense' ? 'EXPENSE' : undefined);
+
         const formattedValues = {
             ...values,
-            entryType: intent === 'create_income' ? 'INCOME' : 'EXPENSE',
+            entryType: resolvedEntryType,
+            isTransfer: values.isTransfer ?? false,
             expenseDate: values.expenseDate?.format('YYYY-MM-DD'),
             purchaseDate: values.purchaseDate?.format('YYYY-MM-DD'),
             date: values.date?.format('YYYY-MM-DD'),

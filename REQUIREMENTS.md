@@ -22,7 +22,7 @@
   - `VIEWER`: Read-only access.
 - **Family Structure**: Each user belongs to exactly one family (except System Admin).
 - **Invitations**: Family Admins can invite users via links.
-- **Auto-provisioning**: First OAuth login creates user + "Default Family" automatically.
+- **Auto-provisioning**: First OAuth login creates user + a new unique family (`"<fullName>'s Family"`) in a single DB transaction. Google `avatarUrl` is saved on each login.
 
 ## 3. Permission System (RBAC)
 Configurable per **Module** and optionally per **Asset Category**.
@@ -41,30 +41,39 @@ Configurable per **Module** and optionally per **Asset Category**.
   - `status`: `ACTIVE | BROKEN | SOLD | LOST | ARCHIVED`
   - `location`, `assignedToUserId`, `ownerId`, `usedById`
   - `notes`, `images` (URL array), `documents` (URL array)
-  - `customFields` (JSON – for domain-specific extensibility)
+  - `customFields` (`Record<string, unknown>` – for domain-specific extensibility)
+- **Category Constraint**: Assets must use a leaf-level (`CategoryLevel.CATEGORY`) category of type `CategoryType.ASSET`. `validateAssetCategory()` in `asset.service.ts` enforces this.
 - **Files**: Max 10 images per asset, stored in GCS, URLs saved in DB.
 - **Export**: CSV download via frontend.
 
 ## 5. Expense Management
-- **Types**: `PURCHASE | MAINTENANCE | REPAIR | UTILITIES | RENT | TAX | INSURANCE | SUBSCRIPTION | DEPRECIATION | OTHER`
+- **Entry Types** (`ExpenseEntryType` enum, maps to `CategoryType`):
+  - `INCOME` → income categories
+  - `EXPENSE` → expense categories (default)
+  - `LIABILITY` → liability categories
+- **Transfer Flag**: `isTransfer: boolean` (default `false`). Internal transfers may use ASSET or LIABILITY categories.
+- **Category Validation**: `resolveEntryType()` in `expense.service.ts` ensures the selected category type matches `entryType` (unless `isTransfer=true`). Only leaf-level categories (`CategoryLevel.CATEGORY`) are allowed.
 - **Entity Fields**:
-  - `id`, `familyId`, `assetId` (nullable), `categoryId`, `type`
+  - `id`, `familyId`, `assetId` (nullable), `categoryId`
+  - `entryType` (`ExpenseEntryType`), `isTransfer` (boolean)
   - `amount`, `currency` (default: VND)
   - `expenseDate`, `isRecurring`, `recurringCycle`: `DAILY | WEEKLY | MONTHLY | YEARLY`
   - `nextOccurrenceDate`, `reminderEnabled`, `reminderDaysBefore`
-  - `note`, `customFields` (JSON)
+  - `note`, `customFields` (`Record<string, unknown>`)
 - **Export**: CSV download via frontend.
 
 ## 6. Reminders & Notifications
 - **Trigger Events**: Recurring expenses, Maintenance due dates, Warranty expiration.
 - **Channels**: In-app notifications (push not yet implemented).
-- **Scheduling**: NestJS Schedule (Cron jobs) for periodic checks.
-- **In-process delays**: `setTimeout` in process memory — lost on restart; no Redis/queue.
+- **Scheduling**: NestJS `@Cron()` (from `@nestjs/schedule`) for periodic checks (`MaintenanceScheduler`).
+- **DB-backed delays**: `scheduleNotification(delayMs)` saves a `scheduledAt = now + delayMs` column to PostgreSQL. A Cron job surfaces notifications where `scheduledAt <= now OR scheduledAt IS NULL`. No in-process state — survives Vercel cold starts.
 - **Logic**: Configurable "notify X days before" per reminder.
 
 ## 7. Category Management
-- **System defaults**: Seeded by the system (practical Vietnamese household categories).
-- **Hierarchy**: Categories support parent/child structure.
+- **Types** (`CategoryType` enum): `ASSET | LIABILITY | INCOME | EXPENSE`
+- **Levels** (`CategoryLevel` enum): `GROUP` (parent) → `CATEGORY` (leaf, selectable for expenses/assets)
+- **Hierarchy**: Exactly 2 levels deep. GROUP has no parent. CATEGORY must have a GROUP parent.
+- **System defaults**: Seeded on first family creation with practical Vietnamese household categories.
 - **Access Control**: Permissions can be assigned per category (granular RBAC).
 
 ## 8. Dashboard & Analytics

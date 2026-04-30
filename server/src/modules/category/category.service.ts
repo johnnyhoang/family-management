@@ -114,7 +114,7 @@ export class CategoryService {
 
   async update(id: string, familyId: string, data: Partial<Category>) {
     const category = await this.findOne(id, familyId);
-    if (!category) return null;
+    if (!category) throw new NotFoundException('Danh mục không tồn tại');
 
     const nextType = data.type ?? category.type;
     const nextLevel = data.level ?? category.level;
@@ -132,20 +132,24 @@ export class CategoryService {
       id,
     );
 
-    Object.assign(category, data, {
-      type: nextType,
-      level: nextLevel,
-      parentId: nextParentId,
-    });
-    return this.categoryRepository.save(category);
+    // Use direct UPDATE to avoid TypeORM using the loaded `parent` relation object
+    // instead of the new `parentId` FK value when calling save()
+    await this.categoryRepository.update(
+      { id, familyId },
+      {
+        ...(data.name !== undefined ? { name: data.name } : {}),
+        type: nextType,
+        level: nextLevel,
+        parentId: nextParentId,
+      },
+    );
+    return this.findOne(id, familyId);
   }
 
   async delete(id: string, familyId: string) {
     const category = await this.findOne(id, familyId);
-    if (category) {
-      return this.categoryRepository.softRemove(category);
-    }
-    return null;
+    if (!category) throw new NotFoundException('Danh mục không tồn tại');
+    return this.categoryRepository.softRemove(category);
   }
 
   async ensureDefaultGroup(familyId: string, type: CategoryType): Promise<Category> {

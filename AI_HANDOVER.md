@@ -92,8 +92,8 @@ family-management/
 | :--- | :--- |
 | Auth | `GoogleStrategy` (Passport) + `JwtStrategy` for API protection |
 | Permission Check | `PermissionGuard` queries `Permission` entity by role + moduleId |
-| Notifications | Stored in PostgreSQL; in-process `setTimeout` for delays (lost on restart) |
-| AI Parsing | `NaturalInputService` → OpenAI `gpt-4o` → JSON parse → save to `natural_input_history` |
+| Notifications | Stored in PostgreSQL with `scheduledAt` column; Cron-based surfacing — no in-process state, survives restarts |
+| AI Parsing | `NaturalInputService` → OpenAI `gpt-4o-mini` (configurable via `OPENAI_MODEL`) → JSON parse → save to `natural_input_history` |
 | Money Parsing | `MoneyParserService` handles Vietnamese: "triệu", "tr", "k", "rưỡi" |
 | File Storage | `FileModule` uploads to GCS; only URL stored in DB |
 | Scheduling | `@Cron()` decorators for warranty/maintenance/expense reminder checks |
@@ -151,12 +151,10 @@ family-management/
 ## 9. Known Issues & Technical Debt
 See **[docs/specs/TODO.md](./docs/specs/TODO.md)** for the full prioritized backlog.
 
-Top items:
-- Notifications use `setTimeout` in-process — lost on restart. Needs a proper queue (Bull/BullMQ).
-- No database indexes on `familyId`, `expenseDate`, `warrantyExpiredAt` — will cause slow queries at scale.
-- No test coverage beyond 1 placeholder spec.
-- `console.log` used throughout — should use NestJS `Logger`.
-- Missing DB transaction wrapping family+user creation in `auth.service.ts`.
+Top remaining items:
+- **No test coverage** — only 1 placeholder spec; no integration tests for RBAC, auth, multi-tenancy, or AI parsing.
+- **DB migrations pending** — `@Index` decorators and new columns added but migration must be generated and applied on next deploy (`typeorm migration:generate`).
+- **SpeechRecognition no fallback** — mic input silently fails on Firefox/unsupported browsers.
 
 ## 10. Development Commands
 ```bash

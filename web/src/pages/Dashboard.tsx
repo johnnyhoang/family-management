@@ -13,7 +13,7 @@ import { getDateBadgeClassName, getMoneyBadgeClassName } from '../utils/display'
 const COLORS = ['#f58a7a', '#f3b665', '#7cb7ef', '#7fc7aa', '#f5a6c1', '#b8a5ff'];
 
 export const Dashboard = () => {
-    const { data: stats, isLoading } = useQuery({
+    const { data: stats, isLoading, isError } = useQuery({
         queryKey: ['dashboard-stats'],
         queryFn: async () => {
             const { data } = await api.get('/dashboard/stats');
@@ -22,6 +22,7 @@ export const Dashboard = () => {
     });
 
     if (isLoading) return <div className="p-8 text-center text-slate-500 font-medium">Đang tải dữ liệu...</div>;
+    if (isError) return <div className="p-8 text-center text-red-500 font-medium">Không thể tải dữ liệu. Vui lòng thử lại.</div>;
 
     const summaryCards = [
         { label: 'Tổng tài sản', value: stats?.totalAssets || 0, icon: Package, color: 'text-[#5f87c2]', bg: 'bg-[#edf6ff]' },

@@ -54,6 +54,8 @@ export class AssetService {
   }
 
   async update(id: string, familyId: string, userId: string, data: Partial<Asset>) {
+    const asset = await this.findOne(id, familyId);
+    if (!asset) throw new NotFoundException('Tài sản không tồn tại');
     await this.validateAssetCategory(familyId, data.categoryId);
     await this.assetRepository.update({ id, familyId }, { ...(data as any), updatedBy: userId });
     return this.findOne(id, familyId);
@@ -61,10 +63,8 @@ export class AssetService {
 
   async delete(id: string, familyId: string) {
     const asset = await this.findOne(id, familyId);
-    if (asset) {
-      return this.assetRepository.softRemove(asset);
-    }
-    return null;
+    if (!asset) throw new NotFoundException('Tài sản không tồn tại');
+    return this.assetRepository.softRemove(asset);
   }
 
   async exportToCsv(familyId: string, filters: any = {}): Promise<string> {

@@ -6,11 +6,8 @@ Issues found during code review on 2026-04-30. Grouped by priority.
 
 ## CRITICAL (P0) — Fix before production traffic
 
-### P0-1: Notification scheduling uses in-process setTimeout
-- **File**: `server/src/modules/notification/notification.service.ts`
-- **Problem**: `scheduleNotification()` uses `setTimeout` — jobs are lost on process restart. On Vercel (serverless), every cold start loses all scheduled jobs.
-- **Fix**: Replace with BullMQ + Redis, or use DB-backed polling via a Cron job that checks `scheduledAt <= now`.
-- **Note**: The Cron-based approach (checking due dates) already exists in `maintenance.scheduler.ts` — extend that pattern instead.
+### ~~P0-1~~: ✅ DONE — Notification scheduling uses in-process setTimeout
+- Replaced `setTimeout` with DB `scheduledAt` column; Cron-based surfacing via `MaintenanceScheduler`.
 
 ### P0-2: No test coverage
 - **File**: `server/src/` (entire backend)
@@ -27,29 +24,21 @@ Issues found during code review on 2026-04-30. Grouped by priority.
 - **Fix**: Run `typeorm migration:generate` to create the migration, commit it, and apply on next deploy.
 - **Command**: `cd server && npx typeorm migration:generate src/migrations/AddFamilyIndexes -d src/data-source.ts`
 
-### P1-2: parse() method saves wrong userId to history
-- **File**: `server/src/modules/natural-input/natural-input.service.ts:50`
-- **Problem**: `parse()` (the old method) uses a hacky fallback `context.familyMembers.find(...)` to get a userId — it always resolves to the first family member, not the actual caller. `parseWithUser()` is the correct method but `parse()` is still callable.
-- **Fix**: Deprecate `parse()` entirely, or add a `userId` parameter to it. Ensure all controller routes call `parseWithUser()`.
+### ~~P1-2~~: ✅ DONE — parse() method saves wrong userId to history
+- Dead `parse()` method removed; all routes call `parseWithUser()`.
 
-### P1-3: Auth creates "Default Family" for every new user — all users share one family
-- **File**: `server/src/modules/auth/auth.service.ts:51`
-- **Problem**: All new users join the same "Default Family" because `findOne({ where: { name: 'Default Family' } })` finds the existing one. New users should get their own family.
-- **Fix**: Create a new Family for every new user. If invitation flow exists, link to the inviting family instead.
+### ~~P1-3~~: ✅ DONE — Auth creates "Default Family" for every new user
+- Each new user now creates their own unique family in a DB transaction.
 
-### P1-4: LIKE search is case-sensitive on PostgreSQL
-- **File**: `server/src/modules/asset/asset.service.ts:27`
-- **Problem**: `LIKE :search` is case-sensitive in PostgreSQL. Searching "xe" won't find "Xe".
-- **Fix**: Use `ILIKE` instead of `LIKE` for PostgreSQL, or `LOWER(asset.name) LIKE LOWER(:search)`.
+### ~~P1-4~~: ✅ DONE — LIKE search is case-sensitive on PostgreSQL
+- Changed to `ILIKE` in `asset.service.ts`.
 
 ---
 
 ## MEDIUM (P2) — Code quality / UX
 
-### P2-1: OpenAI model hardcoded
-- **File**: `server/src/modules/natural-input/natural-input.service.ts:269`
-- **Problem**: `model: 'gpt-4o-mini'` is hardcoded. Upgrading the model requires a code change.
-- **Fix**: Read from `ConfigService`: `this.configService.get('OPENAI_MODEL', 'gpt-4o-mini')`.
+### ~~P2-1~~: ✅ DONE — OpenAI model hardcoded
+- Model now read from `OPENAI_MODEL` env var (default `gpt-4o-mini`).
 
 ### P2-2: Dashboard warranty window hardcoded
 - **File**: `server/src/modules/dashboard/dashboard.service.ts`
@@ -61,20 +50,9 @@ Issues found during code review on 2026-04-30. Grouped by priority.
 - **Problem**: Voice input silently fails if browser doesn't support `webkitSpeechRecognition` (e.g., Firefox). No user feedback.
 - **Fix**: Check `'SpeechRecognition' in window || 'webkitSpeechRecognition' in window` on mount; hide or disable the mic button if unsupported.
 
-### P2-4: No avatarUrl in auth profile
-- **File**: `server/src/modules/auth/auth.service.ts`
-- **Problem**: `OAuthProfile` interface doesn't include `avatarUrl`, so Google profile pictures are never saved on first login.
-- **Fix**: Add `avatarUrl?: string` to `OAuthProfile`, pass it from `GoogleStrategy`, and save to `user.avatarUrl`.
-
-### P2-5: JWT expires_in type cast with `as any`
-- **File**: `server/src/modules/auth/auth.module.ts:30`
-- **Problem**: `configService.get<string>('JWT_EXPIRES_IN') as any` — unnecessary cast.
-- **Fix**: Use `expiresIn: configService.get('JWT_EXPIRES_IN') || '7d'`.
-
-### P2-6: Expense CSV export uses dynamic import
-- **File**: `server/src/modules/expense/expense.service.ts:101`
-- **Problem**: `await import('csv-stringify/sync')` is a dynamic import inside a method — runs on every export call.
-- **Fix**: Import statically at the top: `import { stringify } from 'csv-stringify/sync'` (same fix for `asset.service.ts`).
+### ~~P2-4~~: ✅ DONE — avatarUrl saved from Google OAuth profile
+### ~~P2-5~~: ✅ DONE — JWT expiresIn `as any` replaced with `|| '7d'`
+### ~~P2-6~~: ✅ DONE — CSV export uses static imports
 
 ---
 
@@ -127,3 +105,13 @@ Issues found during code review on 2026-04-30. Grouped by priority.
 - ✅ Updated `AI_HANDOVER.md` with accurate stack table, env var docs, link to TODO.md
 - ✅ Created `docs/specs/ARCHITECTURE.md` with full system diagram, DB schema, RBAC flow
 - ✅ Cleaned up `server/.env.example`: removed duplicate key, removed real credentials, added `OPENAI_MODEL` doc
+- ✅ Fix `MaintenanceScheduler` not registered in `notification.module.ts` — added to providers + `Asset` entity to imports
+- ✅ Fix `category.service.ts` `update()` and `delete()` returning `null` → now throw `NotFoundException`
+- ✅ Fix `expense.service.ts` `update()` and `delete()` returning `null` → now throw `NotFoundException`
+- ✅ Fix `asset.service.ts` `update()` returning `null` silently when asset not found → verify existence first, then throw `NotFoundException`; same for `delete()`
+- ✅ Fix `calendar.service.ts` `{ id } as any` participants cast → typed as `User`
+- ✅ Add `isError` state to `Dashboard.tsx`, `AssetList.tsx`, `CategoryList.tsx`, `ExpenseList.tsx`
+- ✅ Standardize `web/src/api/calendar.ts` — remove internal `.data` unwrapping to match all other API modules; update `CalendarPage.tsx` usages
+- ✅ Fix `ParsedPreviewModal.tsx` — respect `entryType` and `isTransfer` from AI response instead of always deriving from intent
+- ✅ Updated REQUIREMENTS.md: `ExpenseEntryType`, `isTransfer`, `CategoryType/Level`, `validateAssetCategory`, DB-backed notifications, avatarUrl auto-provisioning
+- ✅ Updated `AI_HANDOVER.md`: notification implementation, OpenAI model config, known issues trimmed to actual remaining debt
