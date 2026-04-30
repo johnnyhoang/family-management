@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionGuard } from '../../common/guards/permission.guard';
@@ -35,6 +35,14 @@ export class AdminController {
   async updateFamilyStatus(@Req() req, @Param('id') id: string, @Body('status') status: string) {
     this.assertAppAdmin(req.user.systemRole);
     return this.adminService.updateFamilyStatus(id, status as any);
+  }
+
+  @Patch('families/:id')
+  @ApiOperation({ summary: 'Update family profile (APP_ADMIN only)' })
+  @CheckPermission('Admin', 'update')
+  async updateFamily(@Req() req, @Param('id') id: string, @Body() data: { name?: string }) {
+    this.assertAppAdmin(req.user.systemRole);
+    return this.adminService.updateFamily(id, data);
   }
 
   @Get('stats')

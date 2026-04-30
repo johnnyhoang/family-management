@@ -15,6 +15,7 @@ export interface AdminFamily {
   id: string;
   name: string;
   status: 'ACTIVE' | 'INACTIVE';
+  createdAt?: string;
   members: AdminFamilyMember[];
 }
 
@@ -48,6 +49,8 @@ export const adminApi = {
   getStats: () => api.get<AdminStats>('/admin/stats'),
   updateFamilyStatus: (familyId: string, status: 'ACTIVE' | 'INACTIVE') =>
     api.post(`/admin/families/${familyId}/status`, { status }),
+  updateFamilyProfile: (familyId: string, data: { name?: string }) =>
+    api.patch(`/admin/families/${familyId}`, data),
   updateFamilyMemberRole: (familyId: string, userId: string, role: 'FAMILY_ADMIN' | 'MEMBER') =>
     api.post(`/admin/families/${familyId}/members/${userId}/role`, { role }),
   updateSystemRole: (userId: string, systemRole: SystemRole) =>

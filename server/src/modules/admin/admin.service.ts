@@ -78,6 +78,21 @@ export class AdminService {
     return this.familyRepository.findOne({ where: { id } });
   }
 
+  async updateFamily(id: string, data: { name?: string }) {
+    const family = await this.familyRepository.findOne({ where: { id } });
+    if (!family) {
+      throw new NotFoundException('Family not found');
+    }
+
+    const payload: Partial<Family> = {};
+    if (data.name !== undefined) {
+      payload.name = data.name;
+    }
+
+    await this.familyRepository.update(id, payload);
+    return this.familyRepository.findOne({ where: { id } });
+  }
+
   async updateFamilyMemberRole(familyId: string, userId: string, roleCode: UserRole) {
     if (roleCode === UserRole.APP_ADMIN) {
       throw new ForbiddenException('APP_ADMIN is a system role, not a family membership role');
