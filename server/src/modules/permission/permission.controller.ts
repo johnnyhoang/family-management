@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { CheckPermission } from '../../common/decorators/permission.decorator';
 import { PermissionService } from './permission.service';
-import { UserRole } from '../../common/entities/user.entity';
+import { SystemRole, UserRole } from '../../common/entities/user.entity';
 
 @ApiTags('Permissions')
 @ApiBearerAuth()
@@ -13,47 +13,41 @@ import { UserRole } from '../../common/entities/user.entity';
 export class PermissionController {
   constructor(private readonly permissionService: PermissionService) {}
 
-  @Get()
-  @ApiOperation({ summary: 'Get all permissions for the family' })
+  @Get('roles')
+  @ApiOperation({ summary: 'Get all role templates' })
   @CheckPermission('Admin', 'view')
   async findAll(@Request() req) {
-    return this.permissionService.findAll(req.user.familyId);
+    this.assertAppAdmin(req.user.systemRole);
+    return this.permissionService.findAllRoleTemplates();
   }
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new permission rule (Admin only)' })
-  @CheckPermission('Admin', 'add')
-  async create(@Request() req, @Body() data: any) {
-    if (req.user.role !== UserRole.FAMILY_ADMIN && req.user.role !== UserRole.SYSTEM_ADMIN) {
-      throw new ForbiddenException('Only administrators can manage permissions');
-    }
-    return this.permissionService.create(req.user.familyId, data);
-  }
-
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update a permission rule' })
-  @CheckPermission('Admin', 'edit')
-  async update(@Request() req, @Param('id') id: string, @Body() data: any) {
-    if (req.user.role !== UserRole.FAMILY_ADMIN && req.user.role !== UserRole.SYSTEM_ADMIN) {
-      throw new ForbiddenException('Only administrators can manage permissions');
-    }
-    return this.permissionService.update(id, req.user.familyId, data);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete a permission rule' })
-  @CheckPermission('Admin', 'delete')
-  async remove(@Request() req, @Param('id') id: string) {
-    if (req.user.role !== UserRole.FAMILY_ADMIN && req.user.role !== UserRole.SYSTEM_ADMIN) {
-      throw new ForbiddenException('Only administrators can manage permissions');
-    }
-    return this.permissionService.remove(id, req.user.familyId);
+  @Get('roles/:roleCode')
+  @ApiOperation({ summary: 'Get a role template with permissions' })
+  @CheckPermission('Admin', 'view')
+  async findRole(@Request() req, @Param('roleCode') roleCode: UserRole) {
+    this.assertAppAdmin(req.user.systemRole);
+    return this.permissionService.findRolePermissions(roleCode);
   }
 
   @Post('seed')
-  @ApiOperation({ summary: 'Seed default permissions for the family' })
-  @CheckPermission('Admin', 'add')
+  @ApiOperation({ summary: 'Seed system roles and permission templates' })
+  @CheckPermission('Admin', 'create')
   async seed(@Request() req) {
-    return this.permissionService.seedDefaultPermissions(req.user.familyId);
+    this.assertAppAdmin(req.user.systemRole);
+    return this.permissionService.seedSystemPermissions();
+  }
+
+  @Patch('roles/:roleCode')
+  @ApiOperation({ summary: 'Update a role template' })
+  @CheckPermission('Admin', 'update')
+  async updateRole(@Request() req, @Param('roleCode') roleCode: UserRole, @Body('permissions') permissions: Array<{ moduleId: string; action: string }>) {
+    this.assertAppAdmin(req.user.systemRole);
+    return this.permissionService.updateRoleTemplate(roleCode, permissions ?? []);
+  }
+
+  private assertAppAdmin(systemRole: SystemRole) {
+    if (systemRole !== SystemRole.APP_ADMIN) {
+      throw new ForbiddenException('Only APP_ADMIN can manage role permissions');
+    }
   }
 }

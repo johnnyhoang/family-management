@@ -1,168 +1,110 @@
-# AI Handover Documentation: Family Asset & Expense Management System
+# AI Handover Documentation
 
-## 1. System Overview
-A production-ready, multi-tenant system for managing family assets and expenses.
-- **Goal**: Strict data isolation per family, hierarchical asset management, automated financial tracking, AI-powered natural language input.
-- **Full Specs**: See **[REQUIREMENTS.md](./REQUIREMENTS.md)** for detailed functional requirements.
-- **Architecture Specs**: See **[docs/specs/ARCHITECTURE.md](./docs/specs/ARCHITECTURE.md)**.
-- **Language**: Core UI in Vietnamese (`vi`), i18n-ready.
-- **Monorepo**: NestJS backend (`server/`) + React/Vite frontend (`web/`).
+## 1. Tóm tắt hệ thống
 
-## 2. Tech Stack
-| Component | Technology | Version |
-| :--- | :--- | :--- |
-| **Backend** | NestJS | 11.x |
-| **ORM** | TypeORM | 0.3.x |
-| **Database** | PostgreSQL (Supabase) | — |
-| **Frontend** | React + TypeScript + Vite | 19 / 7.x |
-| **Styling** | Tailwind CSS + Ant Design | 3.4 / 6.x |
-| **State** | TanStack Query (React Query) | 5.x |
-| **Routing** | React Router | 7.x |
-| **Auth** | Google OAuth2 + JWT | — |
-| **AI** | OpenAI SDK (`gpt-4o`) | 4.x |
-| **Scheduling** | NestJS Schedule (Cron) | — |
-| **Storage** | Google Cloud Storage | 7.x |
-| **Charts** | Recharts | 3.x |
-| **I18n** | nestjs-i18n / react-i18next | — |
-| **Deployment** | Vercel (Serverless + Static) | — |
-| **Node** | >=22.13.0 | — |
+Đây là ứng dụng quản lý tài sản, thu chi và lịch gia đình theo mô hình nhiều gia đình. Một user có thể thuộc nhiều family, nhưng mỗi phiên làm việc chỉ dùng đúng một `activeFamilyId`.
 
-## 3. Project Structure
-```text
-family-management/
-├── server/                       # NestJS Backend
-│   ├── src/
-│   │   ├── common/
-│   │   │   ├── entities/         # 9 DB entities (all extend BaseEntity)
-│   │   │   ├── guards/           # PermissionGuard (RBAC)
-│   │   │   └── decorators/       # @CheckPermission decorator
-│   │   ├── modules/              # 13 feature modules
-│   │   │   ├── auth/             # Google OAuth2 + JWT
-│   │   │   ├── user/             # User/member management
-│   │   │   ├── family/           # Multi-tenancy root entity
-│   │   │   ├── asset/            # Hierarchical asset tracking
-│   │   │   ├── expense/          # Recurring expense management
-│   │   │   ├── category/         # Asset/expense categories
-│   │   │   ├── dashboard/        # Analytics & aggregations
-│   │   │   ├── calendar/         # Event scheduling
-│   │   │   ├── notification/     # In-app alerts
-│   │   │   ├── permission/       # RBAC configuration
-│   │   │   ├── file/             # GCS file uploads
-│   │   │   ├── natural-input/    # AI text parsing (OpenAI)
-│   │   │   └── admin/            # System admin operations
-│   │   ├── migrations/           # TypeORM migrations
-│   │   ├── data-source.ts        # TypeORM PostgreSQL config
-│   │   └── main.ts               # Entry: Swagger, CORS, versioning
-│   ├── i18n/                     # vi/ and en/ translation JSON
-│   ├── api/index.ts              # Vercel serverless entry point
-│   └── .env.example
-├── web/                          # React Frontend
-│   ├── src/
-│   │   ├── api/                  # Axios modules per feature
-│   │   ├── components/
-│   │   │   ├── layout/           # MainLayout (sidebar + header)
-│   │   │   ├── auth/             # AuthGuard
-│   │   │   ├── NaturalInputBox   # AI text + voice input
-│   │   │   ├── ParsedPreviewModal # Review/edit before save
-│   │   │   └── QRScannerModal    # QR asset lookup
-│   │   ├── pages/                # 9 feature pages
-│   │   ├── locales/              # vi/ and en/ i18n JSON
-│   │   └── App.tsx               # Router + providers + theme
-│   ├── tailwind.config.js
-│   └── .env.example
-├── docs/specs/                   # Feature specs
-├── REQUIREMENTS.md               # Functional requirements (source of truth)
-├── AI_HANDOVER.md                # This file
-├── vercel.json                   # Root Vercel deploy config
-└── package.json                  # Monorepo: workspaces + concurrently scripts
-```
+Các thay đổi quan trọng gần đây:
 
-## 4. Business Logic & Constraints
-- **Multi-tenancy**: Every entity must carry `familyId`; guard enforces it.
-- **RBAC**: `PermissionGuard` + `@CheckPermission(moduleId, action)` on all controller routes. `SYSTEM_ADMIN` and `FAMILY_ADMIN` bypass checks.
-- **Soft Delete**: All entities use TypeORM `@DeleteDateColumn()` (`deletedAt`). Queries auto-filter deleted rows.
-- **Asset Hierarchy**: `parentAssetId` self-reference (House → Room → Item).
-- **API Versioning**: All routes under `/api/v1`.
-- **Auth Flow**: Google OAuth → `validateOAuthUser()` (upsert user + auto-create family for new users) → sign JWT → redirect to frontend with token.
+- Refactor category tài chính sang 4 type chính: `ASSET`, `LIABILITY`, `INCOME`, `EXPENSE`
+- Chuẩn hóa hierarchy danh mục: `type -> group -> category`
+- Bổ sung `isTransfer` và chuẩn hóa `isRecurring` cho transaction
+- Thêm multi-family membership bằng `family_users`
+- Thêm RBAC theo role template
+- UI bỏ i18n, dùng tiếng Việt trực tiếp
+- Dark Mode hoạt động thật
 
-## 5. Key Implementation Details
+## 2. Stack
 
-### Backend
-| Concern | Implementation |
+| Thành phần | Công nghệ |
 | :--- | :--- |
-| Auth | `GoogleStrategy` (Passport) + `JwtStrategy` for API protection |
-| Permission Check | `PermissionGuard` queries `Permission` entity by role + moduleId |
-| Notifications | Stored in PostgreSQL; in-process `setTimeout` for delays (lost on restart) |
-| AI Parsing | `NaturalInputService` → OpenAI `gpt-4o` → JSON parse → save to `natural_input_history` |
-| Money Parsing | `MoneyParserService` handles Vietnamese: "triệu", "tr", "k", "rưỡi" |
-| File Storage | `FileModule` uploads to GCS; only URL stored in DB |
-| Scheduling | `@Cron()` decorators for warranty/maintenance/expense reminder checks |
+| Backend | NestJS 11 |
+| ORM | TypeORM 0.3 |
+| DB | PostgreSQL |
+| Frontend | React 19 + Vite |
+| UI | Ant Design + CSS/Tailwind utility |
+| Routing | React Router 7 |
+| State | TanStack Query |
+| Auth | Google OAuth2 + JWT |
+| AI | OpenAI SDK |
 
-### Frontend
-| Concern | Implementation |
-| :--- | :--- |
-| Design System | "Glassmorphism" with Tailwind `backdrop-blur` + Ant Design tokens |
-| Server State | `TanStack Query` (React Query) – all API calls via hooks |
-| Responsiveness | Mobile-first Tailwind grid/flex |
-| Token Storage | `localStorage` (`access_token` key) |
-| API Base URL | `VITE_API_URL` env var → `web/src/api/client.ts` |
+## 3. Cấu trúc dữ liệu cốt lõi
 
-## 6. Adding a New Module (Step-by-Step)
-1. **Entity**: Create in `server/src/common/entities/` — extend `BaseEntity`, add `familyId`.
-2. **Module**: `nest g module/service/controller modules/<name>`.
-3. **DTOs**: Create `create-<name>.dto.ts` / `update-<name>.dto.ts` with `class-validator`.
-4. **Permissions**: Add `@CheckPermission(ModuleId.X, 'canAdd')` to controller methods.
-5. **Register**: Import the new module in `app.module.ts` and add entity to TypeORM list.
-6. **Migration**: Generate TypeORM migration after entity changes.
-7. **Frontend API**: Add `web/src/api/<name>.ts` with Axios calls.
-8. **Frontend Page**: Create `web/src/pages/<Name>.tsx`, register route in `App.tsx`.
+### User / Family
 
-## 7. Environment Variables
-### Backend (`server/.env`)
-| Variable | Purpose |
-| :--- | :--- |
-| `DATABASE_URL` | Supabase PostgreSQL connection string |
-| `GOOGLE_CLIENT_ID` | OAuth2 client ID |
-| `GOOGLE_CLIENT_SECRET` | OAuth2 client secret |
-| `GOOGLE_CALLBACK_URL` | OAuth callback (e.g. `http://localhost:3173/api/v1/auth/google/callback`) |
-| `JWT_SECRET` | Secret for signing JWT tokens |
-| `OPENAI_API_KEY` | OpenAI API key for natural input parsing |
-| `GCS_BUCKET_NAME` | Google Cloud Storage bucket |
-| `GCS_KEY_FILE` | Path to GCS service account JSON |
-| `PORT` | Server port (default 3173; Vercel injects this) |
-| `DB_SYNCHRONIZE` | `true` only for first deploy; use migrations after |
+- `users`: user toàn cục
+- `families`: tenant logic
+- `family_users`: membership `user_id + family_id + role_id + status`
 
-### Frontend (`web/.env`)
-| Variable | Purpose |
-| :--- | :--- |
-| `VITE_API_URL` | Backend API base URL |
+### RBAC
 
-## 8. Deployment (Vercel)
-- Root `vercel.json` rewrites `/api/**` → NestJS serverless function, everything else → React SPA.
-- Backend entry: `server/api/index.ts` (wraps NestJS app for Vercel).
-- Frontend: static build via `vite build`.
-- Serverless function max duration: 30 seconds.
-- **Production checklist**:
-  - Set `GOOGLE_CALLBACK_URL` to production domain.
-  - Configure CORS in `main.ts` for production frontend URL.
-  - Set `DB_SYNCHRONIZE=false` and run migrations manually.
-  - Ensure all env vars are set in Vercel project settings.
+- `roles`
+- `permissions`
+- `role_permissions`
+- `invites`
 
-## 9. Known Issues & Technical Debt
-See **[docs/specs/TODO.md](./docs/specs/TODO.md)** for the full prioritized backlog.
+### Finance
 
-Top items:
-- Notifications use `setTimeout` in-process — lost on restart. Needs a proper queue (Bull/BullMQ).
-- No database indexes on `familyId`, `expenseDate`, `warrantyExpiredAt` — will cause slow queries at scale.
-- No test coverage beyond 1 placeholder spec.
-- `console.log` used throughout — should use NestJS `Logger`.
-- Missing DB transaction wrapping family+user creation in `auth.service.ts`.
+- `categories`
+- `assets`
+- `expenses` (transaction)
 
-## 10. Development Commands
-```bash
-npm run dev          # Start server + web in parallel
-npm run start:server # NestJS dev server only (port 3173)
-npm run start:web    # Vite dev server only (port 5173)
-```
-- **API Docs**: http://localhost:3173/api/docs (Swagger)
-- **Frontend**: http://localhost:5173
+## 4. Cách auth/session đang chạy
+
+1. User login bằng Google
+2. Backend upsert `users`
+3. Nếu user chưa có family membership:
+   - tạo family mới
+   - gán `FAMILY_ADMIN`
+4. Backend trả JWT có:
+   - `sub`
+   - `systemRole`
+   - `activeFamilyId`
+   - `activeRole`
+5. Frontend lưu token vào `localStorage`
+6. Frontend gọi `/auth/me` để lấy session mới nhất
+7. Frontend có thể switch family bằng `/auth/switch-family`
+
+## 5. Backend modules đáng chú ý
+
+- `auth`: OAuth, JWT, session profile, switch family, accept invite
+- `permission`: seed permission definitions, role template, permission lookup
+- `user`: member listing, invite, update role, remove membership
+- `family`: family profile trong active family
+- `admin`: cấu trúc hệ thống cho `APP_ADMIN`
+- `category`: hierarchy tài chính
+- `expense`: transactions, recurring, transfer
+
+## 6. Frontend state hiện tại
+
+- `SessionProvider` đọc `/auth/me` và giữ session hiện tại
+- Sidebar/MobileHeader đã hiểu:
+  - family đang chọn
+  - role hiện tại
+  - switch family
+  - ẩn/hiện menu theo quyền
+- Route có guard theo permission view để tránh rơi vào màn không có quyền
+
+## 7. Các giới hạn cần biết trước khi mở rộng
+
+- Web admin dành riêng cho `APP_ADMIN` chưa hoàn thiện; backend API đã có
+- Invite flow mới dừng ở token-based backend, chưa có mail sender thật
+- User settings backend chưa tách hẳn thành module riêng theo user
+- Coverage test còn mỏng
+
+## 8. Migrations quan trọng
+
+- `1775304000000-RefactorFinanceCategoryHierarchy`
+- `1775400000000-AddMultiFamilyRbac`
+
+Khi dựng môi trường mới hoặc deploy DB cũ, cần chạy migration đầy đủ trước.
+
+## 9. Checklist khi AI khác tiếp quản
+
+1. Chạy build cả backend và frontend
+2. Kiểm tra migration trên DB thật
+3. Kiểm tra login mới, create family, invite, accept invite, switch family
+4. Kiểm tra APP_ADMIN không truy cập finance data
+5. Kiểm tra transfer không vào dashboard tổng thu/chi
+6. Kiểm tra category type consistency
+7. Kiểm tra UI route/menu đúng theo role

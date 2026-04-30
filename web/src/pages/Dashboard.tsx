@@ -7,21 +7,41 @@ import { Package, Receipt, AlertTriangle, Clock } from 'lucide-react';
 import api from '../api/client';
 import { cn } from '../utils/cn';
 import { NaturalInputBox } from '../components/NaturalInputBox';
+import { useSession } from '../components/auth/SessionProvider';
 import { formatVndAmount } from '../utils/currency';
 import { getDateBadgeClassName, getMoneyBadgeClassName } from '../utils/display';
 
 const COLORS = ['#f58a7a', '#f3b665', '#7cb7ef', '#7fc7aa', '#f5a6c1', '#b8a5ff'];
 
 export const Dashboard = () => {
-    const { data: stats, isLoading } = useQuery({
+    const { systemRole, canAccess } = useSession();
+    const canViewDashboard = canAccess('DASHBOARD', 'view');
+
+    const { data: stats, isLoading, isError } = useQuery({
         queryKey: ['dashboard-stats'],
+        enabled: canViewDashboard,
         queryFn: async () => {
             const { data } = await api.get('/dashboard/stats');
             return data;
         },
     });
 
+    if (!canViewDashboard || systemRole === 'APP_ADMIN') {
+        return (
+            <div className="glass-card p-6 lg:p-8">
+                <h1 className="text-2xl font-bold text-slate-900 font-display">Tổng quan hệ thống</h1>
+                <p className="mt-2 text-sm text-slate-600">
+                    Tài khoản quản trị ứng dụng không được truy cập dữ liệu tài chính của từng gia đình.
+                </p>
+                <p className="mt-3 text-sm text-slate-500">
+                    Bạn vẫn có thể dùng các API quản trị hệ thống ở backend. Giao diện quản trị ứng dụng riêng cần được tách thành một module riêng trước khi launch.
+                </p>
+            </div>
+        );
+    }
+
     if (isLoading) return <div className="p-8 text-center text-slate-500 font-medium">Đang tải dữ liệu...</div>;
+    if (isError) return <div className="p-8 text-center text-slate-500 font-medium">Không thể tải dữ liệu tổng quan cho gia đình đang chọn.</div>;
 
     const summaryCards = [
         { label: 'Tổng tài sản', value: stats?.totalAssets || 0, icon: Package, color: 'text-[#5f87c2]', bg: 'bg-[#edf6ff]' },

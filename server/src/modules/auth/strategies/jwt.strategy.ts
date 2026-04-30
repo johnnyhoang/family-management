@@ -4,7 +4,10 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../../../common/entities/user.entity';
+import { Request } from 'express';
+import { User, SystemRole, UserRole } from '../../../common/entities/user.entity';
+import { FamilyUser, FamilyUserStatus } from '../../../common/entities/family-user.entity';
+import { FamilyStatus } from '../../../common/entities/family.entity';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
@@ -12,24 +15,63 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     private configService: ConfigService,
     @InjectRepository(User)
     private userRepository: Repository<User>,
+    @InjectRepository(FamilyUser)
+    private familyUserRepository: Repository<FamilyUser>,
   ) {
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
       secretOrKey: configService.get<string>('JWT_SECRET'),
+      passReqToCallback: true,
     });
   }
 
-  async validate(payload: any) {
+  async validate(req: Request, payload: any) {
     const user = await this.userRepository.findOne({
       where: { id: payload.sub },
-      relations: ['family'],
     });
 
     if (!user || !user.isActive) {
       throw new UnauthorizedException();
     }
 
-    return user;
+    const requestedFamilyId = String(req.headers['x-family-id'] || '').trim() || payload.activeFamilyId || user.lastActiveFamilyId;
+
+    if (user.systemRole === SystemRole.APP_ADMIN && !requestedFamilyId) {
+      return {
+        ...user,
+        role: UserRole.APP_ADMIN,
+        familyId: null,
+      };
+    }
+
+    if (!requestedFamilyId) {
+      throw new UnauthorizedException('Active family is required');
+    }
+
+    const membership = await this.familyUserRepository.findOne({
+      where: {
+        userId: user.id,
+        familyId: requestedFamilyId,
+        status: FamilyUserStatus.ACTIVE,
+      },
+      relations: ['family', 'role'],
+    });
+
+    if (!membership) {
+      throw new UnauthorizedException('User is not an active member of the selected family');
+    }
+
+    if (membership.family?.status !== FamilyStatus.ACTIVE) {
+      throw new UnauthorizedException('Selected family is inactive');
+    }
+
+    return {
+      ...user,
+      familyId: membership.familyId,
+      family: membership.family,
+      role: membership.role?.code ?? UserRole.MEMBER,
+      membershipId: membership.id,
+    };
   }
 }

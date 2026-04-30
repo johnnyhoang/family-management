@@ -1,50 +1,87 @@
-# Family Asset & Expense Management System
+# Family Management
 
-A production-ready solution for managing family wealth and spending.
+Ứng dụng quản lý tài sản, thu chi và lịch gia đình theo mô hình nhiều gia đình, mỗi phiên làm việc gắn với đúng một gia đình hoạt động.
 
-## 🚀 Quick Start
+## Thành phần chính
 
-### 1. Prerequisites
-- Node.js 20+
-- Supabase Account
-- Vercel Account
+- `server/`: NestJS + TypeORM + PostgreSQL
+- `web/`: React + Vite + Ant Design
+- Đăng nhập Google OAuth2
+- Phân quyền theo vai trò mẫu trong gia đình
+- Dữ liệu tài chính tách biệt chặt theo `familyId`
 
-### 2. Setup
+## Tính năng hiện tại
+
+- Quản lý tài sản
+- Quản lý giao dịch thu nhập, chi phí, nợ
+- Danh mục tài chính theo 3 tầng: `type -> group -> category`
+- Chuyển nội bộ với `isTransfer` để không double count vào tổng thu chi
+- Lịch gia đình
+- AI nhập liệu tự nhiên bằng tiếng Việt
+- Multi-family membership + chọn `active family`
+- Giao diện tiếng Việt, có Dark Mode
+
+## Vai trò hệ thống
+
+- `APP_ADMIN`: quản trị cấu trúc hệ thống, gia đình, vai trò mẫu; không được truy cập dữ liệu tài chính
+- `FAMILY_ADMIN`: quản trị một gia đình, mời thành viên, đổi vai trò thành viên
+- `MEMBER`: thao tác dữ liệu gia đình theo permission template
+
+## Chạy local
+
+### Yêu cầu
+
+- Node.js 24+
+- PostgreSQL
+
+### Cài đặt
+
 ```bash
-# Install dependencies for the entire monorepo
 npm install
-
-# Configure environment
-# 1. Server: Copy server/.env.example to server/.env
-# 2. Web: Copy web/.env.example to web/.env
-# Update both with your Supabase and Vercel credentials
 ```
 
-### 3. Development
+Tạo file môi trường:
+
+- `server/.env`
+- `web/.env`
+
+### Chạy dev
+
 ```bash
-# Start both Backend and Frontend
 npm run dev
 ```
-- **Backend API**: http://localhost:3173/api/v1
-- **Swagger Docs**: http://localhost:3173/api/docs
-- **Frontend App**: http://localhost:5173
 
-## 📖 Documentation
-- **[Requirements & Specs](./REQUIREMENTS.md)**: Original detailed project specifications.
-- **[AI Handover & Technical Guide](./AI_HANDOVER.md)**: Technical architecture and extension guide.
+- API: `http://localhost:3173/api/v1`
+- Swagger: `http://localhost:3173/api/docs`
+- Web: `http://localhost:5173`
 
-## 🛠 Features
-- **Multi-tenancy**: Strict data isolation per family.
-- **RBAC**: Module and Category level permissions.
-- **Asset Management**: Hierarchical tracking and maintenance alerts.
-- **Expense Tracking**: Financial analytics and recurring cost management.
-- **Smart Notifications**: Automated warranty and maintenance reminders.
-- **Internationalization**: Full Vietnamese support (i18n ready).
+### Build
 
-## ☁️ Deployment
-The system is optimized for **Vercel** (hosting) and **Supabase** (PostgreSQL database).
-- **Backend**: Deployed as Vercel Serverless Functions (NestJS).
-- **Frontend**: Deployed as a Vercel Static Site (React/Vite).
+```bash
+npm run build -w server
+npm run build -w web
+```
 
----
-*Built with NestJS, React, and TypeORM.*
+### Migration
+
+```bash
+npm run migration:run -w server
+```
+
+Các migration gần đây cần được áp dụng trước khi chạy production:
+
+- `1775304000000-RefactorFinanceCategoryHierarchy`
+- `1775400000000-AddMultiFamilyRbac`
+
+## Tài liệu
+
+- [REQUIREMENTS.md](./REQUIREMENTS.md)
+- [AI_HANDOVER.md](./AI_HANDOVER.md)
+- [docs/specs/ARCHITECTURE.md](./docs/specs/ARCHITECTURE.md)
+- [docs/specs/TODO.md](./docs/specs/TODO.md)
+
+## Ghi chú production hiện tại
+
+- Invite flow đã có token-based backend, nhưng chưa có outbound email sender thật
+- `APP_ADMIN` đã có backend API, nhưng web admin riêng chưa hoàn thiện
+- Chưa có test integration đủ cho RBAC, multi-family isolation và migration

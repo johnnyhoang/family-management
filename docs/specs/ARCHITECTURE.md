@@ -1,267 +1,190 @@
 # System Architecture
 
-## 1. High-Level Overview
+## 1. High-level flow
 
-```
-┌─────────────────────────────────────────┐
-│              Vercel CDN                 │
-│  ┌────────────────┐  ┌───────────────┐  │
-│  │ React SPA      │  │ NestJS        │  │
-│  │ (Static)       │  │ (Serverless)  │  │
-│  │ web/           │  │ server/       │  │
-│  └───────┬────────┘  └──────┬────────┘  │
-└──────────┼──────────────────┼───────────┘
-           │ VITE_API_URL     │ DATABASE_URL
-           │                  ▼
-           │         ┌─────────────────┐
-           │         │ Supabase        │
-           │         │ (PostgreSQL)    │
-           │         └─────────────────┘
-           │                  │ GCS_KEY_FILE
-           │                  ▼
-           │         ┌─────────────────┐
-           │         │ Google Cloud    │
-           │         │ Storage (GCS)   │
-           │         └─────────────────┘
-           │                  │ OPENAI_API_KEY
-           │                  ▼
-           │         ┌─────────────────┐
-           └────────►│ OpenAI API      │
-                     │ (gpt-4o)        │
-                     └─────────────────┘
+```text
+Browser
+  -> React SPA (web)
+  -> Bearer JWT
+  -> NestJS API (/api/v1)
+  -> TypeORM
+  -> PostgreSQL
 ```
 
-## 2. Request Lifecycle
+External integrations:
 
-```
-Browser → GET /api/v1/assets
-  → Vercel routes /api/** → NestJS serverless fn
-  → JwtGuard validates Bearer token
-  → PermissionGuard checks role + moduleId
-  → AssetController.findAll()
-  → AssetService queries PostgreSQL (TypeORM)
-  → Response JSON
-```
+- Google OAuth2
+- OpenAI API
+- File storage module (nếu đang bật môi trường upload)
 
-## 3. Authentication Flow
+## 2. Request lifecycle
 
-```
-User clicks "Login with Google"
-  → /api/v1/auth/google (GoogleStrategy)
-  → Google OAuth2 callback
-  → validateOAuthUser():
-      ├── Find user by googleId or email
-      ├── If new: create User + create Family ("Default Family")
-      └── Update profile (avatar, name)
-  → signJwt({ userId, familyId, role })
-  → Redirect to /login-success?token=<jwt>
-  → Frontend stores token in localStorage
-  → All API calls: Authorization: Bearer <token>
+```text
+Browser request
+  -> AuthGuard('jwt')
+  -> JwtStrategy resolve user + active family membership
+  -> ActiveFamilyGuard (nếu route yêu cầu family session)
+  -> PermissionGuard
+  -> Controller
+  -> Service
+  -> Repository / QueryBuilder
 ```
 
-## 4. Database Schema
+Điểm quan trọng:
 
-### Entity Inheritance
-All entities extend `BaseEntity`:
-```
-BaseEntity
-  ├── id: UUID (primary key, auto-generated)
-  ├── createdAt: timestamp
-  ├── updatedAt: timestamp
-  └── deletedAt: timestamp (soft delete)
-```
+- `JwtStrategy` là lớp chốt membership đang hoạt động
+- `PermissionGuard` map module/action sang permission template
+- `APP_ADMIN` bị chặn khỏi các module tài chính
 
-### Entity Relationship Diagram
-```
-Family (1)
-  ├── User (N) — familyId FK
-  │     └── Asset.assignedToUserId, ownerId, usedById → User
-  ├── Asset (N) — familyId FK
-  │     ├── Asset.parentAssetId → Asset (self-reference hierarchy)
-  │     ├── Asset.categoryId → Category
-  │     └── Expense.assetId → Asset
-  ├── Expense (N) — familyId FK
-  │     └── Expense.categoryId → Category
-  ├── Category (N) — familyId FK
-  │     └── Category.parentCategoryId → Category (self-reference)
-  ├── Permission (N) — familyId FK
-  │     └── role + moduleId + categoryId → action flags
-  ├── CalendarEvent (N) — familyId FK
-  ├── Notification (N) — familyId FK
-  └── NaturalInputHistory (N) — familyId FK
+## 3. Multi-family model
+
+```text
+users
+  1 --- n family_users n --- 1 families
 ```
 
-### Key Entities
+`family_users` là nguồn sự thật cho:
 
-#### User
-| Column | Type | Notes |
-| :--- | :--- | :--- |
-| id | UUID | PK |
-| familyId | UUID | FK → Family |
-| email | varchar | unique |
-| googleId | varchar | unique |
-| fullName | varchar | |
-| avatarUrl | varchar | |
-| role | enum | SYSTEM_ADMIN, FAMILY_ADMIN, MEMBER, RELATIVE, VIEWER |
-| isActive | boolean | |
+- family membership
+- family role
+- membership status
 
-#### Asset
-| Column | Type | Notes |
-| :--- | :--- | :--- |
-| id | UUID | PK |
-| familyId | UUID | FK → Family |
-| categoryId | UUID | FK → Category (nullable) |
-| parentAssetId | UUID | Self-reference (nullable) |
-| name | varchar | |
-| purchasePrice | decimal | |
-| currentValue | decimal | |
-| status | enum | ACTIVE, BROKEN, SOLD, LOST, ARCHIVED |
-| warrantyExpiredAt | date | |
-| maintenanceIntervalDays | int | |
-| nextMaintenanceDate | date | |
-| images | json | URL array |
-| documents | json | URL array |
-| customFields | json | Extensible |
+`users.lastActiveFamilyId` chỉ là session preference.
 
-#### Expense
-| Column | Type | Notes |
-| :--- | :--- | :--- |
-| id | UUID | PK |
-| familyId | UUID | FK → Family |
-| assetId | UUID | FK → Asset (nullable) |
-| categoryId | UUID | FK → Category (nullable) |
-| amount | decimal | |
-| currency | varchar | Default: VND |
-| expenseDate | date | |
-| isRecurring | boolean | |
-| recurringCycle | enum | DAILY, WEEKLY, MONTHLY, YEARLY |
-| nextOccurrenceDate | date | |
-| reminderEnabled | boolean | |
-| customFields | json | Extensible |
+## 4. RBAC model
 
-#### Permission
-| Column | Type | Notes |
-| :--- | :--- | :--- |
-| id | UUID | PK |
-| familyId | UUID | FK → Family |
-| role | enum | UserRole |
-| moduleId | varchar | asset, expense, category, user, dashboard, notification |
-| categoryId | UUID | Optional — category-level grant |
-| canView | boolean | |
-| canAdd | boolean | |
-| canEdit | boolean | |
-| canDelete | boolean | |
-| canNotify | boolean | |
+```text
+roles
+  1 --- n role_permissions n --- 1 permissions
 
-## 5. RBAC Architecture
-
-```
-HTTP Request
-  │
-  ▼
-JwtGuard ──── invalid ──► 401 Unauthorized
-  │
-  ▼ valid (req.user = { userId, familyId, role })
-  │
-PermissionGuard
-  ├── role === SYSTEM_ADMIN? ──► allow
-  ├── role === FAMILY_ADMIN? ──► allow
-  └── query Permission table (familyId + role + moduleId)
-        ├── found + action flag true? ──► allow
-        └── not found / false ──► 403 Forbidden
+family_users.roleId -> roles.id
+invites.roleId -> roles.id
 ```
 
-## 6. Frontend Architecture
+### Permission modules
 
-```
-App.tsx
-  ├── Providers: QueryClientProvider, I18nextProvider, ConfigProvider (Ant Design)
-  └── Router
-        ├── /login → Login page (public)
-        ├── /login-success → stores token, redirect (public)
-        └── AuthGuard (private)
-              ├── /dashboard → Dashboard
-              ├── /assets → AssetList
-              ├── /expenses → ExpenseList
-              ├── /categories → CategoryList
-              ├── /members → MemberList
-              ├── /calendar → CalendarPage
-              └── /settings → Settings
+- `ADMIN`
+- `FAMILY`
+- `USER`
+- `PERMISSION`
+- `DASHBOARD`
+- `CATEGORY`
+- `CALENDAR`
+- `ASSET`
+- `TRANSACTION`
 
-State Management:
-  - Server state: TanStack Query (React Query v5) — all API calls
-  - No global client state store (Context API only where needed)
+### Actions
 
-API Layer (web/src/api/):
-  - client.ts: Axios instance, token injection via interceptor
-  - assets.ts, expenses.ts, categories.ts, etc. — feature-specific
-```
+- `view`
+- `create`
+- `update`
+- `delete`
 
-## 7. AI Natural Input Flow
+## 5. Auth flow
 
-```
-User types/speaks text
-  │
-NaturalInputBox (frontend)
-  ├── Voice: SpeechRecognition API → text
-  └── Text: direct input
-  │
-POST /api/v1/natural-input/parse
-  │
-NaturalInputService.parse()
-  ├── Fetch context (categories, family members, assets) — in-memory cached 5 min
-  ├── MoneyParserService: pre-process Vietnamese currency
-  ├── Build system prompt with context
-  ├── OpenAI gpt-4o call (json_object format)
-  ├── On fail: 1 retry
-  ├── JSON.parse response
-  └── Save to natural_input_history table
-  │
-ParsedPreviewModal (frontend)
-  ├── Show detected intent + fields
-  ├── User edits if needed
-  └── Submit → POST /api/v1/expenses (or /assets, etc.)
+```text
+/auth/google
+  -> Google callback
+  -> validateOAuthUser()
+      -> upsert user
+      -> seed permissions/roles
+      -> create default family if user has no membership
+      -> choose active family
+  -> sign JWT
+  -> redirect frontend with token
 ```
 
-## 8. Notification & Scheduling
+Frontend:
 
-```
-@Cron('0 8 * * *')  — runs daily at 8:00 AM
-  │
-MaintenanceScheduler / ExpenseScheduler
-  ├── Query assets where warrantyExpiredAt BETWEEN now AND now+30d
-  ├── Query assets where nextMaintenanceDate <= now
-  ├── Query expenses where nextOccurrenceDate <= now + reminderDaysBefore
-  └── For each hit:
-        └── NotificationService.create() → save to notifications table
-
-In-process delays (setTimeout):
-  ├── Used for one-off delay notifications
-  ├── NOT persisted — lost on restart
-  └── Should be replaced with BullMQ or similar queue
+```text
+login-success
+  -> save token
+  -> load /auth/me
+  -> SessionProvider caches session
+  -> sidebar/routes derive family and permission state
 ```
 
-## 9. File Upload Flow
+## 6. Invite flow
 
+```text
+FAMILY_ADMIN
+  -> POST /users/invite
+  -> create invite token + expiry
+
+Invited user
+  -> login Google
+  -> POST /auth/accept-invite
+  -> create or reactivate family_users membership
+  -> switch active family to invited family
 ```
-Frontend: <input type="file"> → POST /api/v1/files/upload
-  │
-FileService
-  ├── Receive multipart/form-data (Multer)
-  ├── Upload buffer to GCS bucket
-  ├── Return { url: "https://storage.googleapis.com/..." }
-  │
-Asset/Expense update:
-  └── Save returned URL into images[] or documents[] JSON column
+
+Lưu ý:
+
+- Hiện chưa có email sender thật
+- Invite hiện là token-based backend flow
+
+## 7. Finance category model
+
+```text
+Category(type=ASSET|LIABILITY|INCOME|EXPENSE, level=GROUP|CATEGORY, parentId?)
 ```
 
-## 10. Known Constraints & Tradeoffs
+Rules:
 
-| Constraint | Impact | Mitigation Path |
-| :--- | :--- | :--- |
-| Vercel serverless (30s timeout) | No long-running tasks | Use queues / cron triggers |
-| `setTimeout` notifications | Lost on restart | Replace with BullMQ + Redis |
-| No DB indexes on `familyId` | Slow queries at scale | Add composite indexes |
-| No test coverage | Risky refactors | Add Jest integration tests |
-| OpenAI dependency | Parse fails without API | Graceful error + manual fallback |
-| `customFields: JSON` untyped | Runtime errors | Add JSON Schema validation |
+- `GROUP` là tầng trung gian
+- `CATEGORY` phải có `parentId`
+- parent và child phải cùng `type`
+
+Ví dụ:
+
+```text
+ASSET
+  -> Investment
+    -> Stock
+    -> Crypto
+EXPENSE
+  -> Sinh hoạt
+    -> Điện nước
+INCOME
+  -> Lương
+    -> Lương chính
+LIABILITY
+  -> Vay mượn
+    -> Nợ bạn bè
+```
+
+## 8. Transaction model
+
+Entity transaction hiện dùng `Expense`:
+
+- `entryType`: `INCOME | EXPENSE | LIABILITY`
+- `isRecurring`
+- `isTransfer`
+
+Analytics rules:
+
+- `isTransfer = true` không đi vào tổng thu chi
+- transfer không đi vào breakdown income/expense bình thường
+
+## 9. Frontend authorization model
+
+Frontend không thay backend authorization, nhưng làm 3 việc:
+
+1. load session qua `/auth/me`
+2. ẩn menu theo permission template
+3. redirect khỏi route không có `view` permission
+
+Điều này giảm số màn `403` vô nghĩa và khớp trải nghiệm với backend.
+
+## 10. Production concerns
+
+Các điểm còn cần chú ý trước launch:
+
+- chưa có admin web riêng cho `APP_ADMIN`
+- chưa có outbound email cho invite
+- test integration còn thiếu cho:
+  - multi-family isolation
+  - switch family
+  - invite accept
+  - finance category migration
+  - transfer exclusion

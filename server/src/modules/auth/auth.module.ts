@@ -12,10 +12,12 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from '../../common/entities/user.entity';
 import { Family } from '../../common/entities/family.entity';
+import { FamilyUser } from '../../common/entities/family-user.entity';
+import { Invite } from '../../common/entities/invite.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, Family]),
+    TypeOrmModule.forFeature([User, Family, FamilyUser, Invite]),
     PassportModule.register({ session: false }),
     PermissionModule,
     CategoryModule,

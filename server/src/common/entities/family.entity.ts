@@ -1,5 +1,7 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, OneToMany } from 'typeorm';
 import { BaseEntity } from './base.entity';
+import { FamilyUser } from './family-user.entity';
+import { Invite } from './invite.entity';
 
 export enum FamilyStatus {
   ACTIVE = 'ACTIVE',
@@ -17,4 +19,10 @@ export class Family extends BaseEntity {
     default: FamilyStatus.ACTIVE,
   })
   status: FamilyStatus;
+
+  @OneToMany(() => FamilyUser, (familyUser) => familyUser.family)
+  memberships: FamilyUser[];
+
+  @OneToMany(() => Invite, (invite) => invite.family)
+  invites: Invite[];
 }
