@@ -81,17 +81,27 @@ export const NaturalInputBox: React.FC = () => {
         try {
             const response = await naturalInputApi.parse(inputValue);
 
-            if (response.data.success && response.data.intent !== 'unknown') {
+            const d = response.data;
+            if (!d.success) {
+                if (d.reason === 'openai_api_key_missing') {
+                    message.error('Chưa cấu hình OPENAI_API_KEY trên máy chủ.');
+                } else {
+                    const extra = d.details || d.reason;
+                    message.error(
+                        extra
+                            ? `Không thể nhận diện ý định: ${extra}`
+                            : 'Không thể nhận diện ý định. Vui lòng thử lại.'
+                    );
+                }
+            } else if (d.intent === 'unknown') {
+                message.info(d.clarification || 'AI không chắc chắn về yêu cầu của bạn. Vui lòng thử lại với cách diễn đạt khác.');
+            } else {
                 setParsedResult({
-                    ...response.data,
+                    ...d,
                     originalText: inputValue
                 });
                 setShowModal(true);
                 message.success('Đã phân tích xong!');
-            } else if (response.data.intent === 'unknown') {
-                message.info(response.data.clarification || 'AI không chắc chắn về yêu cầu của bạn. Vui lòng thử lại với cách diễn đạt khác.');
-            } else {
-                message.error('Không thể nhận diện ý định. Vui lòng thử lại.');
             }
         } catch (error) {
             console.error('Parsing error:', error);

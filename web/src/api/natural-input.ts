@@ -13,10 +13,12 @@ export interface NaturalInputHistory {
 export const naturalInputApi = {
   parse: (message: string) => api.post<{
     success: boolean;
-    intent: string;
-    confidence: number;
-    data: any;
+    intent?: string;
+    confidence?: number;
+    data?: any;
     clarification?: string;
+    reason?: string;
+    details?: string;
   }>('/natural-input/parse', { message }),
   
   getHistory: () => api.get<NaturalInputHistory[]>('/natural-input/history'),

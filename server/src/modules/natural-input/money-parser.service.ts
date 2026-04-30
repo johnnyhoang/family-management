@@ -21,8 +21,8 @@ export class MoneyParserService {
       return isNaN(val) ? null : val * 1000;
     }
 
-    // Handle "tr" or "triệu" shorthand (e.g., 3tr2, 3triệu2)
-    const trieuRegex = /(\d+)(tr|triệu)(\d*)/;
+    // Handle "tr", "triệu", "trieu" (thiếu dấu) — ví dụ 5trieu, 3tr2
+    const trieuRegex = /(\d+)(tr|triệu|trieu)(\d*)/i;
     const match = text.match(trieuRegex);
     if (match) {
       const millions = parseInt(match[1]);
@@ -62,8 +62,11 @@ export class MoneyParserService {
    * Pre-processes full text and replaces money patterns with numbers to help AI.
    */
   normalizeText(text: string): string {
-    // This is a simplified version. For complex strings, AI is better at extraction.
-    // We'll primarily rely on the AI but use this service to validate/refine extracted amounts.
-    return text;
+    if (!text) return text;
+    let t = text.replace(/\s+/g, ' ').trim();
+    // Chuẩn hóa lỗi gõ thiếu dấu "triệu" để regex parse và AI đọc đúng (vd. 5trieu, 2 trieu)
+    t = t.replace(/(\d+)\s*trieu\b/gi, '$1 triệu');
+    t = t.replace(/(\d+)trieu\b/gi, '$1 triệu');
+    return t;
   }
 }

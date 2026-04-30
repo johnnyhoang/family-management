@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
     LayoutDashboard,
@@ -47,7 +47,11 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                 <X size={20} />
             </button>
 
-            <div className="flex items-center gap-3 mb-8 px-2">
+            <Link
+                to="/"
+                onClick={() => onClose?.()}
+                className="flex items-center gap-3 mb-8 px-2 rounded-lg outline-offset-2 hover:opacity-90 transition-opacity"
+            >
                 <img
                     src="/logo.svg"
                     alt=""
@@ -56,7 +60,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                     className="w-10 h-10 rounded-xl shadow-lg shadow-primary-200 shrink-0"
                 />
                 <h1 className="font-bold text-lg text-slate-800 tracking-tight">FamilyAsset</h1>
-            </div>
+            </Link>
 
             <nav className="flex-1 space-y-1">
                 {navigation.map((item) => (

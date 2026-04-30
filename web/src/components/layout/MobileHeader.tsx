@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 
 interface MobileHeaderProps {
@@ -7,7 +8,10 @@ interface MobileHeaderProps {
 export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
     return (
         <header className="fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 z-40 flex items-center justify-between px-4 lg:hidden">
-            <div className="flex items-center gap-3">
+            <Link
+                to="/"
+                className="flex items-center gap-3 rounded-lg outline-offset-2 hover:opacity-90 transition-opacity"
+            >
                 <img
                     src="/logo.svg"
                     alt=""
@@ -16,7 +20,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                     className="w-8 h-8 rounded-lg shrink-0"
                 />
                 <h1 className="font-bold text-base text-slate-800 tracking-tight">FamilyAsset</h1>
-            </div>
+            </Link>
 
             <button
                 onClick={onMenuClick}
