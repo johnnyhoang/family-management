@@ -50,7 +50,7 @@ export class AssetService {
   }
 
   async update(id: string, familyId: string, userId: string, data: Partial<Asset>) {
-    await this.assetRepository.update({ id, familyId }, { ...data, updatedBy: userId });
+    await this.assetRepository.update({ id, familyId }, { ...(data as any), updatedBy: userId });
     return this.findOne(id, familyId);
   }
 

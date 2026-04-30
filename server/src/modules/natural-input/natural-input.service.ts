@@ -267,8 +267,9 @@ Output: {
       if (result.intent === 'unknown') this.logger.log(`Clarification: ${result.clarification}`);
 
       // Auto-fix amount using MoneyParser if AI looks uncertain or for double-check
-      if (result.data?.amount && typeof result.data.amount === 'string') {
-        result.data.amount = this.moneyParser.parse(String(result.data.amount)) ?? result.data.amount;
+      const data = result.data as Record<string, unknown> | undefined;
+      if (data?.amount && typeof data.amount === 'string') {
+        data.amount = this.moneyParser.parse(String(data.amount)) ?? data.amount;
       }
       this.fillAmountFromUserText(result, userMessage);
 
