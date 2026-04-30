@@ -7,7 +7,7 @@ import type { Expense } from '../api/expense';
 import { assetApi } from '../api/asset';
 import { categoryApi } from '../api/category';
 import dayjs from 'dayjs';
-import { formatVndAmount } from '../utils/currency';
+import { renderDateBadge, renderMoneyBadge } from '../utils/display';
 
 export const ExpenseList = () => {
     const queryClient = useQueryClient();
@@ -121,7 +121,7 @@ export const ExpenseList = () => {
             title: 'Ngày',
             dataIndex: 'expenseDate',
             key: 'expenseDate',
-            render: (date: string) => dayjs(date).format('DD/MM/YYYY'),
+            render: (date: string) => renderDateBadge(date),
         },
         {
             title: 'Số tiền',
@@ -129,11 +129,7 @@ export const ExpenseList = () => {
             key: 'amount',
             render: (val: number, record: Expense) => {
                 const isIncome = record.category?.type === 'INCOME';
-                return (
-                    <span className={`font-bold ${isIncome ? 'text-green-600' : 'text-red-500'}`}>
-                        {formatVndAmount(val, { forceSign: isIncome ? 'plus' : 'minus' })}
-                    </span>
-                );
+                return renderMoneyBadge(val, { forceSign: isIncome ? 'plus' : 'minus' });
             },
         },
         {

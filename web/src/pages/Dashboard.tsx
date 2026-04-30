@@ -8,6 +8,7 @@ import api from '../api/client';
 import { cn } from '../utils/cn';
 import { NaturalInputBox } from '../components/NaturalInputBox';
 import { formatVndAmount } from '../utils/currency';
+import { getDateBadgeClassName, getMoneyBadgeClassName } from '../utils/display';
 
 const COLORS = ['#0ea5e9', '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b'];
 
@@ -24,7 +25,14 @@ export const Dashboard = () => {
 
     const summaryCards = [
         { label: 'Tổng tài sản', value: stats?.totalAssets || 0, icon: Package, color: 'text-blue-600', bg: 'bg-blue-50' },
-        { label: 'Chi tiêu tháng này', value: formatVndAmount(stats?.monthlyExpenses || 0), icon: Receipt, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+        {
+            label: 'Chi tiêu tháng này',
+            value: formatVndAmount(stats?.monthlyExpenses || 0),
+            valueClassName: getMoneyBadgeClassName(stats?.monthlyExpenses || 0, 'text-sm lg:text-base'),
+            icon: Receipt,
+            color: 'text-emerald-600',
+            bg: 'bg-emerald-50',
+        },
         { label: 'Bảo hành sắp hết hạn', value: stats?.expiringAssets?.length || 0, icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50' },
         { label: 'Nhắc nhở sắp tới', value: 0, icon: Clock, color: 'text-indigo-600', bg: 'bg-indigo-50' },
     ];
@@ -48,7 +56,11 @@ export const Dashboard = () => {
                         </div>
                         <div>
                             <p className="text-xs lg:text-sm font-medium text-slate-500">{card.label}</p>
-                            <p className="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">{card.value}</p>
+                            <p className="text-xl lg:text-2xl font-bold text-slate-900 tracking-tight">
+                                <span className={cn(card.valueClassName)}>
+                                    {card.value}
+                                </span>
+                            </p>
                         </div>
                     </div>
                 ))}
@@ -111,7 +123,7 @@ export const Dashboard = () => {
                                         <div className="min-w-0">
                                             <p className="font-bold text-slate-800 text-sm lg:text-base truncate">{asset.name}</p>
                                             <p className="text-[10px] lg:text-sm text-slate-500">
-                                                Hết hạn: <span className="font-medium text-amber-600">
+                                                Hết hạn: <span className={getDateBadgeClassName(asset.warrantyExpiredAt, 'ml-1')}>
                                                     {asset.warrantyExpiredAt ? new Date(asset.warrantyExpiredAt).toLocaleDateString('vi-VN') : 'Không rõ'}
                                                 </span>
                                             </p>

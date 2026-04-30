@@ -7,7 +7,7 @@ import { userApi } from '../api/user';
 import type { Asset } from '../api/asset';
 import { categoryApi } from '../api/category';
 import dayjs from 'dayjs';
-import { formatVndAmount } from '../utils/currency';
+import { renderMoneyBadge } from '../utils/display';
 
 export const AssetList = () => {
     const queryClient = useQueryClient();
@@ -111,7 +111,7 @@ export const AssetList = () => {
             title: 'Giá trị',
             dataIndex: 'purchasePrice',
             key: 'purchasePrice',
-            render: (val: number) => <span>{formatVndAmount(val)}</span>,
+            render: (val: number) => renderMoneyBadge(val),
         },
         {
             title: 'Trạng thái',
