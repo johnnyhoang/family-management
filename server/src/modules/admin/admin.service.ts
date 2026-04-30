@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Family, FamilyStatus } from '../../common/entities/family.entity';
-import { User } from '../../common/entities/user.entity';
+import { SystemRole, User, UserRole } from '../../common/entities/user.entity';
 import { FamilyUser, FamilyUserStatus } from '../../common/entities/family-user.entity';
+import { Role } from '../../common/entities/role.entity';
 
 @Injectable()
 export class AdminService {
@@ -14,6 +15,8 @@ export class AdminService {
     private userRepository: Repository<User>,
     @InjectRepository(FamilyUser)
     private familyUserRepository: Repository<FamilyUser>,
+    @InjectRepository(Role)
+    private roleRepository: Repository<Role>,
   ) {}
 
   async findAllFamilies() {
@@ -35,6 +38,36 @@ export class AdminService {
           id: membership.userId,
           email: membership.user?.email,
           fullName: membership.user?.fullName,
+          systemRole: membership.user?.systemRole,
+          role: membership.role?.code,
+        })),
+    }));
+  }
+
+  async findAllUsers() {
+    const users = await this.userRepository.find({
+      order: { email: 'ASC' },
+    });
+
+    const memberships = await this.familyUserRepository.find({
+      relations: ['family', 'role'],
+      order: { createdAt: 'ASC' },
+    });
+
+    return users.map((user) => ({
+      id: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      avatarUrl: user.avatarUrl,
+      systemRole: user.systemRole,
+      isActive: user.isActive,
+      lastActiveFamilyId: user.lastActiveFamilyId,
+      memberships: memberships
+        .filter((membership) => membership.userId === user.id)
+        .map((membership) => ({
+          familyId: membership.familyId,
+          familyName: membership.family?.name,
+          status: membership.status,
           role: membership.role?.code,
         })),
     }));
@@ -43,6 +76,78 @@ export class AdminService {
   async updateFamilyStatus(id: string, status: FamilyStatus) {
     await this.familyRepository.update(id, { status });
     return this.familyRepository.findOne({ where: { id } });
+  }
+
+  async updateFamilyMemberRole(familyId: string, userId: string, roleCode: UserRole) {
+    if (roleCode === UserRole.APP_ADMIN) {
+      throw new ForbiddenException('APP_ADMIN is a system role, not a family membership role');
+    }
+
+    const membership = await this.familyUserRepository.findOne({
+      where: { familyId, userId, status: FamilyUserStatus.ACTIVE },
+      relations: ['user', 'role', 'family'],
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Active family membership not found');
+    }
+
+    if (membership.role?.code === UserRole.FAMILY_ADMIN && roleCode !== UserRole.FAMILY_ADMIN) {
+      await this.ensureFamilyKeepsAdmin(familyId);
+    }
+
+    const role = await this.roleRepository.findOne({
+      where: { code: roleCode },
+    });
+
+    if (!role) {
+      throw new NotFoundException(`Role ${roleCode} not found`);
+    }
+
+    membership.roleId = role.id;
+    membership.role = role;
+    await this.familyUserRepository.save(membership);
+
+    return {
+      userId: membership.userId,
+      familyId: membership.familyId,
+      familyName: membership.family?.name,
+      email: membership.user?.email,
+      fullName: membership.user?.fullName,
+      systemRole: membership.user?.systemRole,
+      role: membership.role.code,
+    };
+  }
+
+  async updateSystemRole(actorUserId: string, userId: string, systemRole: SystemRole) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.systemRole === SystemRole.APP_ADMIN && systemRole !== SystemRole.APP_ADMIN) {
+      const appAdminCount = await this.userRepository.count({
+        where: { systemRole: SystemRole.APP_ADMIN, isActive: true },
+      });
+
+      if (appAdminCount <= 1) {
+        throw new ForbiddenException('System must always keep at least one APP_ADMIN');
+      }
+    }
+
+    user.systemRole = systemRole;
+    await this.userRepository.save(user);
+
+    return {
+      actorUserId,
+      userId: user.id,
+      email: user.email,
+      fullName: user.fullName,
+      systemRole: user.systemRole,
+    };
   }
 
   async getSystemStats() {
@@ -56,5 +161,27 @@ export class AdminService {
       totalUsers,
       totalMemberships,
     };
+  }
+
+  private async ensureFamilyKeepsAdmin(familyId: string) {
+    const familyAdminRole = await this.roleRepository.findOne({
+      where: { code: UserRole.FAMILY_ADMIN },
+    });
+
+    if (!familyAdminRole) {
+      throw new NotFoundException('FAMILY_ADMIN role template not found');
+    }
+
+    const adminCount = await this.familyUserRepository.count({
+      where: {
+        familyId,
+        roleId: familyAdminRole.id,
+        status: FamilyUserStatus.ACTIVE,
+      },
+    });
+
+    if (adminCount <= 1) {
+      throw new ForbiddenException('Family must always keep at least one FAMILY_ADMIN');
+    }
   }
 }

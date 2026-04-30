@@ -19,6 +19,16 @@ const APP_ADMIN_DENIED_MODULES = new Set<AppModule>([
   AppModule.TRANSACTION,
 ]);
 
+const FAMILY_SCOPED_MODULES = new Set<AppModule>([
+  AppModule.FAMILY,
+  AppModule.USER,
+  AppModule.DASHBOARD,
+  AppModule.CATEGORY,
+  AppModule.CALENDAR,
+  AppModule.ASSET,
+  AppModule.TRANSACTION,
+]);
+
 @Injectable()
 export class PermissionGuard implements CanActivate {
   private readonly logger = new Logger(PermissionGuard.name);
@@ -47,6 +57,18 @@ export class PermissionGuard implements CanActivate {
     const normalized = this.permissionService.normalizePermission(check.moduleId, check.action);
 
     if (user.systemRole === SystemRole.APP_ADMIN) {
+      if (user.role && FAMILY_SCOPED_MODULES.has(normalized.moduleKey)) {
+        const allowedInFamilyContext = await this.permissionService.hasPermission(
+          user.role,
+          normalized.moduleKey,
+          normalized.action,
+        );
+        if (!allowedInFamilyContext) {
+          throw new ForbiddenException(`You do not have ${normalized.action} permission for ${normalized.moduleKey}`);
+        }
+        return true;
+      }
+
       if (APP_ADMIN_DENIED_MODULES.has(normalized.moduleKey)) {
         throw new ForbiddenException('APP_ADMIN cannot access family financial data');
       }

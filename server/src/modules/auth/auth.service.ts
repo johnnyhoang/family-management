@@ -78,9 +78,7 @@ export class AuthService {
       });
     }
 
-    const activeFamilyId = user.systemRole === SystemRole.APP_ADMIN
-      ? null
-      : user.lastActiveFamilyId && memberships.some((membership) => membership.familyId === user.lastActiveFamilyId)
+    const activeFamilyId = user.lastActiveFamilyId && memberships.some((membership) => membership.familyId === user.lastActiveFamilyId)
         ? user.lastActiveFamilyId
         : memberships[0]?.familyId ?? null;
 
@@ -104,9 +102,7 @@ export class AuthService {
       order: { createdAt: 'ASC' },
     });
 
-    const nextFamilyId = user.systemRole === SystemRole.APP_ADMIN
-      ? null
-      : activeFamilyId && memberships.some((membership) => membership.familyId === activeFamilyId)
+    const nextFamilyId = activeFamilyId && memberships.some((membership) => membership.familyId === activeFamilyId)
         ? activeFamilyId
         : user.lastActiveFamilyId && memberships.some((membership) => membership.familyId === user.lastActiveFamilyId)
           ? user.lastActiveFamilyId
@@ -122,7 +118,7 @@ export class AuthService {
 
   async switchActiveFamily(userId: string, familyId: string) {
     const session = await this.getSessionProfile(userId, familyId);
-    if (session.user.systemRole !== SystemRole.APP_ADMIN && session.user.familyId !== familyId) {
+    if (session.user.familyId !== familyId) {
       throw new UnauthorizedException('User is not a member of the selected family');
     }
     return session;

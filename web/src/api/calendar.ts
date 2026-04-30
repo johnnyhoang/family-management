@@ -22,18 +22,15 @@ export interface CalendarEvent {
 }
 
 export const calendarApi = {
-  getAll: (startDate?: string, endDate?: string) => 
-    api.get<CalendarEvent[]>('/calendar', { params: { startDate, endDate } }).then((res: any) => res.data),
-  
-  getOne: (id: string) => 
-    api.get<CalendarEvent>(`/calendar/${id}`).then((res: any) => res.data),
-  
-  create: (data: Partial<CalendarEvent>) => 
-    api.post<CalendarEvent>('/calendar', data).then((res: any) => res.data),
-  
-  update: (id: string, data: Partial<CalendarEvent>) => 
-    api.put<CalendarEvent>(`/calendar/${id}`, data).then((res: any) => res.data),
-  
-  remove: (id: string) => 
-    api.delete(`/calendar/${id}`).then((res: any) => res.data),
+  getAll: (startDate?: string, endDate?: string) =>
+    api.get<CalendarEvent[]>('/calendar', { params: { startDate, endDate } }),
+
+  getOne: (id: string) => api.get<CalendarEvent>(`/calendar/${id}`),
+
+  create: (data: Partial<CalendarEvent>) => api.post<CalendarEvent>('/calendar', data),
+
+  update: (id: string, data: Partial<CalendarEvent>) =>
+    api.put<CalendarEvent>(`/calendar/${id}`, data),
+
+  remove: (id: string) => api.delete(`/calendar/${id}`),
 };

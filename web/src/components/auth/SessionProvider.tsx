@@ -8,6 +8,9 @@ type PermissionAction = 'view' | 'create' | 'update' | 'delete';
 
 type PermissionMatrix = Record<Exclude<FamilyRole, null>, Partial<Record<ModuleKey, PermissionAction[]>>>;
 
+const SYSTEM_SCOPED_MODULES = new Set<ModuleKey>(['ADMIN', 'PERMISSION']);
+const FAMILY_SCOPED_MODULES = new Set<ModuleKey>(['FAMILY', 'USER', 'DASHBOARD', 'CATEGORY', 'CALENDAR', 'ASSET', 'TRANSACTION']);
+
 const ROLE_PERMISSIONS: PermissionMatrix = {
   APP_ADMIN: {
     ADMIN: ['view', 'update'],
@@ -107,9 +110,21 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     systemRole,
     isLoading: sessionQuery.isLoading,
     canAccess: (moduleKey, action = 'view') => {
+      if (systemRole === 'APP_ADMIN' && SYSTEM_SCOPED_MODULES.has(moduleKey)) {
+        return ROLE_PERMISSIONS.APP_ADMIN[moduleKey]?.includes(action) ?? false;
+      }
+
+      if (FAMILY_SCOPED_MODULES.has(moduleKey)) {
+        if (!role || role === 'APP_ADMIN') {
+          return false;
+        }
+        return ROLE_PERMISSIONS[role]?.[moduleKey]?.includes(action) ?? false;
+      }
+
       if (!role) {
         return false;
       }
+
       return ROLE_PERMISSIONS[role]?.[moduleKey]?.includes(action) ?? false;
     },
     switchFamily: async (familyId: string) => {

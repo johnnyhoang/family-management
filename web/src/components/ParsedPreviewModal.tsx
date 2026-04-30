@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, DatePicker, Radio, Space, Typography, Tag, Divider, Select } from 'antd';
+import { Modal, Form, Input, InputNumber, DatePicker, Radio, Space, Typography, Tag, Divider, Select, Switch } from 'antd';
 import dayjs from 'dayjs';
 import { userApi } from '../api/user';
-import { buildCategoryPathLabel, categoryApi, isAssetCategory, supportsExpenseEntryType } from '../api/category';
+import {
+    buildCategoryPathLabel,
+    categoryApi,
+    expenseEntryTypeLabels,
+    isAssetCategory,
+    supportsExpenseEntryType,
+    type ExpenseEntryType,
+} from '../api/category';
 import { assetApi } from '../api/asset';
 import { expenseApi } from '../api/expense';
 import type { User } from '../api/user';
@@ -36,6 +43,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
     loading,
 }) => {
     const [form] = Form.useForm();
+    const watchedEntryType = Form.useWatch('entryType', form) as ExpenseEntryType | undefined;
     const [intent, setIntent] = useState<string>('');
     const [users, setUsers] = useState<User[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -70,6 +78,28 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
 
             const sanitizeId = (id: any) => isUUID(id) ? id : undefined;
 
+            // Chuẩn hóa từ phản hồi AI để form và backend nhận đúng enum / boolean
+            const normalizeEntryType = (v: any): ExpenseEntryType | undefined => {
+                if (typeof v !== 'string') return undefined;
+                const u = v.trim().toUpperCase();
+                if (u === 'INCOME' || u === 'EXPENSE' || u === 'LIABILITY') return u as ExpenseEntryType;
+                return undefined;
+            };
+
+            const normalizeIsTransfer = (raw: any): boolean => {
+                if (typeof raw === 'boolean') return raw;
+                if (raw === 'true' || raw === 1 || raw === '1') return true;
+                if (raw === 'false' || raw === 0 || raw === '0' || raw == null || raw === '') return false;
+                return false;
+            };
+
+            const entryTypeFromIntent: ExpenseEntryType | undefined =
+                parsedData.intent === 'create_income'
+                    ? 'INCOME'
+                    : parsedData.intent === 'create_expense'
+                      ? 'EXPENSE'
+                      : undefined;
+
             const mappedData = {
                 ...rawData,
                 // Expense mapping
@@ -77,6 +107,8 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 note: parsedData.originalText || rawData.note || rawData.description,
                 description: parsedData.originalText || rawData.description || rawData.note,
                 categoryId: sanitizeId(rawData.categoryId || rawData.category),
+                entryType: normalizeEntryType(rawData.entryType) ?? entryTypeFromIntent,
+                isTransfer: normalizeIsTransfer(rawData.isTransfer),
                 assignedToUserId: sanitizeId(rawData.assignedToUserId),
                 ownerId: sanitizeId(rawData.ownerId),
                 usedById: sanitizeId(rawData.usedById),
@@ -100,14 +132,22 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
     }, [parsedData, visible, form]);
 
     const handleFinish = async (values: any) => {
-        const formattedValues = {
+        const formattedValues: any = {
             ...values,
-            entryType: intent === 'create_income' ? 'INCOME' : 'EXPENSE',
             expenseDate: values.expenseDate?.format('YYYY-MM-DD'),
             purchaseDate: values.purchaseDate?.format('YYYY-MM-DD'),
             date: values.date?.format('YYYY-MM-DD'),
             participantIds: values.participantIds,
         };
+
+        // Ưu tiên giá trị form (đã map từ AI), chỉ khi trống mới suy theo tab Chi/Thu
+        if (intent === 'create_expense' || intent === 'create_income') {
+            const intentDefaultEntry: ExpenseEntryType =
+                intent === 'create_income' ? 'INCOME' : 'EXPENSE';
+            formattedValues.entryType =
+                (values.entryType as ExpenseEntryType | undefined) ?? intentDefaultEntry;
+            formattedValues.isTransfer = typeof values.isTransfer === 'boolean' ? values.isTransfer : false;
+        }
 
         if (intent === 'create_event' || intent === 'create_task') {
             let start = values.startDate ? dayjs(values.startDate) : dayjs();
@@ -174,9 +214,24 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
 
         switch (intent) {
             case 'create_expense':
-            case 'create_income':
+            case 'create_income': {
+                const entryTypeForFilter: ExpenseEntryType =
+                    watchedEntryType ?? (intent === 'create_income' ? 'INCOME' : 'EXPENSE');
                 return (
                     <>
+                        <Form.Item name="entryType" label="Loại bút toán">
+                            <Select
+                                allowClear
+                                placeholder="Theo AI hoặc Chi/Thu mặc định"
+                                options={(Object.keys(expenseEntryTypeLabels) as ExpenseEntryType[]).map((key) => ({
+                                    value: key,
+                                    label: expenseEntryTypeLabels[key],
+                                }))}
+                            />
+                        </Form.Item>
+                        <Form.Item name="isTransfer" label="Chuyển nội bộ" valuePropName="checked">
+                            <Switch />
+                        </Form.Item>
                         <Form.Item name="amount" label="Số tiền" rules={[{ required: true }]}>
                             <InputNumber
                                 style={{ width: '100%' }}
@@ -190,7 +245,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                                 options={categories
                                     .filter((category) => supportsExpenseEntryType(
                                         category,
-                                        intent === 'create_expense' ? 'EXPENSE' : 'INCOME',
+                                        entryTypeForFilter,
                                     ))
                                     .map((category) => ({
                                         label: buildCategoryPathLabel(categories, category.id),
@@ -216,6 +271,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         </Form.Item>
                     </>
                 );
+            }
             case 'create_asset':
             case 'update_asset':
                 return (

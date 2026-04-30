@@ -17,6 +17,7 @@ const Login = lazy(() => import('./pages/Login').then((module) => ({ default: mo
 const LoginSuccess = lazy(() => import('./pages/LoginSuccess').then((module) => ({ default: module.LoginSuccess })));
 const Settings = lazy(() => import('./pages/Settings').then((module) => ({ default: module.Settings })));
 const CalendarPage = lazy(() => import('./pages/CalendarPage').then((module) => ({ default: module.CalendarPage })));
+const AdminPanel = lazy(() => import('./pages/AdminPanel').then((module) => ({ default: module.AdminPanel })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,6 +86,7 @@ function AppShell() {
                 <Route path="categories" element={<ProtectedPage moduleKey="CATEGORY"><CategoryList /></ProtectedPage>} />
                 <Route path="members" element={<ProtectedPage moduleKey="USER"><MemberList /></ProtectedPage>} />
                 <Route path="calendar" element={<ProtectedPage moduleKey="CALENDAR"><CalendarPage /></ProtectedPage>} />
+                <Route path="admin" element={<ProtectedPage moduleKey="ADMIN"><AdminPanel /></ProtectedPage>} />
                 <Route path="settings" element={<Settings />} />
               </Route>
             </Route>
@@ -108,14 +110,18 @@ const PageFallback = () => (
 );
 
 function HomePage() {
-  const { isLoading, canAccess } = useSession();
+  const { isLoading, canAccess, activeFamilyId } = useSession();
 
   if (isLoading) {
     return <RouteLoading />;
   }
 
-  if (canAccess('DASHBOARD', 'view')) {
+  if (activeFamilyId && canAccess('DASHBOARD', 'view')) {
     return <Dashboard />;
+  }
+
+  if (canAccess('ADMIN', 'view')) {
+    return <AdminPanel />;
   }
 
   return <Settings />;

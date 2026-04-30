@@ -26,7 +26,7 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                     <h1 className="font-bold text-[15px] text-[#4f3f37] tracking-tight">Tài sản Gia đình</h1>
                     <p className="text-[11px] text-[#916e61] leading-none">
                         {systemRole === 'APP_ADMIN'
-                            ? 'Quản trị ứng dụng'
+                            ? `${activeFamilyName || 'Quản trị ứng dụng'}${role && role !== 'APP_ADMIN' ? ` · ${role === 'FAMILY_ADMIN' ? 'Quản trị gia đình' : 'Thành viên'}` : ''}`
                             : `${activeFamilyName || 'Chưa chọn gia đình'} · ${role === 'FAMILY_ADMIN' ? 'Quản trị' : 'Thành viên'}`}
                     </p>
                 </div>
