@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Asset } from './asset.entity';
 import { Category } from './category.entity';
@@ -11,7 +11,9 @@ export enum RecurringCycle {
 }
 
 @Entity('expenses')
+@Index(['familyId', 'expenseDate'])
 export class Expense extends BaseEntity {
+  @Index()
   @Column()
   familyId: string;
 
@@ -58,7 +60,7 @@ export class Expense extends BaseEntity {
   note: string;
 
   @Column({ type: 'json', nullable: true })
-  customFields: any;
+  customFields: Record<string, unknown>;
 
   @Column()
   createdBy: string;

@@ -1,17 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from '../../common/entities/user.entity';
 import { Family } from '../../common/entities/family.entity';
 
 import { PermissionService } from '../permission/permission.service';
 import { CategoryService } from '../category/category.service';
 
+interface OAuthProfile {
+  email: string;
+  fullName: string;
+  googleId: string;
+  avatarUrl?: string | null;
+}
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private jwtService: JwtService,
+    private dataSource: DataSource,
     @InjectRepository(User)
     private userRepository: Repository<User>,
     @InjectRepository(Family)
@@ -20,63 +30,44 @@ export class AuthService {
     private categoryService: CategoryService,
   ) {}
 
-  async validateOAuthUser(profile: any) {
-    console.log(`AuthService: Validating user ${profile.email}`);
+  async validateOAuthUser(profile: OAuthProfile) {
+    this.logger.log(`Validating user ${profile.email}`);
     let user = await this.userRepository.findOne({
       where: { email: profile.email },
     });
 
     if (!user) {
-      console.log(`AuthService: User ${profile.email} not found, creating new...`);
-      const familyCount = await this.familyRepository.count();
-      let family = await this.familyRepository.findOne({ where: { name: 'Default Family' } });
-      let isNewFamily = false;
+      this.logger.log(`User ${profile.email} not found, creating new user + family`);
 
-      if (!family) {
-        console.log('AuthService: Creating Default Family');
-        family = this.familyRepository.create({ name: 'Default Family' });
-        await this.familyRepository.save(family);
-        isNewFamily = true;
-      }
+      user = await this.dataSource.transaction(async (manager) => {
+        // Each new user gets their own family; invitations handled separately
+        const family = manager.create(Family, {
+          name: profile.fullName ? `${profile.fullName}'s Family` : 'My Family',
+        });
+        await manager.save(family);
 
-      // If it's the first user or a new family, make them FAMILY_ADMIN
-      const userCountInFamily = await this.userRepository.count({ where: { familyId: family.id } });
-      const role = userCountInFamily === 0 ? UserRole.FAMILY_ADMIN : UserRole.MEMBER;
-      console.log(`AuthService: Users in family: ${userCountInFamily}, assigned role: ${role}`);
-
-      user = this.userRepository.create({
-        email: profile.email,
-        fullName: profile.fullName,
-        googleId: profile.googleId,
-        role: role,
-        familyId: family.id,
+        const newUser = manager.create(User, {
+          email: profile.email,
+          fullName: profile.fullName,
+          googleId: profile.googleId,
+          avatarUrl: profile.avatarUrl ?? undefined,
+          role: UserRole.FAMILY_ADMIN,
+          familyId: family.id,
+        });
+        return manager.save(newUser);
       });
-      await this.userRepository.save(user);
 
-      // Seed permissions for the family
-      await this.permissionService.seedDefaultPermissions(family.id);
-      await this.categoryService.ensureDefaultIncomeCategories(family.id);
+      await this.permissionService.seedDefaultPermissions(user.familyId);
+      await this.categoryService.ensureDefaultIncomeCategories(user.familyId);
     } else {
-      console.log(`AuthService: User ${profile.email} found with role: ${user.role}`);
-      // Promotion logic: if they are the only user in the family and still a MEMBER, make them ADMIN
-      if (user.role === UserRole.MEMBER) {
-        const usersInFamily = await this.userRepository.find({ where: { familyId: user.familyId } });
-        const userCount = usersInFamily.length;
-        console.log(`AuthService: Family ${user.familyId} has ${userCount} users: ${usersInFamily.map(u => u.email).join(', ')}`);
-        
-        if (userCount === 1) {
-          console.log(`AuthService: Promoting ${user.email} to FAMILY_ADMIN`);
-          user.role = UserRole.FAMILY_ADMIN;
-          await this.userRepository.save(user);
-        }
-      }
+      this.logger.log(`User ${profile.email} found with role: ${user.role}`);
 
-      if (!user.googleId) {
-        user.googleId = profile.googleId;
-        await this.userRepository.save(user);
-      }
-      
-      // Ensure permissions are seeded even for existing families (idempotent)
+      let dirty = false;
+      if (!user.googleId) { user.googleId = profile.googleId; dirty = true; }
+      if (profile.avatarUrl && user.avatarUrl !== profile.avatarUrl) { user.avatarUrl = profile.avatarUrl; dirty = true; }
+      if (dirty) await this.userRepository.save(user);
+
+      // Idempotent seeds in case they were missed
       await this.permissionService.seedDefaultPermissions(user.familyId);
       await this.categoryService.ensureDefaultIncomeCategories(user.familyId);
     }
@@ -85,11 +76,11 @@ export class AuthService {
   }
 
   generateToken(user: User) {
-    const payload = { 
-      email: user.email, 
-      sub: user.id, 
-      role: user.role, 
-      familyId: user.familyId 
+    const payload = {
+      email: user.email,
+      sub: user.id,
+      role: user.role,
+      familyId: user.familyId,
     };
     return {
       access_token: this.jwtService.sign(payload),
@@ -97,6 +88,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
+        avatarUrl: user.avatarUrl,
         role: user.role,
         familyId: user.familyId,
       },

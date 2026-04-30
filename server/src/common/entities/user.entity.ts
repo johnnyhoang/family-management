@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Family } from './family.entity';
 
@@ -18,6 +18,9 @@ export class User extends BaseEntity {
   @Column({ nullable: true })
   fullName: string;
 
+  @Column({ nullable: true })
+  avatarUrl: string;
+
   @Column({ type: 'text', nullable: true, comment: 'Comma-separated aliases' })
   otherNames: string;
 
@@ -31,6 +34,7 @@ export class User extends BaseEntity {
   })
   role: UserRole;
 
+  @Index()
   @Column()
   familyId: string;
 

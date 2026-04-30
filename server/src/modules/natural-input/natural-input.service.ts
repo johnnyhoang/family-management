@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import OpenAI from 'openai';
 import dayjs from 'dayjs';
@@ -10,11 +10,21 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { NaturalInputHistory } from './entities/natural-input-history.entity';
 
+interface ContextCacheEntry {
+  data: {
+    categories: { id: string; name: string; type: string }[];
+    familyMembers: { id: string; name: string; aliases: string[]; email: string }[];
+    assets: { id: string; name: string; category: string | undefined }[];
+  };
+  expires: number;
+}
+
 @Injectable()
 export class NaturalInputService {
+  private readonly logger = new Logger(NaturalInputService.name);
   private openai: OpenAI;
-  private contextCache: { [familyId: string]: { data: any, expires: number } } = {};
-  private readonly CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+  private contextCache: Record<string, ContextCacheEntry> = {};
+  private readonly CACHE_TTL = 5 * 60 * 1000;
 
   constructor(
     private configService: ConfigService,
@@ -31,34 +41,6 @@ export class NaturalInputService {
     });
   }
 
-  async parse(message: string, familyId: string) {
-    if (!this.configService.get('OPENAI_API_KEY')) {
-      return { success: false, reason: 'openai_api_key_missing' };
-    }
-
-    // 1. Vietnamese Money Parsing (Heuristic)
-    const normalizedMessage = this.moneyParser.normalizeText(message);
-
-    // 2. Fetch Context
-    const context = await this.getParsedContext(familyId);
-    const result = await this.callOpenAIWithRetry(this.getSystemPrompt(context), normalizedMessage);
-
-    // 3. Save to history (if successful parse)
-    if (result.success) {
-      await this.historyRepository.save({
-        familyId,
-        userId: context.familyMembers.find(u => u.id === context.familyMembers[0].id)?.id, // Temporary fallback or need to pass userId
-        inputMessage: message,
-        intent: result.intent,
-        confidence: result.confidence,
-        resultData: result.data,
-      });
-    }
-
-    return result;
-  }
-
-  // Refactored to accept userId
   async parseWithUser(message: string, familyId: string, userId: string) {
     if (!this.configService.get('OPENAI_API_KEY')) {
       return { success: false, reason: 'openai_api_key_missing' };
@@ -131,7 +113,7 @@ export class NaturalInputService {
     };
   }
 
-  private getSystemPrompt(context: any) {
+  private getSystemPrompt(context: ContextCacheEntry['data'] & { currentDate: string; currentTime: string; dayOfWeek: string }) {
     return `
 You are an AI Natural Input Engine for a personal management app.
 Convert the user's Vietnamese natural language input into structured JSON.
@@ -232,31 +214,33 @@ Output: {
   }
 
   /** Bóc JSON từ phản hồi model (đôi khi bọc trong ```json). */
-  private parseAssistantJson(content: string): any {
+  private parseAssistantJson(content: string): Record<string, unknown> {
     const trimmed = content.trim();
     const unfenced = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
     return JSON.parse(unfenced);
   }
 
   /** Bổ sung amount từ chuỗi gốc khi AI thiếu (vd. "5trieu"). */
-  private fillAmountFromUserText(result: any, userMessage: string): void {
+  private fillAmountFromUserText(result: Record<string, unknown>, userMessage: string): void {
     if (!result?.data || !userMessage) return;
     const intent = result.intent;
     if (intent !== 'create_income' && intent !== 'create_expense') return;
-    const raw = result.data.amount;
+    const data = result.data as Record<string, unknown> | undefined;
+    if (!data) return;
+    const raw = data.amount;
     if (raw !== undefined && raw !== null && raw !== '') return;
     const normalized = this.moneyParser.normalizeText(userMessage).replace(/\s+/g, '');
     const fromTrieu = normalized.match(/\d+(?:tr|triệu|trieu)\d*/i);
     const fromK = normalized.match(/\d+k\b/i);
     const chunk = fromTrieu?.[0] || fromK?.[0] || normalized;
     const n = this.moneyParser.parse(chunk);
-    if (n != null) result.data.amount = n;
+    if (n != null) data.amount = n;
   }
 
   private async callOpenAIWithRetry(systemPrompt: string, userMessage: string, retries = 1) {
     try {
       const response = await this.openai.chat.completions.create({
-        model: 'gpt-4o-mini',
+        model: this.configService.get('OPENAI_MODEL', 'gpt-4o-mini'),
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
@@ -279,9 +263,8 @@ Output: {
         };
       }
 
-      // Log for improvement and fine-tuning
-      console.log(`[AI Parser] Input: "${userMessage}" | Intent: ${result.intent} | Confidence: ${result.confidence}`);
-      if (result.intent === 'unknown') console.log(`[AI Parser] Clarification: ${result.clarification}`);
+      this.logger.log(`Input: "${userMessage}" | Intent: ${result.intent} | Confidence: ${result.confidence}`);
+      if (result.intent === 'unknown') this.logger.log(`Clarification: ${result.clarification}`);
 
       // Auto-fix amount using MoneyParser if AI looks uncertain or for double-check
       if (result.data?.amount && typeof result.data.amount === 'string') {
@@ -296,10 +279,10 @@ Output: {
       };
     } catch (error) {
       if (retries > 0) {
-        console.warn(`OpenAI call failed, retrying... (${retries} left)`);
+        this.logger.warn(`OpenAI call failed, retrying... (${retries} left)`);
         return this.callOpenAIWithRetry(systemPrompt, userMessage, retries - 1);
       }
-      console.error('Final OpenAI error:', error);
+      this.logger.error('Final OpenAI error:', error);
       return {
         success: false,
         reason: 'intent_not_detected',

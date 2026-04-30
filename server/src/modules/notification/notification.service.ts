@@ -1,29 +1,41 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, LessThanOrEqual, Or, Repository } from 'typeorm';
 import { Notification } from './notification.entity';
 
 @Injectable()
 export class NotificationService {
+  private readonly logger = new Logger(NotificationService.name);
+
   constructor(
     @InjectRepository(Notification)
     private notificationRepository: Repository<Notification>,
   ) {}
 
-  async create(familyId: string, userId: string, title: string, message: string, metadata?: any) {
+  async create(
+    familyId: string,
+    userId: string,
+    title: string,
+    message: string,
+    metadata?: Record<string, unknown>,
+  ) {
     const notification = this.notificationRepository.create({
       familyId,
       userId,
       title,
       message,
       metadata,
+      scheduledAt: null,
     });
     return this.notificationRepository.save(notification);
   }
 
   async findAll(userId: string) {
     return this.notificationRepository.find({
-      where: { userId },
+      where: {
+        userId,
+        scheduledAt: Or(IsNull(), LessThanOrEqual(new Date())),
+      },
       order: { createdAt: 'DESC' },
     });
   }
@@ -34,19 +46,21 @@ export class NotificationService {
   }
 
   /**
-   * Lên lịch tạo notification sau `delay` ms (bộ nhớ process).
-   * Mất job nếu process restart trước khi hết delay — chấp nhận được cho dev/single instance.
+   * Schedule a notification for future delivery.
+   * Saves with scheduledAt = now + delay; the daily cron in MaintenanceScheduler
+   * will surface it once scheduledAt has passed — survives process restarts.
    */
   async scheduleNotification(
-    data: { familyId: string; userId: string; title: string; message: string; metadata?: any },
-    delay: number,
+    data: { familyId: string; userId: string; title: string; message: string; metadata?: Record<string, unknown> },
+    delayMs: number,
   ): Promise<void> {
-    setTimeout(async () => {
-      try {
-        await this.create(data.familyId, data.userId, data.title, data.message, data.metadata);
-      } catch (err) {
-        console.error('scheduleNotification failed', err);
-      }
-    }, delay);
+    const scheduledAt = new Date(Date.now() + delayMs);
+    try {
+      await this.notificationRepository.save(
+        this.notificationRepository.create({ ...data, scheduledAt }),
+      );
+    } catch (err) {
+      this.logger.error('scheduleNotification failed', err);
+    }
   }
 }

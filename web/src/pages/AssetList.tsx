@@ -14,7 +14,7 @@ export const AssetList = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
     const [form] = Form.useForm();
-    const [filters, setFilters] = useState<any>({});
+    const [filters, setFilters] = useState<{ search?: string; categoryId?: string; status?: string }>({});
 
     const { data: assets, isLoading } = useQuery({
         queryKey: ['assets', filters],
@@ -61,9 +61,10 @@ export const AssetList = () => {
     });
 
     const handleExport = async () => {
+        let url: string | undefined;
         try {
             const response = await assetApi.export(filters);
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `assets-${dayjs().format('YYYY-MM-DD')}.csv`);
@@ -72,6 +73,8 @@ export const AssetList = () => {
             link.remove();
         } catch (error) {
             message.error('Lỗi khi xuất dữ liệu');
+        } finally {
+            if (url) window.URL.revokeObjectURL(url);
         }
     };
 

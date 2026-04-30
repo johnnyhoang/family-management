@@ -2,94 +2,167 @@
 
 ## 1. System Overview
 A production-ready, multi-tenant system for managing family assets and expenses.
-- **Goal**: Strict data isolation per family, hierarchical asset management, and automated financial tracking.
-- **Full Specs**: Refer to **[REQUIREMENTS.md](./REQUIREMENTS.md)** for detailed functional requirements.
-- **Language**: Core UI in Vietnamese (i18n ready).
-- **Architecture**: Monorepo with NestJS (Backend) and React/Vite (Frontend).
+- **Goal**: Strict data isolation per family, hierarchical asset management, automated financial tracking, AI-powered natural language input.
+- **Full Specs**: See **[REQUIREMENTS.md](./REQUIREMENTS.md)** for detailed functional requirements.
+- **Architecture Specs**: See **[docs/specs/ARCHITECTURE.md](./docs/specs/ARCHITECTURE.md)**.
+- **Language**: Core UI in Vietnamese (`vi`), i18n-ready.
+- **Monorepo**: NestJS backend (`server/`) + React/Vite frontend (`web/`).
 
 ## 2. Tech Stack
-| Component | Technology |
-| :--- | :--- |
-| **Backend** | NestJS, TypeORM, MySQL (Google Cloud SQL) |
-| **Frontend** | React, TypeScript, Vite, Tailwind CSS, Ant Design |
-| **Auth** | Google OAuth2, JWT |
-| **Scheduling** | NestJS Schedule (Cron) |
-| **Storage** | Google Cloud Storage |
-| **I18n** | nestjs-i18n (Backend), react-i18next (Frontend) |
-| **Deployment** | Google Cloud Run, Docker |
+| Component | Technology | Version |
+| :--- | :--- | :--- |
+| **Backend** | NestJS | 11.x |
+| **ORM** | TypeORM | 0.3.x |
+| **Database** | PostgreSQL (Supabase) | — |
+| **Frontend** | React + TypeScript + Vite | 19 / 7.x |
+| **Styling** | Tailwind CSS + Ant Design | 3.4 / 6.x |
+| **State** | TanStack Query (React Query) | 5.x |
+| **Routing** | React Router | 7.x |
+| **Auth** | Google OAuth2 + JWT | — |
+| **AI** | OpenAI SDK (`gpt-4o`) | 4.x |
+| **Scheduling** | NestJS Schedule (Cron) | — |
+| **Storage** | Google Cloud Storage | 7.x |
+| **Charts** | Recharts | 3.x |
+| **I18n** | nestjs-i18n / react-i18next | — |
+| **Deployment** | Vercel (Serverless + Static) | — |
+| **Node** | >=22.13.0 | — |
 
 ## 3. Project Structure
 ```text
 family-management/
-├── server/                 # NestJS Backend
+├── server/                       # NestJS Backend
 │   ├── src/
-│   │   ├── common/         # Shared entities, guards, decorators
-│   │   ├── modules/        # Feature modules (Auth, Asset, Expense, etc.)
-│   │   └── main.ts         # App entry, Swagger, Versioning
-│   ├── i18n/               # Translation files (vi/en)
-│   └── Dockerfile          # Backend containerization
-├── web/                    # React Frontend
+│   │   ├── common/
+│   │   │   ├── entities/         # 9 DB entities (all extend BaseEntity)
+│   │   │   ├── guards/           # PermissionGuard (RBAC)
+│   │   │   └── decorators/       # @CheckPermission decorator
+│   │   ├── modules/              # 13 feature modules
+│   │   │   ├── auth/             # Google OAuth2 + JWT
+│   │   │   ├── user/             # User/member management
+│   │   │   ├── family/           # Multi-tenancy root entity
+│   │   │   ├── asset/            # Hierarchical asset tracking
+│   │   │   ├── expense/          # Recurring expense management
+│   │   │   ├── category/         # Asset/expense categories
+│   │   │   ├── dashboard/        # Analytics & aggregations
+│   │   │   ├── calendar/         # Event scheduling
+│   │   │   ├── notification/     # In-app alerts
+│   │   │   ├── permission/       # RBAC configuration
+│   │   │   ├── file/             # GCS file uploads
+│   │   │   ├── natural-input/    # AI text parsing (OpenAI)
+│   │   │   └── admin/            # System admin operations
+│   │   ├── migrations/           # TypeORM migrations
+│   │   ├── data-source.ts        # TypeORM PostgreSQL config
+│   │   └── main.ts               # Entry: Swagger, CORS, versioning
+│   ├── i18n/                     # vi/ and en/ translation JSON
+│   ├── api/index.ts              # Vercel serverless entry point
+│   └── .env.example
+├── web/                          # React Frontend
 │   ├── src/
-│   │   ├── api/            # Axios client & interceptors
-│   │   ├── components/     # Layout & UI components
-│   │   ├── pages/          # Feature pages
-│   │   ├── locales/        # Frontend translations
-│   │   └── App.tsx         # Router & Providers
-│   ├── tailwind.config.js  # Design tokens
-│   ├── nginx.conf          # SPA routing for Docker
-│   └── Dockerfile          # Frontend containerization
-└── package.json            # Monorepo scripts (concurrently)
+│   │   ├── api/                  # Axios modules per feature
+│   │   ├── components/
+│   │   │   ├── layout/           # MainLayout (sidebar + header)
+│   │   │   ├── auth/             # AuthGuard
+│   │   │   ├── NaturalInputBox   # AI text + voice input
+│   │   │   ├── ParsedPreviewModal # Review/edit before save
+│   │   │   └── QRScannerModal    # QR asset lookup
+│   │   ├── pages/                # 9 feature pages
+│   │   ├── locales/              # vi/ and en/ i18n JSON
+│   │   └── App.tsx               # Router + providers + theme
+│   ├── tailwind.config.js
+│   └── .env.example
+├── docs/specs/                   # Feature specs
+├── REQUIREMENTS.md               # Functional requirements (source of truth)
+├── AI_HANDOVER.md                # This file
+├── vercel.json                   # Root Vercel deploy config
+└── package.json                  # Monorepo: workspaces + concurrently scripts
 ```
 
 ## 4. Business Logic & Constraints
-- **Multi-tenancy**: Every entity (except User in some contexts) must have a `familyId`.
-- **RBAC**: Module-level and Category-level permissions are checked via `PermissionGuard` and `@CheckPermission` decorator.
-- **Soft Delete**: All main entities use `deletedAt` for soft deletes.
-- **Asset Hierarchy**: Supports parent-child relationships (e.g., House -> Room -> Item).
-- **Versioning**: API is versioned under `/api/v1`.
+- **Multi-tenancy**: Every entity must carry `familyId`; guard enforces it.
+- **RBAC**: `PermissionGuard` + `@CheckPermission(moduleId, action)` on all controller routes. `SYSTEM_ADMIN` and `FAMILY_ADMIN` bypass checks.
+- **Soft Delete**: All entities use TypeORM `@DeleteDateColumn()` (`deletedAt`). Queries auto-filter deleted rows.
+- **Asset Hierarchy**: `parentAssetId` self-reference (House → Room → Item).
+- **API Versioning**: All routes under `/api/v1`.
+- **Auth Flow**: Google OAuth → `validateOAuthUser()` (upsert user + auto-create family for new users) → sign JWT → redirect to frontend with token.
 
-## 5. Implementation Details
+## 5. Key Implementation Details
+
 ### Backend
-- **Auth**: `GoogleStrategy` for login, `JwtStrategy` for API protection.
-- **Permissions**: `PermissionGuard` queries the `Permission` entity based on the user's role and the required `moduleId`.
-- **Notifications**: Thông báo lưu PostgreSQL; lịch trễ trong process dùng `setTimeout` (mất khi restart); cron có thể dùng cho tác vụ định kỳ.
+| Concern | Implementation |
+| :--- | :--- |
+| Auth | `GoogleStrategy` (Passport) + `JwtStrategy` for API protection |
+| Permission Check | `PermissionGuard` queries `Permission` entity by role + moduleId |
+| Notifications | Stored in PostgreSQL; in-process `setTimeout` for delays (lost on restart) |
+| AI Parsing | `NaturalInputService` → OpenAI `gpt-4o` → JSON parse → save to `natural_input_history` |
+| Money Parsing | `MoneyParserService` handles Vietnamese: "triệu", "tr", "k", "rưỡi" |
+| File Storage | `FileModule` uploads to GCS; only URL stored in DB |
+| Scheduling | `@Cron()` decorators for warranty/maintenance/expense reminder checks |
 
 ### Frontend
-- **Design**: "Glassmorphism" aesthetic using Tailwind's backdrop-blur and Ant Design tokens.
-- **State**: `TanStack Query` (React Query) handles all server-side data fetching.
-- **Responsiveness**: Mobile-first design using Tailwind grid and flex layouts.
+| Concern | Implementation |
+| :--- | :--- |
+| Design System | "Glassmorphism" with Tailwind `backdrop-blur` + Ant Design tokens |
+| Server State | `TanStack Query` (React Query) – all API calls via hooks |
+| Responsiveness | Mobile-first Tailwind grid/flex |
+| Token Storage | `localStorage` (`access_token` key) |
+| API Base URL | `VITE_API_URL` env var → `web/src/api/client.ts` |
 
-## 6. How to Continue & Expand
-### Adding a New Module
-1. **Entity**: Create a new entity in `server/src/common/entities/` (inherit from `BaseEntity`).
-2. **Module**: Generate NestJS module, service, and controller in `server/src/modules/`.
-3. **Permissions**: Add entries to the `Permission` entity seeds and use `@CheckPermission` in the controller.
-4. **Frontend API**: Add endpoints to `web/src/api/`.
-5. **Frontend Pages**: Create new pages in `web/src/pages/` and register in `web/src/App.tsx`.
+## 6. Adding a New Module (Step-by-Step)
+1. **Entity**: Create in `server/src/common/entities/` — extend `BaseEntity`, add `familyId`.
+2. **Module**: `nest g module/service/controller modules/<name>`.
+3. **DTOs**: Create `create-<name>.dto.ts` / `update-<name>.dto.ts` with `class-validator`.
+4. **Permissions**: Add `@CheckPermission(ModuleId.X, 'canAdd')` to controller methods.
+5. **Register**: Import the new module in `app.module.ts` and add entity to TypeORM list.
+6. **Migration**: Generate TypeORM migration after entity changes.
+7. **Frontend API**: Add `web/src/api/<name>.ts` with Axios calls.
+8. **Frontend Page**: Create `web/src/pages/<Name>.tsx`, register route in `App.tsx`.
 
-### Extending Custom Fields
-- Both `Asset` and `Expense` entities have a `customFields: JSON` column.
-- Use this for domain-specific data without modifying the schema.
+## 7. Environment Variables
+### Backend (`server/.env`)
+| Variable | Purpose |
+| :--- | :--- |
+| `DATABASE_URL` | Supabase PostgreSQL connection string |
+| `GOOGLE_CLIENT_ID` | OAuth2 client ID |
+| `GOOGLE_CLIENT_SECRET` | OAuth2 client secret |
+| `GOOGLE_CALLBACK_URL` | OAuth callback (e.g. `http://localhost:3173/api/v1/auth/google/callback`) |
+| `JWT_SECRET` | Secret for signing JWT tokens |
+| `OPENAI_API_KEY` | OpenAI API key for natural input parsing |
+| `GCS_BUCKET_NAME` | Google Cloud Storage bucket |
+| `GCS_KEY_FILE` | Path to GCS service account JSON |
+| `PORT` | Server port (default 3173; Vercel injects this) |
+| `DB_SYNCHRONIZE` | `true` only for first deploy; use migrations after |
 
-## 7. Configuration
-- Use `server/.env.example` for backend configuration.
-- Use `VITE_API_URL` environment variable for frontend API mapping.
+### Frontend (`web/.env`)
+| Variable | Purpose |
+| :--- | :--- |
+| `VITE_API_URL` | Backend API base URL |
 
-## 8. Cloud Deployment (Google Cloud Run)
-When deploying to Cloud Run, the system automatically adapts via environment variables:
-- **Port**: Cloud Run injects the `PORT` variable. The backend is configured to prioritize `process.env.PORT` over the local `3173`.
-- **Database Synchronization**: Set `DB_SYNCHRONIZE=true` for the first deployment to auto-create the schema in Cloud SQL.
-- **OAuth Callbacks**: Ensure `GOOGLE_CALLBACK_URL` is set to the production domain (e.g., `https://api-service-xyz.a.run.app/api/v1/auth/google/callback`).
-- **CORS**: The backend should be configured to allow the frontend Cloud Run URL.
-- **Frontend**: The `web/src/api/client.ts` will use the `VITE_API_URL` injected at build time or via container environment.
+## 8. Deployment (Vercel)
+- Root `vercel.json` rewrites `/api/**` → NestJS serverless function, everything else → React SPA.
+- Backend entry: `server/api/index.ts` (wraps NestJS app for Vercel).
+- Frontend: static build via `vite build`.
+- Serverless function max duration: 30 seconds.
+- **Production checklist**:
+  - Set `GOOGLE_CALLBACK_URL` to production domain.
+  - Configure CORS in `main.ts` for production frontend URL.
+  - Set `DB_SYNCHRONIZE=false` and run migrations manually.
+  - Ensure all env vars are set in Vercel project settings.
 
-## 9. Development Commands
-- `npm run dev`: Start both server and web in parallel.
-- `npm run start:server`: Start NestJS in dev mode.
-- `npm run start:web`: Start Vite dev server.
+## 9. Known Issues & Technical Debt
+See **[docs/specs/TODO.md](./docs/specs/TODO.md)** for the full prioritized backlog.
 
----
-**Handover Note**: The system is fully scaffolded with core logic (Auth, RBAC, Multi-tenancy). 
-- Refer to **[REQUIREMENTS.md](./REQUIREMENTS.md)** for the original source of truth.
-- Refer to **[DEPLOYMENT.md](./DEPLOYMENT.md)** for Google Cloud & CI/CD instructions.
-- Refer to **[walkthrough.md](file:///C:/Users/hoa.hoang/.gemini/antigravity/brain/1038cf4c-e9c7-404d-aee0-38a9cc521d01/walkthrough.md)** for implementation details.
+Top items:
+- Notifications use `setTimeout` in-process — lost on restart. Needs a proper queue (Bull/BullMQ).
+- No database indexes on `familyId`, `expenseDate`, `warrantyExpiredAt` — will cause slow queries at scale.
+- No test coverage beyond 1 placeholder spec.
+- `console.log` used throughout — should use NestJS `Logger`.
+- Missing DB transaction wrapping family+user creation in `auth.service.ts`.
+
+## 10. Development Commands
+```bash
+npm run dev          # Start server + web in parallel
+npm run start:server # NestJS dev server only (port 3173)
+npm run start:web    # Vite dev server only (port 5173)
+```
+- **API Docs**: http://localhost:3173/api/docs (Swagger)
+- **Frontend**: http://localhost:5173

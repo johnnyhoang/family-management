@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Asset } from '../../common/entities/asset.entity';
+import { stringify } from 'csv-stringify/sync';
 
 @Injectable()
 export class AssetService {
@@ -24,7 +25,7 @@ export class AssetService {
     }
 
     if (filters.search) {
-      query.andWhere('(asset.name LIKE :search OR asset.description LIKE :search)', {
+      query.andWhere('(asset.name ILIKE :search OR asset.description ILIKE :search)', {
         search: `%${filters.search}%`,
       });
     }
@@ -63,8 +64,7 @@ export class AssetService {
 
   async exportToCsv(familyId: string, filters: any = {}): Promise<string> {
     const assets = await this.findAll(familyId, filters);
-    const { stringify } = await import('csv-stringify/sync');
-    
+
     return stringify(assets, {
       header: true,
       columns: [

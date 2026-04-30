@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Expense } from '../../common/entities/expense.entity';
+import { Expense, RecurringCycle } from '../../common/entities/expense.entity';
+import { stringify } from 'csv-stringify/sync';
 
 @Injectable()
 export class ExpenseService {
@@ -46,14 +47,7 @@ export class ExpenseService {
     });
 
     if (expense.isRecurring && expense.recurringCycle && expense.expenseDate) {
-      const nextDate = new Date(expense.expenseDate);
-      switch (expense.recurringCycle) {
-        case 'DAILY' as any: nextDate.setDate(nextDate.getDate() + 1); break;
-        case 'WEEKLY' as any: nextDate.setDate(nextDate.getDate() + 7); break;
-        case 'MONTHLY' as any: nextDate.setMonth(nextDate.getMonth() + 1); break;
-        case 'YEARLY' as any: nextDate.setFullYear(nextDate.getFullYear() + 1); break;
-      }
-      expense.nextOccurrenceDate = nextDate;
+      expense.nextOccurrenceDate = this.computeNextOccurrence(expense.recurringCycle, expense.expenseDate);
     }
 
     return this.expenseRepository.save(expense);
@@ -69,20 +63,12 @@ export class ExpenseService {
   async update(id: string, familyId: string, userId: string, data: Partial<Expense>) {
     const expense = await this.findOne(id, familyId);
     if (!expense) return null;
-    
+
     Object.assign(expense, data);
     expense.updatedBy = userId;
-    
-    // Recalculate nextOccurrence if recurring info changed
+
     if (expense.isRecurring && expense.recurringCycle && expense.expenseDate) {
-      const nextDate = new Date(expense.expenseDate);
-      switch (expense.recurringCycle) {
-        case 'DAILY' as any: nextDate.setDate(nextDate.getDate() + 1); break;
-        case 'WEEKLY' as any: nextDate.setDate(nextDate.getDate() + 7); break;
-        case 'MONTHLY' as any: nextDate.setMonth(nextDate.getMonth() + 1); break;
-        case 'YEARLY' as any: nextDate.setFullYear(nextDate.getFullYear() + 1); break;
-      }
-      expense.nextOccurrenceDate = nextDate;
+      expense.nextOccurrenceDate = this.computeNextOccurrence(expense.recurringCycle, expense.expenseDate);
     }
 
     return this.expenseRepository.save(expense);
@@ -98,8 +84,6 @@ export class ExpenseService {
 
   async exportToCsv(familyId: string, filters: any = {}): Promise<string> {
     const expenses = await this.findAll(familyId, filters);
-    const { stringify } = await import('csv-stringify/sync');
-
     const flattenedData = expenses.map(e => ({
       id: e.id,
       amount: e.amount,
@@ -120,5 +104,16 @@ export class ExpenseService {
         { key: 'asset', header: 'Tài sản' },
       ],
     });
+  }
+
+  private computeNextOccurrence(cycle: RecurringCycle, from: Date): Date {
+    const next = new Date(from);
+    switch (cycle) {
+      case RecurringCycle.DAILY:   next.setDate(next.getDate() + 1); break;
+      case RecurringCycle.WEEKLY:  next.setDate(next.getDate() + 7); break;
+      case RecurringCycle.MONTHLY: next.setMonth(next.getMonth() + 1); break;
+      case RecurringCycle.YEARLY:  next.setFullYear(next.getFullYear() + 1); break;
+    }
+    return next;
   }
 }

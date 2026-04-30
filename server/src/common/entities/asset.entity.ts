@@ -1,4 +1,4 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Category } from './category.entity';
 import { User } from './user.entity';
@@ -12,7 +12,10 @@ export enum AssetStatus {
 }
 
 @Entity('assets')
+@Index(['familyId', 'status'])
+@Index(['familyId', 'warrantyExpiredAt'])
 export class Asset extends BaseEntity {
+  @Index()
   @Column()
   familyId: string;
 
@@ -91,7 +94,7 @@ export class Asset extends BaseEntity {
   documents: string[];
 
   @Column({ type: 'json', nullable: true })
-  customFields: any;
+  customFields: Record<string, unknown>;
 
   @Column()
   createdBy: string;
