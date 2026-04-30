@@ -5,9 +5,10 @@ import { Plus, Download, Trash2, Search } from 'lucide-react';
 import { assetApi } from '../api/asset';
 import { userApi } from '../api/user';
 import type { Asset } from '../api/asset';
-import { categoryApi } from '../api/category';
+import { buildCategoryPathLabel, categoryApi, isAssetCategory } from '../api/category';
 import dayjs from 'dayjs';
 import { renderMoneyBadge } from '../utils/display';
+import { confirmDuplicateWarning, findDuplicateAsset, getCategoryLabel } from '../utils/duplicates';
 
 export const AssetList = () => {
     const queryClient = useQueryClient();
@@ -30,6 +31,13 @@ export const AssetList = () => {
         queryKey: ['users'],
         queryFn: () => userApi.findAll().then(res => res.data),
     });
+
+    const assetCategoryOptions = (categories ?? [])
+        .filter((category) => isAssetCategory(category))
+        .map((category) => ({
+            value: category.id,
+            label: buildCategoryPathLabel(categories ?? [], category.id),
+        }));
 
     const createMutation = useMutation({
         mutationFn: (data: Partial<Asset>) => assetApi.create(data),
@@ -119,7 +127,13 @@ export const AssetList = () => {
             key: 'status',
             render: (status: string) => {
                 const colors: any = { ACTIVE: 'green', BROKEN: 'red', SOLD: 'blue', LOST: 'gray' };
-                return <Tag color={colors[status] || 'blue'}>{status}</Tag>;
+                const labels: Record<string, string> = {
+                    ACTIVE: 'Hoạt động',
+                    BROKEN: 'Hỏng',
+                    SOLD: 'Đã bán',
+                    LOST: 'Mất',
+                };
+                return <Tag color={colors[status] || 'blue'}>{labels[status] || status}</Tag>;
             },
         },
         {
@@ -144,6 +158,25 @@ export const AssetList = () => {
             ),
         },
     ];
+
+    const confirmDuplicateAsset = async (data: Partial<Asset>) => {
+        const duplicate = findDuplicateAsset(assets ?? [], {
+            id: editingAsset?.id,
+            name: data.name,
+            categoryId: data.categoryId,
+        });
+
+        if (!duplicate) return true;
+
+        return confirmDuplicateWarning({
+            title: 'Phát hiện tài sản trùng',
+            summary: 'Đã có tài sản cùng tên và danh mục. Bạn vẫn có thể tiếp tục nếu đây là một tài sản khác nhưng trùng cách đặt tên.',
+            detailLines: [
+                `Tên tài sản: ${data.name || '-'}`,
+                `Danh mục: ${getCategoryLabel(categories ?? [], data.categoryId)}`,
+            ],
+        });
+    };
 
     return (
         <div className="space-y-4 lg:space-y-6">
@@ -253,12 +286,15 @@ export const AssetList = () => {
                 <Form
                     form={form}
                     layout="vertical"
-                    onFinish={(values) => {
+                    onFinish={async (values) => {
                         const data = {
                             ...values,
                             purchaseDate: values.purchaseDate?.toISOString(),
                             warrantyExpiredAt: values.warrantyExpiredAt?.toISOString(),
                         };
+                        const shouldContinue = await confirmDuplicateAsset(data);
+                        if (!shouldContinue) return;
+
                         if (editingAsset) {
                             updateMutation.mutate(data);
                         } else {
@@ -272,7 +308,7 @@ export const AssetList = () => {
                             <Input />
                         </Form.Item>
                         <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
-                            <Select options={categories?.map(c => ({ value: c.id, label: c.name }))} />
+                            <Select options={assetCategoryOptions} />
                         </Form.Item>
                         <Form.Item name="status" label="Trạng thái" initialValue="ACTIVE">
                             <Select options={[

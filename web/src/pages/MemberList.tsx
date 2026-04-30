@@ -114,7 +114,12 @@ export const MemberList = () => {
             key: 'status',
             render: (status: string) => {
                 const colors: any = { ACTIVE: 'green', PENDING: 'orange', INACTIVE: 'red' };
-                return <Tag color={colors[status] || 'blue'}>{status}</Tag>;
+                const labels: Record<string, string> = {
+                    ACTIVE: 'Hoạt động',
+                    PENDING: 'Đang chờ',
+                    INACTIVE: 'Ngưng hoạt động',
+                };
+                return <Tag color={colors[status] || 'blue'}>{labels[status] || status}</Tag>;
             },
         },
         {

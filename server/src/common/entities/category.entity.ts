@@ -3,8 +3,14 @@ import { BaseEntity } from './base.entity';
 
 export enum CategoryType {
   ASSET = 'ASSET',
-  EXPENSE = 'EXPENSE',
+  LIABILITY = 'LIABILITY',
   INCOME = 'INCOME',
+  EXPENSE = 'EXPENSE',
+}
+
+export enum CategoryLevel {
+  GROUP = 'GROUP',
+  CATEGORY = 'CATEGORY',
 }
 
 @Entity('categories')
@@ -24,12 +30,19 @@ export class Category extends BaseEntity {
   })
   type: CategoryType;
 
+  @Column({
+    type: 'enum',
+    enum: CategoryLevel,
+    default: CategoryLevel.CATEGORY,
+  })
+  level: CategoryLevel;
+
   @Column({ nullable: true })
-  parentId: string;
+  parentId: string | null;
 
   @ManyToOne(() => Category, (category) => category.children, { nullable: true })
   @JoinColumn({ name: 'parentId' })
-  parent: Category;
+  parent: Category | null;
 
   @OneToMany(() => Category, (category) => category.parent)
   children: Category[];

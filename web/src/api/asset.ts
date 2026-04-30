@@ -5,7 +5,7 @@ export interface Asset {
   name: string;
   description?: string;
   categoryId: string;
-  category?: { name: string };
+  category?: { id?: string; name: string };
   purchasePrice: number;
   currentValue: number;
   status: string;

@@ -34,6 +34,11 @@ export class RecurringExpenseScheduler {
 
   private async generateNextExpense(source: Expense) {
     try {
+      if (!source.nextOccurrenceDate) {
+        this.logger.warn(`Skipping recurring expense ${source.id} because nextOccurrenceDate is missing.`);
+        return;
+      }
+
       // Create new expense
       const nextDate = new Date(source.nextOccurrenceDate);
       

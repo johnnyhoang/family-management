@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Asset } from '../../common/entities/asset.entity';
+import { Category, CategoryLevel, CategoryType } from '../../common/entities/category.entity';
 import { stringify } from 'csv-stringify/sync';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class AssetService {
   constructor(
     @InjectRepository(Asset)
     private assetRepository: Repository<Asset>,
+    @InjectRepository(Category)
+    private categoryRepository: Repository<Category>,
   ) {}
 
   async findAll(familyId: string, filters: any = {}) {
@@ -41,6 +44,7 @@ export class AssetService {
   }
 
   async create(familyId: string, userId: string, data: Partial<Asset>) {
+    await this.validateAssetCategory(familyId, data.categoryId);
     const asset = this.assetRepository.create({
       ...data,
       familyId,
@@ -50,6 +54,7 @@ export class AssetService {
   }
 
   async update(id: string, familyId: string, userId: string, data: Partial<Asset>) {
+    await this.validateAssetCategory(familyId, data.categoryId);
     await this.assetRepository.update({ id, familyId }, { ...(data as any), updatedBy: userId });
     return this.findOne(id, familyId);
   }
@@ -78,5 +83,23 @@ export class AssetService {
         { key: 'warrantyExpiredAt', header: 'Hết hạn bảo hành' },
       ],
     });
+  }
+
+  private async validateAssetCategory(familyId: string, categoryId?: string) {
+    if (!categoryId) {
+      return;
+    }
+
+    const category = await this.categoryRepository.findOne({
+      where: { id: categoryId, familyId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Danh mục tài sản không tồn tại');
+    }
+
+    if (category.type !== CategoryType.ASSET || category.level !== CategoryLevel.CATEGORY) {
+      throw new BadRequestException('Tài sản phải dùng danh mục lá thuộc nhóm tài sản');
+    }
   }
 }

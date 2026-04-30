@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
@@ -35,6 +36,13 @@ export class CategoryController {
   @ApiOperation({ summary: 'Create new category' })
   create(@Req() req, @Body() data: Partial<Category>) {
     return this.categoryService.create(req.user.familyId, data);
+  }
+
+  @Put(':id')
+  @CheckPermission('Category', 'edit')
+  @ApiOperation({ summary: 'Update category' })
+  update(@Req() req, @Param('id') id: string, @Body() data: Partial<Category>) {
+    return this.categoryService.update(id, req.user.familyId, data);
   }
 
   @Delete(':id')

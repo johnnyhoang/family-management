@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Asset } from '../../common/entities/asset.entity';
-import { Expense } from '../../common/entities/expense.entity';
+import { Expense, ExpenseEntryType } from '../../common/entities/expense.entity';
 
 @Injectable()
 export class DashboardService {
@@ -22,14 +22,17 @@ export class DashboardService {
     const monthlyExpenses = await this.expenseRepository.createQueryBuilder('expense')
       .where('expense.familyId = :familyId', { familyId })
       .andWhere('expense.expenseDate >= :startOfMonth', { startOfMonth })
+      .andWhere('expense.isTransfer = false')
+      .andWhere('expense.entryType = :entryType', { entryType: ExpenseEntryType.EXPENSE })
       .select('SUM(expense.amount)', 'total')
       .getRawOne();
 
     // Expenses by category
     const expensesByCategory = await this.expenseRepository.createQueryBuilder('expense')
-      .leftJoin('expense.asset', 'asset')
-      .leftJoin('asset.category', 'category')
+      .leftJoin('expense.category', 'category')
       .where('expense.familyId = :familyId', { familyId })
+      .andWhere('expense.isTransfer = false')
+      .andWhere('expense.entryType = :entryType', { entryType: ExpenseEntryType.EXPENSE })
       .select('category.name', 'category')
       .addSelect('SUM(expense.amount)', 'amount')
       .groupBy('category.name')

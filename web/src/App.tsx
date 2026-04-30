@@ -13,7 +13,6 @@ import { Settings } from './pages/Settings';
 import { CalendarPage } from './pages/CalendarPage';
 import { AuthGuard } from './components/auth/AuthGuard';
 import './index.css';
-import './i18n';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -30,24 +29,38 @@ function App() {
       <ConfigProvider
         theme={{
           token: {
-            colorPrimary: '#0ea5e9',
+            colorPrimary: '#f97370',
+            colorSuccess: '#68b98a',
+            colorWarning: '#f3b665',
+            colorInfo: '#7cb7ef',
             borderRadius: 12,
             fontFamily: 'Inter, system-ui, sans-serif',
-            colorBgContainer: '#ffffff',
-            colorTextBase: '#1e293b',
+            colorBgContainer: '#fffdfb',
+            colorTextBase: '#2d2a26',
+            colorBorderSecondary: '#f2d7c7',
           },
           components: {
             Button: {
-              borderRadius: 10,
-              controlHeight: 40,
+              borderRadius: 12,
+              controlHeight: 38,
               fontWeight: 600,
             },
-            Card: {
-              borderRadiusLG: 16,
-            },
             Table: {
-              borderRadiusLG: 16,
-            }
+              borderRadiusLG: 14,
+              headerBg: '#fff5ee',
+            },
+            Modal: {
+              borderRadiusLG: 18,
+            },
+            Input: {
+              controlHeight: 38,
+            },
+            Select: {
+              controlHeight: 38,
+            },
+            DatePicker: {
+              controlHeight: 38,
+            },
           }
         }}
       >

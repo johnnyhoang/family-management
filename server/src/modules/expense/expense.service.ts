@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Expense, RecurringCycle } from '../../common/entities/expense.entity';
+import { Expense, ExpenseEntryType, RecurringCycle } from '../../common/entities/expense.entity';
+import { Category, CategoryLevel, CategoryType } from '../../common/entities/category.entity';
 import { stringify } from 'csv-stringify/sync';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class ExpenseService {
   constructor(
     @InjectRepository(Expense)
     private expenseRepository: Repository<Expense>,
+    @InjectRepository(Category)
+    private categoryRepository: Repository<Category>,
   ) {}
 
   async findAll(familyId: string, filters: any = {}) {
@@ -26,7 +29,21 @@ export class ExpenseService {
     }
 
     if (filters.direction) {
-      query.andWhere('category.type = :direction', { direction: filters.direction });
+      query.andWhere('expense.entryType = :entryType', { entryType: filters.direction });
+    }
+
+    if (filters.isTransfer !== undefined) {
+      query.andWhere('expense.isTransfer = :isTransfer', {
+        isTransfer: filters.isTransfer === true || filters.isTransfer === 'true',
+      });
+    }
+
+    if (filters.createdBy) {
+      query.andWhere('expense.createdBy = :createdBy', { createdBy: filters.createdBy });
+    }
+
+    if (filters.amount) {
+      query.andWhere('expense.amount = :amount', { amount: Number(filters.amount) });
     }
 
     if (filters.startDate && filters.endDate) {
@@ -40,14 +57,19 @@ export class ExpenseService {
   }
 
   async create(familyId: string, userId: string, data: Partial<Expense>) {
+    const entryType = await this.resolveEntryType(familyId, data);
     const expense = this.expenseRepository.create({
       ...data,
       familyId,
       createdBy: userId,
+      entryType,
+      isTransfer: data.isTransfer ?? false,
     });
 
     if (expense.isRecurring && expense.recurringCycle && expense.expenseDate) {
       expense.nextOccurrenceDate = this.computeNextOccurrence(expense.recurringCycle, expense.expenseDate);
+    } else {
+      expense.nextOccurrenceDate = null;
     }
 
     return this.expenseRepository.save(expense);
@@ -64,11 +86,16 @@ export class ExpenseService {
     const expense = await this.findOne(id, familyId);
     if (!expense) return null;
 
+    const entryType = await this.resolveEntryType(familyId, data, expense);
     Object.assign(expense, data);
     expense.updatedBy = userId;
+    expense.entryType = entryType;
+    expense.isTransfer = data.isTransfer ?? expense.isTransfer ?? false;
 
     if (expense.isRecurring && expense.recurringCycle && expense.expenseDate) {
       expense.nextOccurrenceDate = this.computeNextOccurrence(expense.recurringCycle, expense.expenseDate);
+    } else {
+      expense.nextOccurrenceDate = null;
     }
 
     return this.expenseRepository.save(expense);
@@ -88,6 +115,8 @@ export class ExpenseService {
       id: e.id,
       amount: e.amount,
       category: e.category?.name || '',
+      entryType: e.entryType,
+      isTransfer: e.isTransfer ? 'Có' : 'Không',
       description: e.note || '',
       expenseDate: e.expenseDate,
       asset: e.asset?.name || '',
@@ -99,6 +128,8 @@ export class ExpenseService {
         { key: 'id', header: 'ID' },
         { key: 'amount', header: 'Số tiền' },
         { key: 'category', header: 'Danh mục' },
+        { key: 'entryType', header: 'Loại giao dịch' },
+        { key: 'isTransfer', header: 'Chuyển nội bộ' },
         { key: 'description', header: 'Mô tả' },
         { key: 'expenseDate', header: 'Ngày' },
         { key: 'asset', header: 'Tài sản' },
@@ -115,5 +146,60 @@ export class ExpenseService {
       case RecurringCycle.YEARLY:  next.setFullYear(next.getFullYear() + 1); break;
     }
     return next;
+  }
+
+  private async resolveEntryType(
+    familyId: string,
+    data: Partial<Expense>,
+    currentExpense?: Expense,
+  ): Promise<ExpenseEntryType> {
+    const categoryId = data.categoryId ?? currentExpense?.categoryId;
+    const entryType = (data.entryType ?? currentExpense?.entryType) as ExpenseEntryType | undefined;
+    const isTransfer = data.isTransfer ?? currentExpense?.isTransfer ?? false;
+
+    if (!entryType) {
+      throw new BadRequestException('Loại giao dịch là bắt buộc');
+    }
+
+    if (!categoryId) {
+      return entryType;
+    }
+
+    const category = await this.categoryRepository.findOne({
+      where: { id: categoryId, familyId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Danh mục không tồn tại');
+    }
+
+    if (category.level !== CategoryLevel.CATEGORY) {
+      throw new BadRequestException('Chỉ được chọn danh mục ở cấp cuối');
+    }
+
+    if (isTransfer) {
+      if (![CategoryType.ASSET, CategoryType.LIABILITY].includes(category.type)) {
+        throw new BadRequestException('Giao dịch chuyển nội bộ chỉ được gắn với danh mục tài sản hoặc công nợ');
+      }
+      return entryType;
+    }
+
+    if (category.type !== this.mapEntryTypeToCategoryType(entryType)) {
+      throw new BadRequestException('Danh mục không khớp với loại giao dịch đã chọn');
+    }
+
+    return entryType;
+  }
+
+  private mapEntryTypeToCategoryType(entryType: ExpenseEntryType): CategoryType {
+    switch (entryType) {
+      case ExpenseEntryType.INCOME:
+        return CategoryType.INCOME;
+      case ExpenseEntryType.LIABILITY:
+        return CategoryType.LIABILITY;
+      case ExpenseEntryType.EXPENSE:
+      default:
+        return CategoryType.EXPENSE;
+    }
   }
 }

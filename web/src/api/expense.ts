@@ -1,13 +1,15 @@
 import api from './client';
-import type { Category } from './category';
+import type { Category, ExpenseEntryType } from './category';
 
 export interface Expense {
   id: string;
   amount: number;
   currency: string;
-  type: string;
+  entryType: ExpenseEntryType;
+  categoryId?: string;
   expenseDate: string;
   isRecurring: boolean;
+  isTransfer?: boolean;
   recurringCycle?: string;
   note?: string;
   assetId?: string;

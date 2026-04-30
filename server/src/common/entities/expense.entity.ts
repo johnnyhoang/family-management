@@ -1,13 +1,19 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Asset } from './asset.entity';
-import { Category } from './category.entity';
+import { Category, CategoryType } from './category.entity';
 
 export enum RecurringCycle {
   DAILY = 'DAILY',
   WEEKLY = 'WEEKLY',
   MONTHLY = 'MONTHLY',
   YEARLY = 'YEARLY',
+}
+
+export enum ExpenseEntryType {
+  INCOME = CategoryType.INCOME,
+  EXPENSE = CategoryType.EXPENSE,
+  LIABILITY = CategoryType.LIABILITY,
 }
 
 @Entity('expenses')
@@ -37,11 +43,21 @@ export class Expense extends BaseEntity {
   @Column({ default: 'VND' })
   currency: string;
 
+  @Column({
+    type: 'enum',
+    enum: ExpenseEntryType,
+    default: ExpenseEntryType.EXPENSE,
+  })
+  entryType: ExpenseEntryType;
+
   @Column({ type: 'date' })
   expenseDate: Date;
 
   @Column({ default: false })
   isRecurring: boolean;
+
+  @Column({ default: false })
+  isTransfer: boolean;
 
   @Column({
     type: 'enum',
@@ -51,7 +67,7 @@ export class Expense extends BaseEntity {
   recurringCycle: RecurringCycle;
 
   @Column({ type: 'date', nullable: true })
-  nextOccurrenceDate: Date;
+  nextOccurrenceDate: Date | null;
 
   @Column({ default: false })
   reminderEnabled: boolean;

@@ -1,5 +1,4 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import {
     LayoutDashboard,
     Package,
@@ -14,13 +13,13 @@ import {
 import { cn } from '../../utils/cn';
 
 const navigation = [
-    { name: 'sidebar.dashboard', href: '/', icon: LayoutDashboard },
-    { name: 'sidebar.assets', href: '/assets', icon: Package },
-    { name: 'sidebar.expenses', href: '/expenses', icon: Receipt },
-    { name: 'sidebar.categories', href: '/categories', icon: FolderTree },
-    { name: 'sidebar.calendar', href: '/calendar', icon: CalendarDays },
-    { name: 'sidebar.members', href: '/members', icon: Users },
-    { name: 'sidebar.settings', href: '/settings', icon: Settings },
+    { name: 'Tổng quan', href: '/', icon: LayoutDashboard },
+    { name: 'Quản lý tài sản', href: '/assets', icon: Package },
+    { name: 'Quản lý thu chi', href: '/expenses', icon: Receipt },
+    { name: 'Danh mục', href: '/categories', icon: FolderTree },
+    { name: 'Lịch gia đình', href: '/calendar', icon: CalendarDays },
+    { name: 'Quản lý thành viên', href: '/members', icon: Users },
+    { name: 'Thiết lập', href: '/settings', icon: Settings },
 ];
 
 interface SidebarProps {
@@ -28,7 +27,6 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ onClose }: SidebarProps) => {
-    const { t } = useTranslation();
     const navigate = useNavigate();
 
     const handleLogout = () => {
@@ -38,11 +36,11 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
     };
 
     return (
-        <aside className="w-64 glass-card h-screen flex flex-col p-4 relative">
+        <aside className="w-64 h-screen flex flex-col p-3 relative bg-[linear-gradient(180deg,rgba(255,251,247,0.96),rgba(255,245,239,0.92))] border-r border-[rgba(242,214,197,0.75)] shadow-[18px_0_50px_rgba(227,188,165,0.12)] backdrop-blur-md">
             <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 lg:hidden text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                aria-label="Close sidebar"
+                className="absolute top-4 right-4 p-2 lg:hidden text-[#9f7d6e] hover:text-[#7e5f52] hover:bg-white rounded-xl transition-colors"
+                aria-label="Đóng thanh bên"
             >
                 <X size={20} />
             </button>
@@ -50,41 +48,64 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
             <Link
                 to="/"
                 onClick={() => onClose?.()}
-                className="flex items-center gap-3 mb-8 px-2 rounded-lg outline-offset-2 hover:opacity-90 transition-opacity"
+                className="mb-4 rounded-[18px] border border-white/80 bg-white/70 px-3 py-3 outline-offset-2 shadow-[0_12px_28px_rgba(237,200,183,0.18)] hover:opacity-95 transition-opacity"
             >
+                <div className="flex items-center gap-3">
+                    <img
+                        src="/logo.svg"
+                        alt=""
+                        width={40}
+                        height={40}
+                        className="w-10 h-10 rounded-2xl shadow-lg shadow-[#f7b5a3]/30 shrink-0"
+                    />
+                    <div>
+                        <h1 className="font-bold text-base text-[#4f3f37] tracking-tight">Tài sản Gia đình</h1>
+                        <p className="text-xs text-[#8c6d61]">Gọn gàng, ấm áp, dễ theo dõi</p>
+                    </div>
+                </div>
                 <img
-                    src="/logo.svg"
+                    src="/family-soft-illustration.svg"
                     alt=""
-                    width={40}
-                    height={40}
-                    className="w-10 h-10 rounded-xl shadow-lg shadow-primary-200 shrink-0"
+                    className="mt-2 h-20 w-full rounded-2xl object-cover"
                 />
-                <h1 className="font-bold text-lg text-slate-800 tracking-tight">FamilyAsset</h1>
             </Link>
 
-            <nav className="flex-1 space-y-1">
+            <div className="mb-3 flex flex-wrap gap-1.5">
+                <span className="cute-chip">Nhẹ mắt</span>
+                <span className="cute-chip">Dễ dùng</span>
+                <span className="cute-chip">Gia đình</span>
+            </div>
+
+            <nav className="flex-1 space-y-1.5">
                 {navigation.map((item) => (
                     <NavLink
                         key={item.name}
                         to={item.href}
                         onClick={() => onClose?.()}
                         className={({ isActive }) => cn(
-                            "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all text-slate-600 hover:text-primary-600 hover:bg-primary-50",
-                            isActive && "bg-primary-50 text-primary-600 font-medium shadow-sm"
+                            "group flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all text-[#6c5a51] hover:text-[#c85f58] hover:bg-white/80",
+                            isActive && "bg-white text-[#c85f58] font-semibold shadow-[0_10px_24px_rgba(235,189,168,0.18)] border border-[rgba(247,208,190,0.8)]"
                         )}
                     >
-                        <item.icon size={20} />
-                        <span>{t(item.name)}</span>
+                        <span className={cn(
+                            "flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-white/80 text-[#d37a6b] shadow-sm",
+                            "group-hover:bg-[#fff3ed]"
+                        )}>
+                            <item.icon size={16} />
+                        </span>
+                        <span className="text-[14px] leading-tight">{item.name}</span>
                     </NavLink>
                 ))}
             </nav>
 
             <button
                 onClick={handleLogout}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-600 hover:bg-red-50 mt-auto w-full group transition-colors"
+                className="mt-auto flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[#cf675f] hover:bg-white/85 w-full group transition-colors border border-transparent hover:border-[rgba(244,206,190,0.75)]"
             >
-                <LogOut size={20} className="group-hover:-translate-x-1 transition-transform" />
-                <span>Đăng xuất</span>
+                <span className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-white/85 text-[#cf675f] shadow-sm">
+                    <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+                </span>
+                <span className="text-[14px]">Đăng xuất</span>
             </button>
         </aside>
     );

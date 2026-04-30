@@ -2,18 +2,28 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Form, Input, InputNumber, DatePicker, Radio, Space, Typography, Tag, Divider, Select } from 'antd';
 import dayjs from 'dayjs';
 import { userApi } from '../api/user';
-import { categoryApi } from '../api/category';
+import { buildCategoryPathLabel, categoryApi, isAssetCategory, supportsExpenseEntryType } from '../api/category';
 import { assetApi } from '../api/asset';
+import { expenseApi } from '../api/expense';
 import type { User } from '../api/user';
 import type { Category } from '../api/category';
 import type { Asset } from '../api/asset';
+import type { Expense } from '../api/expense';
+import { formatVndAmount } from '../utils/currency';
+import {
+    confirmDuplicateWarning,
+    findDuplicateAsset,
+    findDuplicateExpense,
+    getAssetLabel,
+    getCategoryLabel,
+} from '../utils/duplicates';
 
 const { Text } = Typography;
 
 interface ParsedPreviewModalProps {
     visible: boolean;
     onCancel: () => void;
-    onConfirm: (data: any) => void;
+    onConfirm: (data: any) => void | Promise<void>;
     parsedData: any;
     loading?: boolean;
 }
@@ -30,17 +40,20 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
     const [users, setUsers] = useState<User[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
     const [assets, setAssets] = useState<Asset[]>([]);
+    const [expenses, setExpenses] = useState<Expense[]>([]);
 
     useEffect(() => {
         if (visible) {
             Promise.all([
                 userApi.findAll(),
                 categoryApi.findAll(),
-                assetApi.findAll()
-            ]).then(([userRes, catRes, assetRes]) => {
+                assetApi.findAll(),
+                expenseApi.findAll(),
+            ]).then(([userRes, catRes, assetRes, expenseRes]) => {
                 setUsers(userRes.data);
                 setCategories(catRes.data);
                 setAssets(assetRes.data);
+                setExpenses(expenseRes.data);
             });
         }
     }, [visible]);
@@ -86,9 +99,10 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
         }
     }, [parsedData, visible, form]);
 
-    const handleFinish = (values: any) => {
+    const handleFinish = async (values: any) => {
         const formattedValues = {
             ...values,
+            entryType: intent === 'create_income' ? 'INCOME' : 'EXPENSE',
             expenseDate: values.expenseDate?.format('YYYY-MM-DD'),
             purchaseDate: values.purchaseDate?.format('YYYY-MM-DD'),
             date: values.date?.format('YYYY-MM-DD'),
@@ -103,10 +117,55 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
             }
             formattedValues.startDate = start.toISOString();
         }
-        onConfirm({
+
+        if (intent === 'create_expense' || intent === 'create_income') {
+            const duplicateExpense = findDuplicateExpense(expenses, {
+                amount: formattedValues.amount,
+                categoryId: formattedValues.categoryId,
+                expenseDate: formattedValues.expenseDate,
+                assetId: formattedValues.assetId,
+            });
+
+            if (duplicateExpense) {
+                const shouldContinue = await confirmDuplicateWarning({
+                    title: 'Phát hiện giao dịch trùng',
+                    summary: 'Đã có giao dịch cùng số tiền, danh mục, ngày thực hiện và tài sản. Bạn vẫn có thể tiếp tục nếu đây là bản ghi hợp lệ.',
+                    detailLines: [
+                        `Số tiền: ${formatVndAmount(formattedValues.amount)}`,
+                        `Danh mục: ${getCategoryLabel(categories, formattedValues.categoryId)}`,
+                        `Ngày: ${dayjs(formattedValues.expenseDate).format('DD/MM/YYYY')}`,
+                        `Tài sản: ${getAssetLabel(assets, formattedValues.assetId)}`,
+                    ],
+                });
+
+                if (!shouldContinue) return;
+            }
+        }
+
+        if (intent === 'create_asset') {
+            const duplicateAsset = findDuplicateAsset(assets, {
+                name: formattedValues.name,
+                categoryId: formattedValues.categoryId,
+            });
+
+            if (duplicateAsset) {
+                const shouldContinue = await confirmDuplicateWarning({
+                    title: 'Phát hiện tài sản trùng',
+                    summary: 'Đã có tài sản cùng tên và danh mục. Bạn vẫn có thể tiếp tục nếu đây là một tài sản khác nhưng trùng cách đặt tên.',
+                    detailLines: [
+                        `Tên tài sản: ${formattedValues.name || '-'}`,
+                        `Danh mục: ${getCategoryLabel(categories, formattedValues.categoryId)}`,
+                    ],
+                });
+
+                if (!shouldContinue) return;
+            }
+        }
+
+        await Promise.resolve(onConfirm({
             intent,
             data: formattedValues,
-        });
+        }));
     };
 
     const renderFormFields = () => {
@@ -129,8 +188,14 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
                             <Select
                                 options={categories
-                                    .filter(c => intent === 'create_expense' ? c.type === 'EXPENSE' : c.type === 'INCOME')
-                                    .map(c => ({ label: c.name, value: c.id }))
+                                    .filter((category) => supportsExpenseEntryType(
+                                        category,
+                                        intent === 'create_expense' ? 'EXPENSE' : 'INCOME',
+                                    ))
+                                    .map((category) => ({
+                                        label: buildCategoryPathLabel(categories, category.id),
+                                        value: category.id,
+                                    }))
                                 }
                                 placeholder="Chọn danh mục..."
                                 showSearch
@@ -161,8 +226,11 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         <Form.Item name="categoryId" label="Loại tài sản">
                             <Select
                                 options={categories
-                                    .filter(c => c.type === 'ASSET')
-                                    .map(c => ({ label: c.name, value: c.id }))
+                                    .filter((category) => isAssetCategory(category))
+                                    .map((category) => ({
+                                        label: buildCategoryPathLabel(categories, category.id),
+                                        value: category.id,
+                                    }))
                                 }
                                 placeholder="Chọn loại tài sản..."
                                 showSearch

@@ -21,7 +21,7 @@ export const Settings = () => {
                 <Card title={<div className="flex items-center gap-2"><User size={18} /><span>Hồ sơ cá nhân</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
                     <Form form={form} layout="vertical" onFinish={onFinish}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                            <Form.Item label="Họ và tên" name="fullName" initialValue="Admin User">
+                            <Form.Item label="Họ và tên" name="fullName" initialValue="Quản trị viên">
                                 <Input placeholder="Nhập họ tên" />
                             </Form.Item>
                             <Form.Item label="Email" name="email" initialValue="admin@example.com">
@@ -65,7 +65,7 @@ export const Settings = () => {
                 <Card title={<div className="flex items-center gap-2"><Palette size={18} /><span>Giao diện</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
                     <div className="flex items-center justify-between">
                         <div>
-                            <p className="font-semibold text-slate-800">Chế độ tối (Dark Mode)</p>
+                            <p className="font-semibold text-slate-800">Chế độ tối</p>
                             <p className="text-sm text-slate-500">Chuyển đổi giữa giao diện sáng và tối (Sắp ra mắt)</p>
                         </div>
                         <Switch disabled />

@@ -12,7 +12,7 @@ export const MainLayout = () => {
     const closeSidebar = () => setIsSidebarOpen(false);
 
     return (
-        <div className="min-h-screen flex flex-col lg:flex-row">
+        <div className="page-shell min-h-screen flex flex-col lg:flex-row">
             {/* Mobile Header */}
             <MobileHeader onMenuClick={toggleSidebar} />
 
@@ -34,8 +34,12 @@ export const MainLayout = () => {
             </div>
 
             {/* Main Content */}
-            <main className="flex-1 w-full min-h-screen lg:min-w-0 overflow-x-hidden">
-                <div className="p-4 lg:p-6 max-w-7xl mx-auto pt-20 lg:pt-6">
+            <main className="relative flex-1 w-full min-h-screen lg:min-w-0 overflow-x-hidden">
+                <div className="pointer-events-none absolute inset-0 opacity-80">
+                    <div className="absolute left-8 top-6 hidden h-24 w-24 rounded-[28px] border border-white/70 bg-white/40 blur-[2px] lg:block" />
+                    <div className="absolute bottom-16 right-12 hidden h-16 w-16 rounded-[22px] border border-white/70 bg-[rgba(255,242,231,0.7)] lg:block" />
+                </div>
+                <div className="relative p-3 lg:p-4 max-w-7xl mx-auto pt-20 lg:pt-4">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={location.pathname}

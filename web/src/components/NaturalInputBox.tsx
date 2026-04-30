@@ -144,7 +144,7 @@ export const NaturalInputBox: React.FC = () => {
                             title={
                                 <Space>
                                     <Tag color={item.confidence > 0.8 ? 'green' : 'orange'}>
-                                        {Math.round(item.confidence * 100)}% Match
+                                        {Math.round(item.confidence * 100)}% khớp
                                     </Tag>
                                     <span style={{ fontSize: '12px', color: '#94a3b8' }}>
                                         {dayjs(item.createdAt).format('DD/MM HH:mm')}
@@ -204,7 +204,7 @@ export const NaturalInputBox: React.FC = () => {
         >
             <Title level={5} style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <SendOutlined style={{ color: '#0ea5e9' }} />
-                Trợ lý Nhập liệu Thông minh <Tag color="gold">AI Powered</Tag>
+                Trợ lý Nhập liệu Thông minh <Tag color="gold">Hỗ trợ AI</Tag>
             </Title>
             <div>
                 <TextArea
