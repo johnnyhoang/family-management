@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Asset } from '../../common/entities/asset.entity';
 import { Notification } from './notification.entity';
 import { NotificationService } from './notification.service';
 import { MaintenanceScheduler } from './maintenance.scheduler';
-import { Asset } from '../../common/entities/asset.entity';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Notification, Asset])],

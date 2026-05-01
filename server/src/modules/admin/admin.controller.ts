@@ -1,10 +1,10 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { CheckPermission } from '../../common/decorators/permission.decorator';
 import { AdminService } from './admin.service';
-import { SystemRole } from '../../common/entities/user.entity';
+import { SystemRole, UserRole } from '../../common/entities/user.entity';
 
 @ApiTags('Admin')
 @ApiBearerAuth()
@@ -21,6 +21,14 @@ export class AdminController {
     return this.adminService.findAllFamilies();
   }
 
+  @Get('users')
+  @ApiOperation({ summary: 'Get all users and their memberships (APP_ADMIN only)' })
+  @CheckPermission('Admin', 'view')
+  async findAllUsers(@Req() req) {
+    this.assertAppAdmin(req.user.systemRole);
+    return this.adminService.findAllUsers();
+  }
+
   @Post('families/:id/status')
   @ApiOperation({ summary: 'Update family status' })
   @CheckPermission('Admin', 'update')
@@ -29,12 +37,45 @@ export class AdminController {
     return this.adminService.updateFamilyStatus(id, status as any);
   }
 
+  @Patch('families/:id')
+  @ApiOperation({ summary: 'Update family profile (APP_ADMIN only)' })
+  @CheckPermission('Admin', 'update')
+  async updateFamily(@Req() req, @Param('id') id: string, @Body() data: { name?: string }) {
+    this.assertAppAdmin(req.user.systemRole);
+    return this.adminService.updateFamily(id, data);
+  }
+
   @Get('stats')
   @ApiOperation({ summary: 'Get system stats' })
   @CheckPermission('Admin', 'view')
   async getSystemStats(@Req() req) {
     this.assertAppAdmin(req.user.systemRole);
     return this.adminService.getSystemStats();
+  }
+
+  @Post('families/:familyId/members/:userId/role')
+  @ApiOperation({ summary: 'Update a member role in any family (APP_ADMIN only)' })
+  @CheckPermission('Admin', 'update')
+  async updateFamilyMemberRole(
+    @Req() req,
+    @Param('familyId') familyId: string,
+    @Param('userId') userId: string,
+    @Body('role') role: UserRole,
+  ) {
+    this.assertAppAdmin(req.user.systemRole);
+    return this.adminService.updateFamilyMemberRole(familyId, userId, role);
+  }
+
+  @Post('users/:userId/system-role')
+  @ApiOperation({ summary: 'Update a user system role (APP_ADMIN only)' })
+  @CheckPermission('Admin', 'update')
+  async updateSystemRole(
+    @Req() req,
+    @Param('userId') userId: string,
+    @Body('systemRole') systemRole: SystemRole,
+  ) {
+    this.assertAppAdmin(req.user.systemRole);
+    return this.adminService.updateSystemRole(req.user.id, userId, systemRole);
   }
 
   private assertAppAdmin(systemRole: SystemRole) {

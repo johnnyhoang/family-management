@@ -102,6 +102,9 @@ export const CategoryList = () => {
       setEditingCategory(null);
       form.resetFields();
     },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Không thể tạo danh mục');
+    },
   });
 
   const updateMutation = useMutation({
@@ -112,6 +115,9 @@ export const CategoryList = () => {
       setIsModalOpen(false);
       setEditingCategory(null);
       form.resetFields();
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Không thể cập nhật danh mục');
     },
   });
 

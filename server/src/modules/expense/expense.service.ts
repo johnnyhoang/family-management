@@ -84,7 +84,9 @@ export class ExpenseService {
 
   async update(id: string, familyId: string, userId: string, data: Partial<Expense>) {
     const expense = await this.findOne(id, familyId);
-    if (!expense) throw new NotFoundException('Giao dịch không tồn tại');
+    if (!expense) {
+      throw new NotFoundException('Không tìm thấy giao dịch');
+    }
 
     const entryType = await this.resolveEntryType(familyId, data, expense);
     Object.assign(expense, data);
@@ -103,7 +105,9 @@ export class ExpenseService {
 
   async delete(id: string, familyId: string) {
     const expense = await this.findOne(id, familyId);
-    if (!expense) throw new NotFoundException('Giao dịch không tồn tại');
+    if (!expense) {
+      throw new NotFoundException('Không tìm thấy giao dịch');
+    }
     return this.expenseRepository.softRemove(expense);
   }
 

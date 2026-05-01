@@ -51,6 +51,7 @@ export class CategoryService {
   ) {}
 
   async findAll(familyId: string, type?: CategoryType) {
+    await this.repairInvalidParentAssignments(familyId);
     const where = type ? { familyId, type } : { familyId };
     return this.categoryRepository.find({
       where,
@@ -114,7 +115,9 @@ export class CategoryService {
 
   async update(id: string, familyId: string, data: Partial<Category>) {
     const category = await this.findOne(id, familyId);
-    if (!category) throw new NotFoundException('Danh mục không tồn tại');
+    if (!category) {
+      throw new NotFoundException('Không tìm thấy danh mục');
+    }
 
     const nextType = data.type ?? category.type;
     const nextLevel = data.level ?? category.level;
@@ -132,15 +135,16 @@ export class CategoryService {
       id,
     );
 
-    // Use direct UPDATE to avoid TypeORM using the loaded `parent` relation object
-    // instead of the new `parentId` FK value when calling save()
+    // Cập nhật trực tiếp bằng UPDATE để tránh TypeORM giữ quan hệ cũ (parent) che giá trị parentId mới
     await this.categoryRepository.update(
       { id, familyId },
       {
-        ...(data.name !== undefined ? { name: data.name } : {}),
+        name: data.name !== undefined ? data.name : category.name,
+        isDefault: data.isDefault !== undefined ? data.isDefault : category.isDefault,
         type: nextType,
         level: nextLevel,
         parentId: nextParentId,
+        ...(data.updatedBy !== undefined ? { updatedBy: data.updatedBy } : {}),
       },
     );
     return this.findOne(id, familyId);
@@ -148,7 +152,9 @@ export class CategoryService {
 
   async delete(id: string, familyId: string) {
     const category = await this.findOne(id, familyId);
-    if (!category) throw new NotFoundException('Danh mục không tồn tại');
+    if (!category) {
+      throw new NotFoundException('Không tìm thấy danh mục');
+    }
     return this.categoryRepository.softRemove(category);
   }
 
@@ -256,6 +262,56 @@ export class CategoryService {
 
     if (!Object.values(CategoryLevel).includes(level)) {
       throw new BadRequestException('Cấp danh mục không hợp lệ');
+    }
+  }
+
+  private async repairInvalidParentAssignments(familyId: string): Promise<void> {
+    const categories = await this.categoryRepository.find({
+      where: { familyId },
+      relations: ['parent'],
+      order: {
+        isDefault: 'DESC',
+        createdAt: 'ASC',
+        name: 'ASC',
+      },
+    });
+
+    const fallbackGroups = new Map<CategoryType, Category>();
+    for (const type of Object.values(CategoryType)) {
+      const existingGroup = categories.find((category) => category.type === type && category.level === CategoryLevel.GROUP);
+      if (existingGroup) {
+        fallbackGroups.set(type, existingGroup);
+      }
+    }
+
+    for (const category of categories) {
+      if (category.level !== CategoryLevel.CATEGORY) {
+        continue;
+      }
+
+      const parent = category.parent;
+      const hasInvalidParent = !parent
+        || parent.type !== category.type
+        || parent.level !== CategoryLevel.GROUP;
+
+      if (!hasInvalidParent) {
+        continue;
+      }
+
+      let fallbackGroup = fallbackGroups.get(category.type);
+      if (!fallbackGroup) {
+        fallbackGroup = await this.ensureDefaultGroup(familyId, category.type);
+        fallbackGroups.set(category.type, fallbackGroup);
+      }
+
+      if (category.parentId === fallbackGroup.id) {
+        continue;
+      }
+
+      await this.categoryRepository.update(
+        { id: category.id, familyId },
+        { parentId: fallbackGroup.id },
+      );
     }
   }
 }

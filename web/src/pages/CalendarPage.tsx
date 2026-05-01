@@ -33,7 +33,7 @@ export const CalendarPage = () => {
 
     const { data: events = [] } = useQuery({
         queryKey: ['calendar-events'],
-        queryFn: () => calendarApi.getAll().then(res => res.data),
+        queryFn: () => calendarApi.getAll().then((res) => res.data),
     });
 
     const { data: users = [] } = useQuery({
@@ -42,7 +42,7 @@ export const CalendarPage = () => {
     });
 
     const createMutation = useMutation({
-        mutationFn: (values: any) => calendarApi.create(values).then(res => res.data),
+        mutationFn: (values: any) => calendarApi.create(values).then((res) => res.data),
         onSuccess: () => {
             message.success('Thêm sự kiện thành công');
             setIsModalVisible(false);
@@ -52,7 +52,7 @@ export const CalendarPage = () => {
     });
 
     const updateMutation = useMutation({
-        mutationFn: (values: any) => calendarApi.update(selectedEvent.id, values).then(res => res.data),
+        mutationFn: (values: any) => calendarApi.update(selectedEvent.id, values).then((res) => res.data),
         onSuccess: () => {
             message.success('Cập nhật sự kiện thành công');
             setIsModalVisible(false);

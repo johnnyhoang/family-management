@@ -1,60 +1,87 @@
 import { useEffect } from 'react';
-import { Card, Form, Input, Button, Switch, Divider, message, Avatar, Tag, Skeleton } from 'antd';
-import { User, Bell, Shield, Palette, MoonStar, SunMedium, Sparkles, Home } from 'lucide-react';
+import { Card, Form, Input, Button, Switch, Divider, message } from 'antd';
+import { Building2, User, Bell, Shield, Palette, MoonStar, SunMedium, Sparkles } from 'lucide-react';
 import { useThemeMode } from '../components/theme/ThemeProvider';
 import { useSession } from '../components/auth/SessionProvider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { authApi } from '../api/auth';
+import dayjs from 'dayjs';
+import { userApi } from '../api/user';
+import { adminApi } from '../api/admin';
 import { familyApi } from '../api/family';
 
 export const Settings = () => {
-    const [profileForm] = Form.useForm();
+    const [form] = Form.useForm();
     const [familyForm] = Form.useForm();
     const { themeMode, setThemeMode } = useThemeMode();
     const queryClient = useQueryClient();
-    const { user, role, activeFamilyId, activeFamilyName, memberships, refreshSession } = useSession();
-
-    const isAdmin = role === 'FAMILY_ADMIN' || role === 'APP_ADMIN';
-
-    const { data: family, isLoading: familyLoading } = useQuery({
-        queryKey: ['my-family'],
-        queryFn: () => familyApi.getMyFamily().then(res => res.data),
-        enabled: Boolean(activeFamilyId),
-    });
+    const { user, role, systemRole, activeFamilyId, activeFamilyName, memberships, refreshSession, canAccess } = useSession();
 
     useEffect(() => {
-        profileForm.setFieldsValue({
+        form.setFieldsValue({
             fullName: user?.fullName || '',
             email: user?.email || '',
             otherNames: user?.otherNames || '',
         });
-    }, [profileForm, user]);
+    }, [form, user]);
+
+    const canViewFamily = Boolean(activeFamilyId && (canAccess('FAMILY', 'view') || systemRole === 'APP_ADMIN'));
+    const canUpdateFamily = Boolean(activeFamilyId && (canAccess('FAMILY', 'update') || systemRole === 'APP_ADMIN'));
+
+    const { data: family } = useQuery({
+        queryKey: ['family-profile', activeFamilyId],
+        enabled: canViewFamily,
+        queryFn: () => familyApi.findOne().then((res) => res.data),
+    });
 
     useEffect(() => {
-        if (family) {
-            familyForm.setFieldsValue({ name: family.name });
-        }
-    }, [family, familyForm]);
+        familyForm.setFieldsValue({
+            familyName: family?.name || activeFamilyName || '',
+        });
+    }, [familyForm, family?.name, activeFamilyName]);
 
     const updateProfileMutation = useMutation({
-        mutationFn: (values: { fullName?: string; otherNames?: string }) => authApi.updateMe(values),
+        mutationFn: async (values: { fullName?: string; otherNames?: string }) => {
+            if (!user?.id) {
+                throw new Error('missing-user');
+            }
+            return userApi.update(user.id, values);
+        },
         onSuccess: async () => {
+            queryClient.invalidateQueries({ queryKey: ['members'] });
             await refreshSession();
             message.success('Đã lưu hồ sơ cá nhân');
         },
         onError: () => {
-            message.error('Không thể lưu hồ sơ cá nhân. Vui lòng thử lại.');
+            message.error('Không thể lưu hồ sơ cá nhân trong gia đình đang chọn');
         },
     });
 
+    const onFinish = (values: { fullName?: string; otherNames?: string }) => {
+        updateProfileMutation.mutate(values);
+    };
+
+    const canUpdateProfile = Boolean(user?.id && canAccess('USER', 'update'));
+
     const updateFamilyMutation = useMutation({
-        mutationFn: (values: { name: string }) => familyApi.updateMyFamily(values),
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ['my-family'] });
-            message.success('Đã cập nhật thông tin gia đình');
+        mutationFn: (values: { familyName?: string }) => {
+            if (!activeFamilyId) {
+                throw new Error('missing-family');
+            }
+
+            if (systemRole === 'APP_ADMIN') {
+                return adminApi.updateFamilyProfile(activeFamilyId, { name: values.familyName });
+            }
+
+            return familyApi.update({ name: values.familyName });
         },
-        onError: () => {
-            message.error('Không thể cập nhật gia đình. Vui lòng thử lại.');
+        onSuccess: async () => {
+            queryClient.invalidateQueries({ queryKey: ['family-profile', activeFamilyId] });
+            queryClient.invalidateQueries({ queryKey: ['admin-families'] });
+            await refreshSession();
+            message.success('Đã cập nhật tên gia đình');
+        },
+        onError: (error: any) => {
+            message.error(error?.response?.data?.message || 'Không thể cập nhật tên gia đình');
         },
     });
 
@@ -66,31 +93,70 @@ export const Settings = () => {
             </header>
 
             <div className="grid grid-cols-1 gap-6">
+                {canViewFamily ? (
+                    <Card title={<div className="flex items-center gap-2"><Building2 size={18} /><span>Thông tin gia đình</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
+                        <Form form={familyForm} layout="vertical" onFinish={(values) => updateFamilyMutation.mutate(values)}>
+                            <Form.Item
+                                label="Tên gia đình"
+                                name="familyName"
+                                rules={[{ required: true, message: 'Vui lòng nhập tên gia đình' }]}
+                            >
+                                <Input placeholder="Nhập tên gia đình" disabled={!canUpdateFamily} />
+                            </Form.Item>
+                            <div className="mb-4 grid grid-cols-1 gap-3 text-sm text-slate-600 md:grid-cols-2 lg:grid-cols-4">
+                                <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Gia đình đang chọn</p>
+                                    <p className="mt-1 font-semibold text-slate-800">{activeFamilyName || family?.name || 'Chưa có tên'}</p>
+                                </div>
+                                <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Vai trò trong gia đình</p>
+                                    <p className="mt-1 font-semibold text-slate-800">
+                                        {systemRole === 'APP_ADMIN' && role !== 'APP_ADMIN'
+                                            ? `${role === 'FAMILY_ADMIN' ? 'Quản trị gia đình' : 'Thành viên'} + APP_ADMIN`
+                                            : role === 'FAMILY_ADMIN'
+                                                ? 'Quản trị gia đình'
+                                                : role === 'MEMBER'
+                                                    ? 'Thành viên'
+                                                    : 'APP_ADMIN'}
+                                    </p>
+                                </div>
+                                <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Trạng thái</p>
+                                    <p className="mt-1 font-semibold text-slate-800">{family?.status === 'INACTIVE' ? 'Ngưng hoạt động' : 'Đang hoạt động'}</p>
+                                </div>
+                                <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Số thành viên</p>
+                                    <p className="mt-1 font-semibold text-slate-800">{family?.members?.length ?? 0}</p>
+                                </div>
+                                <div className="rounded-2xl bg-slate-50 px-4 py-3 md:col-span-2 lg:col-span-2">
+                                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Mã gia đình</p>
+                                    <p className="mt-1 break-all font-semibold text-slate-800">{family?.id || activeFamilyId}</p>
+                                </div>
+                                <div className="rounded-2xl bg-slate-50 px-4 py-3 md:col-span-2 lg:col-span-2">
+                                    <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Ngày tạo</p>
+                                    <p className="mt-1 font-semibold text-slate-800">
+                                        {family?.createdAt ? dayjs(family.createdAt).format('DD/MM/YYYY HH:mm') : 'Không rõ'}
+                                    </p>
+                                </div>
+                            </div>
+                            <Button type="primary" htmlType="submit" loading={updateFamilyMutation.isPending} disabled={!canUpdateFamily}>Lưu tên gia đình</Button>
+                        </Form>
+                    </Card>
+                ) : null}
+
                 {/* Profile Section */}
                 <Card title={<div className="flex items-center gap-2"><User size={18} /><span>Hồ sơ cá nhân</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
-                    {user && (
-                        <div className="flex items-center gap-4 mb-4 pb-4 border-b border-slate-100">
-                            <Avatar src={user.avatarUrl ?? undefined} size={56} className="bg-[#f97370] text-white text-xl font-bold shrink-0">
-                                {(user.fullName ?? user.email)?.[0]?.toUpperCase()}
-                            </Avatar>
-                            <div>
-                                <p className="font-semibold text-slate-800">{user.fullName || '(Chưa đặt tên)'}</p>
-                                <p className="text-sm text-slate-500">{user.email}</p>
-                                {user.systemRole === 'APP_ADMIN' && <Tag color="volcano" className="mt-1">APP ADMIN</Tag>}
-                            </div>
-                        </div>
-                    )}
-                    <Form form={profileForm} layout="vertical" onFinish={(v) => updateProfileMutation.mutate(v)}>
+                    <Form form={form} layout="vertical" onFinish={onFinish}>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
-                            <Form.Item label="Họ và tên" name="fullName" rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}>
-                                <Input placeholder="Nhập họ tên" />
+                            <Form.Item label="Họ và tên" name="fullName">
+                                <Input placeholder="Nhập họ tên" disabled={!canUpdateProfile} />
                             </Form.Item>
                             <Form.Item label="Email" name="email">
                                 <Input disabled />
                             </Form.Item>
                         </div>
                         <Form.Item label="Tên gọi khác cho AI" name="otherNames" extra="Phân tách bằng dấu phẩy, ví dụ: Bố, Mẹ, Bin">
-                            <Input placeholder="Tên gọi khác để AI dễ nhận diện" />
+                            <Input placeholder="Tên gọi khác để AI dễ nhận diện" disabled={!canUpdateProfile} />
                         </Form.Item>
                         <div className="mb-4 grid grid-cols-1 gap-3 text-sm text-slate-600 md:grid-cols-3">
                             <div className="rounded-2xl bg-slate-50 px-4 py-3">
@@ -106,47 +172,9 @@ export const Settings = () => {
                                 <p className="mt-1 font-semibold text-slate-800">{memberships.length}</p>
                             </div>
                         </div>
-                        <Button type="primary" htmlType="submit" loading={updateProfileMutation.isPending}>Lưu thay đổi</Button>
+                        <Button type="primary" htmlType="submit" loading={updateProfileMutation.isPending} disabled={!canUpdateProfile}>Lưu thay đổi</Button>
                     </Form>
                 </Card>
-
-                {/* Family Info Section */}
-                {activeFamilyId && (
-                    <Card title={<div className="flex items-center gap-2"><Home size={18} /><span>Thông tin gia đình</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
-                        {familyLoading ? (
-                            <Skeleton active paragraph={{ rows: 2 }} />
-                        ) : family ? (
-                            <div className="space-y-4">
-                                <div className="grid grid-cols-1 gap-3 md:grid-cols-2 text-sm mb-2">
-                                    <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Tên gia đình</p>
-                                        <p className="mt-1 font-semibold text-slate-800">{family.name}</p>
-                                    </div>
-                                    <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Trạng thái</p>
-                                        <p className="mt-1">
-                                            <Tag color={family.status === 'ACTIVE' ? 'green' : 'default'}>
-                                                {family.status === 'ACTIVE' ? 'Đang hoạt động' : family.status}
-                                            </Tag>
-                                        </p>
-                                    </div>
-                                </div>
-                                {isAdmin ? (
-                                    <Form form={familyForm} layout="vertical" onFinish={(v) => updateFamilyMutation.mutate(v)}>
-                                        <Form.Item label="Đổi tên gia đình" name="name" rules={[{ required: true, message: 'Vui lòng nhập tên gia đình' }]}>
-                                            <Input placeholder="Ví dụ: Gia đình Nguyễn" />
-                                        </Form.Item>
-                                        <Button type="default" htmlType="submit" loading={updateFamilyMutation.isPending}>Cập nhật tên gia đình</Button>
-                                    </Form>
-                                ) : (
-                                    <p className="text-sm text-slate-500">Chỉ quản trị viên gia đình mới có thể chỉnh sửa thông tin.</p>
-                                )}
-                            </div>
-                        ) : (
-                            <p className="text-sm text-slate-400">Không thể tải thông tin gia đình.</p>
-                        )}
-                    </Card>
-                )}
 
                 {/* Notifications */}
                 <Card title={<div className="flex items-center gap-2"><Bell size={18} /><span>Thông báo</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">

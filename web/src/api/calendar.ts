@@ -25,15 +25,12 @@ export const calendarApi = {
   getAll: (startDate?: string, endDate?: string) =>
     api.get<CalendarEvent[]>('/calendar', { params: { startDate, endDate } }),
 
-  getOne: (id: string) =>
-    api.get<CalendarEvent>(`/calendar/${id}`),
+  getOne: (id: string) => api.get<CalendarEvent>(`/calendar/${id}`),
 
-  create: (data: Partial<CalendarEvent>) =>
-    api.post<CalendarEvent>('/calendar', data),
+  create: (data: Partial<CalendarEvent>) => api.post<CalendarEvent>('/calendar', data),
 
   update: (id: string, data: Partial<CalendarEvent>) =>
     api.put<CalendarEvent>(`/calendar/${id}`, data),
 
-  remove: (id: string) =>
-    api.delete(`/calendar/${id}`),
+  remove: (id: string) => api.delete(`/calendar/${id}`),
 };

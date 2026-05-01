@@ -9,7 +9,8 @@ import {
     LogOut,
     FolderTree,
     X,
-    CalendarDays
+    CalendarDays,
+    ShieldCheck,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useSession } from '../auth/SessionProvider';
@@ -21,6 +22,7 @@ const navigation = [
     { name: 'Danh mục', href: '/categories', icon: FolderTree, moduleKey: 'CATEGORY' as const },
     { name: 'Lịch gia đình', href: '/calendar', icon: CalendarDays, moduleKey: 'CALENDAR' as const },
     { name: 'Quản lý thành viên', href: '/members', icon: Users, moduleKey: 'USER' as const },
+    { name: 'Quản trị hệ thống', href: '/admin', icon: ShieldCheck, moduleKey: 'ADMIN' as const },
     { name: 'Thiết lập', href: '/settings', icon: Settings, moduleKey: null },
 ];
 
@@ -50,7 +52,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
     const visibleNavigation = navigation.filter((item) => item.moduleKey === null || canAccess(item.moduleKey, 'view'));
 
     const roleLabel = systemRole === 'APP_ADMIN'
-        ? 'Quản trị ứng dụng'
+        ? `Quản trị ứng dụng${role && role !== 'APP_ADMIN' ? ` · ${role === 'FAMILY_ADMIN' ? 'Quản trị gia đình' : 'Thành viên'}` : ''}`
         : role === 'FAMILY_ADMIN'
             ? 'Quản trị gia đình'
             : 'Thành viên';

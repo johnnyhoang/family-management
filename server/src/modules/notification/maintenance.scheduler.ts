@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual, MoreThan } from 'typeorm';
+import { Repository, LessThanOrEqual } from 'typeorm';
 import { Asset, AssetStatus } from '../../common/entities/asset.entity';
-import { NotificationService } from '../notification/notification.service';
+import { NotificationService } from './notification.service';
 
 @Injectable()
 export class MaintenanceScheduler {

@@ -1,13 +1,19 @@
 import api from './client';
 
-export interface Family {
+export interface FamilyProfile {
   id: string;
   name: string;
-  status: string;
+  status: 'ACTIVE' | 'INACTIVE';
   createdAt?: string;
+  members: Array<{
+    id: string;
+    email: string;
+    fullName: string | null;
+    role: 'FAMILY_ADMIN' | 'MEMBER';
+  }>;
 }
 
 export const familyApi = {
-  getMyFamily: () => api.get<Family>('/family'),
-  updateMyFamily: (data: { name?: string }) => api.patch<Family>('/family', data),
+  findOne: () => api.get<FamilyProfile>('/family'),
+  update: (data: { name?: string }) => api.patch<FamilyProfile>('/family', data),
 };
