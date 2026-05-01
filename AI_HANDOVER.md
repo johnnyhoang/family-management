@@ -25,8 +25,13 @@ Các thay đổi quan trọng gần đây:
 | UI | Ant Design + CSS/Tailwind utility |
 | Routing | React Router 7 |
 | State | TanStack Query |
-| Auth | Google OAuth2 + JWT |
-| AI | OpenAI SDK |
+| Auth | `GoogleStrategy` (Passport) + `JwtStrategy` for API protection |
+| Permission Check | `PermissionGuard` queries `Permission` entity by role + moduleId |
+| Notifications | Stored in PostgreSQL with `scheduledAt` column; Cron-based surfacing — no in-process state, survives restarts |
+| AI Parsing | `NaturalInputService` → OpenAI `gpt-4o-mini` (configurable via `OPENAI_MODEL`) → JSON parse → save to `natural_input_history` |
+| Money Parsing | `MoneyParserService` handles Vietnamese: "triệu", "tr", "k", "rưỡi" |
+| File Storage | `FileModule` uploads to GCS; only URL stored in DB |
+| Scheduling | `@Cron()` decorators for warranty/maintenance/expense reminder checks |
 
 ## 3. Cấu trúc dữ liệu cốt lõi
 

@@ -140,15 +140,6 @@ export const CalendarPage = () => {
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <Card className="lg:col-span-2 border-none shadow-xl shadow-slate-200/50 rounded-2xl overflow-hidden glass-card">
-                    <Calendar
-                        fullscreen={true}
-                        cellRender={dateCellRender}
-                        onSelect={onSelect}
-                        className="p-4"
-                    />
-                </Card>
-
                 <div className="flex flex-col gap-6">
                     <Card
                         title={<Title level={4} className="!m-0">Sự kiện ngày {selectedDate.format('DD/MM')}</Title>}
@@ -201,6 +192,15 @@ export const CalendarPage = () => {
                         </AnimatePresence>
                     </Card>
                 </div>
+
+                <Card className="lg:col-span-2 border-none shadow-xl shadow-slate-200/50 rounded-2xl overflow-hidden glass-card">
+                    <Calendar
+                        fullscreen={true}
+                        cellRender={dateCellRender}
+                        onSelect={onSelect}
+                        className="p-4"
+                    />
+                </Card>
             </div>
 
             <Modal

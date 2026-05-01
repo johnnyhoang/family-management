@@ -28,6 +28,7 @@ export interface SessionResponse {
 
 export const authApi = {
   me: () => api.get<SessionResponse>('/auth/me'),
+  updateMe: (data: { fullName?: string; otherNames?: string }) => api.patch('/auth/me', data),
   listFamilies: () => api.get<Array<{ familyId: string; familyName: string; role: FamilyRole; status: string }>>('/auth/families'),
   switchFamily: (familyId: string) => api.post<SessionResponse>('/auth/switch-family', { familyId }),
   acceptInvite: (token: string) => api.post<SessionResponse>('/auth/accept-invite', { token }),

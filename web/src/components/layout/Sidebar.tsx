@@ -18,10 +18,8 @@ import { useSession } from '../auth/SessionProvider';
 const navigation = [
     { name: 'Tổng quan', href: '/', icon: LayoutDashboard, moduleKey: 'DASHBOARD' as const },
     { name: 'Quản lý tài sản', href: '/assets', icon: Package, moduleKey: 'ASSET' as const },
-    { name: 'Quản lý thu chi', href: '/expenses', icon: Receipt, moduleKey: 'TRANSACTION' as const },
-    { name: 'Danh mục', href: '/categories', icon: FolderTree, moduleKey: 'CATEGORY' as const },
+    { name: 'Quản lý tài chính', href: '/expenses', icon: Receipt, moduleKey: 'TRANSACTION' as const },
     { name: 'Lịch gia đình', href: '/calendar', icon: CalendarDays, moduleKey: 'CALENDAR' as const },
-    { name: 'Quản lý thành viên', href: '/members', icon: Users, moduleKey: 'USER' as const },
     { name: 'Quản trị hệ thống', href: '/admin', icon: ShieldCheck, moduleKey: 'ADMIN' as const },
     { name: 'Thiết lập', href: '/settings', icon: Settings, moduleKey: null },
 ];

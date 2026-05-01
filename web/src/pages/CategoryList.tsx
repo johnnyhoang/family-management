@@ -19,7 +19,7 @@ export const CategoryList = () => {
   const [form] = Form.useForm();
   const selectedType = Form.useWatch('type', form) as CategoryType | undefined;
 
-  const { data: categories, isLoading } = useQuery({
+  const { data: categories, isLoading, isError } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoryApi.findAll().then((res) => res.data),
   });
@@ -32,7 +32,7 @@ export const CategoryList = () => {
       nodeMap.set(category.id, {
         ...category,
         key: category.id,
-        children: [],
+        children: [] as Category[],
       });
     });
 
@@ -43,6 +43,13 @@ export const CategoryList = () => {
         nodeMap.get(node.parentId)!.children.push(node);
       } else {
         roots.push(node);
+      }
+    });
+
+    // Remove empty children arrays so antd doesn't render expand icon on leaves
+    nodeMap.forEach((node) => {
+      if ((node.children as Category[]).length === 0) {
+        (node as any).children = undefined;
       }
     });
 
@@ -129,47 +136,35 @@ export const CategoryList = () => {
     },
   });
 
+  const typeColors: Record<CategoryType, string> = {
+    ASSET: 'blue', INCOME: 'green', LIABILITY: 'red', EXPENSE: 'orange',
+  };
+
   const columns = [
     {
       title: 'Tên danh mục',
       dataIndex: 'name',
       key: 'name',
-      render: (text: string) => (
+      render: (text: string, record: Category) => (
         <Space>
-          <FolderTree size={18} className="text-slate-400" />
-          <span className="font-medium text-slate-900">{text}</span>
+          <FolderTree size={16} className={record.level === 'GROUP' ? 'text-slate-500' : 'text-slate-300'} />
+          <span className={record.level === 'GROUP' ? 'font-semibold text-slate-800' : 'text-slate-700'}>{text}</span>
         </Space>
       ),
     },
     {
-      title: 'Loại chính',
+      title: 'Loại',
       dataIndex: 'type',
       key: 'type',
+      width: 120,
       render: (type: CategoryType) => (
-        <Tag color={type === 'ASSET' ? 'blue' : type === 'INCOME' ? 'green' : type === 'LIABILITY' ? 'red' : 'orange'}>
-          {categoryTypeLabels[type]}
-        </Tag>
+        <Tag color={typeColors[type]}>{categoryTypeLabels[type]}</Tag>
       ),
-    },
-    {
-      title: 'Cấp',
-      key: 'depth',
-      render: (_: unknown, record: Category) => (
-        <Tag color="purple">
-          {`Cấp ${getCategoryDepth(categories ?? [], record.id) + 1}`}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Danh mục cha',
-      dataIndex: 'parentId',
-      key: 'parentId',
-      render: (parentId?: string | null) => buildCategoryPathLabel(categories ?? [], parentId) || '-',
     },
     {
       title: 'Thao tác',
       key: 'action',
-      width: 100,
+      width: 80,
       render: (_: unknown, record: Category) => (
         <Space size="middle" onClick={(e) => e.stopPropagation()}>
           <Button
@@ -217,6 +212,7 @@ export const CategoryList = () => {
       </div>
 
       <div className="glass-card p-4 lg:p-6 overflow-hidden">
+        {isError && <div className="mb-3 p-3 rounded-lg bg-red-50 text-red-600 text-sm">Không thể tải danh sách danh mục. Vui lòng thử lại.</div>}
         <div className="overflow-x-auto">
           <Table
             columns={columns}

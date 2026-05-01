@@ -17,7 +17,7 @@ export const AssetList = () => {
     const [form] = Form.useForm();
     const [filters, setFilters] = useState<{ search?: string; categoryId?: string; status?: string }>({});
 
-    const { data: assets, isLoading } = useQuery({
+    const { data: assets, isLoading, isError } = useQuery({
         queryKey: ['assets', filters],
         queryFn: () => assetApi.findAll(filters).then(res => res.data),
     });
@@ -230,6 +230,7 @@ export const AssetList = () => {
                     />
                 </div>
 
+                {isError && <div className="mb-3 p-3 rounded-lg bg-red-50 text-red-600 text-sm">Không thể tải danh sách tài sản. Vui lòng thử lại.</div>}
                 <div className="overflow-x-auto">
                     <Table
                         columns={columns}
