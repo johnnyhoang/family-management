@@ -1,83 +1,96 @@
-# Technical Backlog & Code Quality Roadmap
+# Production Backlog
 
-Issues found during code review on 2026-04-30. Grouped by priority.
+Backlog này phản ánh trạng thái sau các refactor lớn về finance category, multi-family RBAC và UI.
 
----
+## P0 — Phải chốt trước production launch
 
-## CRITICAL (P0) — Fix before production traffic
+### 1. Bổ sung integration tests cho flow sống còn
 
-### ~~P0-1~~: ✅ DONE — Notification scheduling uses in-process setTimeout
-- Replaced `setTimeout` with DB `scheduledAt` column; Cron-based surfacing via `MaintenanceScheduler`.
+Thiếu test cho:
 
-### P0-2: No test coverage
-- **File**: `server/src/` (entire backend)
-- **Problem**: Only 1 placeholder spec (`app.controller.spec.ts`). No tests for RBAC, auth flow, multi-tenancy isolation, or AI parsing.
-- **Fix**: Add integration tests for: `PermissionGuard`, `AuthService.validateOAuthUser`, `ExpenseService.create` (recurring cycle), `AssetService` multi-tenancy isolation.
+- login lần đầu -> auto create family -> FAMILY_ADMIN
+- switch active family
+- invite + accept invite
+- APP_ADMIN không truy cập finance data
+- transfer không vào dashboard tổng thu/chi
+- last FAMILY_ADMIN không bị remove/demote
 
----
+### 2. Hoàn thiện web admin riêng cho APP_ADMIN
 
-## HIGH (P1) — Fix before scaling
+Backend API cho admin đã có, nhưng frontend admin tách biệt chưa hoàn thiện. Không nên launch `APP_ADMIN` cho user thật nếu chưa có bề mặt quản trị phù hợp.
 
-### P1-1: DB migration required for new indexes
-- **Files**: `asset.entity.ts`, `expense.entity.ts`, `user.entity.ts`
-- **Problem**: `@Index` decorators were added but no migration file was generated. Running with `DB_SYNCHRONIZE=false` means indexes won't be applied.
-- **Fix**: Run `typeorm migration:generate` to create the migration, commit it, and apply on next deploy.
-- **Command**: `cd server && npx typeorm migration:generate src/migrations/AddFamilyIndexes -d src/data-source.ts`
+### 3. Tích hợp email sender cho invite flow
 
-### ~~P1-2~~: ✅ DONE — parse() method saves wrong userId to history
-- Dead `parse()` method removed; all routes call `parseWithUser()`.
+Hiện tại invite là token-based backend flow. Muốn production thật cần:
 
-### ~~P1-3~~: ✅ DONE — Auth creates "Default Family" for every new user
-- Each new user now creates their own unique family in a DB transaction.
+- mail provider
+- template email
+- deep link nhận lời mời
 
-### ~~P1-4~~: ✅ DONE — LIKE search is case-sensitive on PostgreSQL
-- Changed to `ILIKE` in `asset.service.ts`.
+## P1 — Nên xử lý ngay sau P0
 
----
+### 4. Tách user settings backend riêng theo user
 
-## MEDIUM (P2) — Code quality / UX
+Hiện chỉnh hồ sơ trên web còn đi qua endpoint user trong active family. Về lâu dài nên có endpoint user-scoped độc lập với family session.
 
-### ~~P2-1~~: ✅ DONE — OpenAI model hardcoded
-- Model now read from `OPENAI_MODEL` env var (default `gpt-4o-mini`).
+### 5. Audit lại migration trên dữ liệu thật
 
-### P2-2: Dashboard warranty window hardcoded
-- **File**: `server/src/modules/dashboard/dashboard.service.ts`
-- **Problem**: "+30 days" for warranty expiration window is hardcoded.
-- **Fix**: Make it a config value or query param.
+Đặc biệt với:
 
-### P2-3: SpeechRecognition API lacks fallback
-- **File**: `web/src/components/NaturalInputBox.tsx`
-- **Problem**: Voice input silently fails if browser doesn't support `webkitSpeechRecognition` (e.g., Firefox). No user feedback.
-- **Fix**: Check `'SpeechRecognition' in window || 'webkitSpeechRecognition' in window` on mount; hide or disable the mic button if unsupported.
+- category legacy có `subTypes`
+- transaction legacy `DEBT`
+- membership legacy từ `users.familyId`
 
-### ~~P2-4~~: ✅ DONE — avatarUrl saved from Google OAuth profile
-### ~~P2-5~~: ✅ DONE — JWT expiresIn `as any` replaced with `|| '7d'`
-### ~~P2-6~~: ✅ DONE — CSV export uses static imports
+### 6. Chuẩn hóa family status lifecycle
 
----
+Hiện có `ACTIVE | INACTIVE`. Cần xác nhận nghiệp vụ suspend/reactivate trên UI admin và quy trình support.
 
-## LOW (P3) — Nice to have
+## P2 — Nâng chất lượng kỹ thuật
 
-### P3-1: No Docker/Docker Compose for local dev
-- **Problem**: AI_HANDOVER.md references Docker but no Dockerfile exists. Local dev requires manual PostgreSQL setup.
-- **Fix**: Add `docker-compose.yml` with PostgreSQL + pgAdmin for local development.
+### 7. Tăng chỉ số và index cho bảng mới
 
-### P3-2: Missing .env description comments
-- **File**: `server/.env.example`
-- **Problem**: Environment variables have no inline comments explaining their purpose or expected format.
-- **Fix**: Add `# comment` annotations to each variable.
+Xem lại index cho:
 
-### P3-3: NaturalInputHistory `userId` is not a FK relation
-- **File**: `server/src/modules/natural-input/entities/natural-input-history.entity.ts`
-- **Problem**: `userId` is likely stored as a plain string without a FK to `users` table. The `relations: ['user']` in `getHistory()` implies a ManyToOne relation exists, but worth verifying it's defined correctly.
-- **Fix**: Verify entity has `@ManyToOne(() => User) user: User` with proper JoinColumn.
+- `family_users(userId, status)`
+- `invites(email, status, expiresAt)`
+- `users(lastActiveFamilyId)`
 
-### P3-4: No loading/error state for Dashboard stats
-- **File**: `web/src/pages/Dashboard.tsx`
-- **Problem**: No error boundary or error state for failed `/dashboard/stats` query. App shows blank content on API failure.
-- **Fix**: Add `isError` handling with a user-friendly message.
+### 8. Rà soát DTO validation
 
----
+Một số route mới đang nhận object inline trong controller/service. Nên chuyển dần sang DTO + class-validator cho:
+
+- invite
+- switch family
+- accept invite
+- update role
+
+### 9. Thêm observability
+
+- request logging có correlation id
+- audit log cho invite, role change, family status change
+- error monitoring cho frontend và backend
+
+### 10. Tiếp tục tối ưu bundle frontend
+
+Đã tách lazy route, nhưng build hiện vẫn còn 2 chunk lớn từ dashboard/vendor. Nên cân nhắc:
+
+- `manualChunks`
+- tách `NaturalInputBox`
+- tách chart/editor nặng khỏi luồng khởi động chính
+
+## P3 — UX polish
+
+### 11. Màn nhận lời mời trên web
+
+Hiện backend đã có `/auth/accept-invite`, nhưng UX trên web còn tối giản. Nên có route nhận token rõ ràng hơn.
+
+### 12. Màn chọn family khi user có nhiều family
+
+Đã có switcher trong sidebar, nhưng có thể thêm selector rõ hơn ngay sau login với user nhiều gia đình.
+
+### 13. Admin/family analytics tách bạch hơn
+
+Hiện `APP_ADMIN` được điều hướng về bề mặt an toàn. Sau này cần tách dashboard hệ thống riêng thay vì dùng chung shell tài chính gia đình.
 
 ## DONE (completed 2026-04-30)
 - ✅ Replace `console.log` with NestJS `Logger` in auth, permission guard, natural-input, notification services
@@ -115,3 +128,7 @@ Issues found during code review on 2026-04-30. Grouped by priority.
 - ✅ Fix `ParsedPreviewModal.tsx` — respect `entryType` and `isTransfer` from AI response instead of always deriving from intent
 - ✅ Updated REQUIREMENTS.md: `ExpenseEntryType`, `isTransfer`, `CategoryType/Level`, `validateAssetCategory`, DB-backed notifications, avatarUrl auto-provisioning
 - ✅ Updated `AI_HANDOVER.md`: notification implementation, OpenAI model config, known issues trimmed to actual remaining debt
+- ✅ Fix `category.service.ts` `update()` TypeORM FK bug — switched from `save()` to `repository.update()` to fix parent change not reflecting in tree
+- ✅ Add `PATCH /auth/me` endpoint (no permission guard) for self-profile update; fix Settings page profile save for MEMBER role
+- ✅ Add Settings page family info card: show name/status, allow FAMILY_ADMIN to rename family via `PATCH /family`
+- ✅ Create `web/src/api/family.ts` with `getMyFamily` and `updateMyFamily`

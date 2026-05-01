@@ -299,6 +299,12 @@ export class RefactorFinanceCategoryHierarchy1775304000000 implements MigrationI
       $$;
     `);
 
+    // Tránh lỗi cast default (vd. default cũ = 'DEBT') khi đổi sang enum mới.
+    await queryRunner.query(`
+      ALTER TABLE "expenses"
+      ALTER COLUMN "entryType" DROP DEFAULT
+    `);
+
     await queryRunner.query(`
       ALTER TABLE "expenses"
       ALTER COLUMN "entryType" TYPE "public"."expenses_entrytype_enum_new"
@@ -311,6 +317,11 @@ export class RefactorFinanceCategoryHierarchy1775304000000 implements MigrationI
 
     await queryRunner.query(`
       ALTER TYPE "public"."expenses_entrytype_enum_new" RENAME TO "expenses_entrytype_enum"
+    `);
+
+    await queryRunner.query(`
+      ALTER TABLE "expenses"
+      ALTER COLUMN "entryType" SET DEFAULT 'EXPENSE'
     `);
 
     await queryRunner.query(`

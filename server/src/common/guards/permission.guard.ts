@@ -6,11 +6,18 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { Permission } from '../entities/permission.entity';
 import { PERMISSION_CHECK_KEY, PermissionCheck } from '../decorators/permission.decorator';
-import { UserRole } from '../entities/user.entity';
+import { PermissionService } from '../../modules/permission/permission.service';
+import { AppModule } from '../entities/permission.entity';
+import { SystemRole, UserRole } from '../entities/user.entity';
+
+const APP_ADMIN_DENIED_MODULES = new Set<AppModule>([
+  AppModule.DASHBOARD,
+  AppModule.CATEGORY,
+  AppModule.CALENDAR,
+  AppModule.ASSET,
+  AppModule.TRANSACTION,
+]);
 
 @Injectable()
 export class PermissionGuard implements CanActivate {
@@ -18,8 +25,7 @@ export class PermissionGuard implements CanActivate {
 
   constructor(
     private reflector: Reflector,
-    @InjectRepository(Permission)
-    private permissionRepository: Repository<Permission>,
+    private permissionService: PermissionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,35 +44,22 @@ export class PermissionGuard implements CanActivate {
       return false;
     }
 
-    this.logger.debug(`Checking ${check.action} on ${check.moduleId} for ${user.email} (role: ${user.role})`);
+    const normalized = this.permissionService.normalizePermission(check.moduleId, check.action);
 
-    if (user.role === UserRole.SYSTEM_ADMIN || user.role === UserRole.FAMILY_ADMIN) {
-      return true;
+    if (user.systemRole === SystemRole.APP_ADMIN) {
+      if (APP_ADMIN_DENIED_MODULES.has(normalized.moduleKey)) {
+        throw new ForbiddenException('APP_ADMIN cannot access family financial data');
+      }
+      return this.permissionService.hasPermission(UserRole.APP_ADMIN, normalized.moduleKey, normalized.action);
     }
 
-    const permission = await this.permissionRepository.findOne({
-      where: {
-        familyId: user.familyId,
-        role: user.role,
-        moduleId: check.moduleId,
-      },
-    });
-
-    if (!permission) {
-      this.logger.debug(`No permission: role=${user.role}, module=${check.moduleId}, family=${user.familyId}`);
-      throw new ForbiddenException('You do not have permission to access this module');
+    if (!user.role) {
+      throw new ForbiddenException('No active family role found for this request');
     }
 
-    const actionMap: Record<string, boolean> = {
-      view: permission.canView,
-      add: permission.canAdd,
-      edit: permission.canEdit,
-      delete: permission.canDelete,
-      notify: permission.canNotify,
-    };
-
-    if (!actionMap[check.action]) {
-      throw new ForbiddenException(`You do not have ${check.action} permission for this module`);
+    const allowed = await this.permissionService.hasPermission(user.role, normalized.moduleKey, normalized.action);
+    if (!allowed) {
+      throw new ForbiddenException(`You do not have ${normalized.action} permission for ${normalized.moduleKey}`);
     }
 
     return true;

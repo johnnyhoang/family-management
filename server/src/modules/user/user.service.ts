@@ -1,79 +1,190 @@
 import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { randomUUID } from 'crypto';
 import { User, UserRole } from '../../common/entities/user.entity';
-import { Family } from '../../common/entities/family.entity';
+import { FamilyUser, FamilyUserStatus } from '../../common/entities/family-user.entity';
+import { Role } from '../../common/entities/role.entity';
+import { Invite, InviteStatus } from '../../common/entities/invite.entity';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private userRepository: Repository<User>,
-    @InjectRepository(Family)
-    private familyRepository: Repository<Family>,
+    @InjectRepository(FamilyUser)
+    private familyUserRepository: Repository<FamilyUser>,
+    @InjectRepository(Role)
+    private roleRepository: Repository<Role>,
+    @InjectRepository(Invite)
+    private inviteRepository: Repository<Invite>,
+    private authService: AuthService,
   ) {}
 
   async findAll(familyId: string) {
-    return this.userRepository.find({
-      where: { familyId },
+    const memberships = await this.familyUserRepository.find({
+      where: { familyId, status: FamilyUserStatus.ACTIVE },
+      relations: ['user', 'role'],
       order: { createdAt: 'ASC' },
     });
+
+    return memberships.map((membership) => ({
+      ...membership.user,
+      role: membership.role?.code,
+      status: membership.status,
+      membershipId: membership.id,
+      familyId: membership.familyId,
+      invitedByUserId: membership.invitedByUserId,
+    }));
   }
 
   async findOne(id: string, familyId: string) {
-    const user = await this.userRepository.findOne({
-      where: { id, familyId },
+    const membership = await this.familyUserRepository.findOne({
+      where: { userId: id, familyId, status: FamilyUserStatus.ACTIVE },
+      relations: ['user', 'role'],
     });
-    if (!user) {
+
+    if (!membership) {
       throw new NotFoundException('User not found in this family');
     }
-    return user;
+
+    return {
+      ...membership.user,
+      role: membership.role?.code,
+      status: membership.status,
+      membershipId: membership.id,
+      familyId: membership.familyId,
+    };
   }
 
-  async invite(familyId: string, inviterId: string, data: { email: string; fullName: string; role: UserRole }) {
-    // Check if user already exists in this family
-    const existingUser = await this.userRepository.findOne({
-      where: { email: data.email, familyId },
+  async invite(familyId: string, inviterId: string, data: { email: string; fullName?: string; role: UserRole }) {
+    const normalizedEmail = data.email.trim().toLowerCase();
+
+    const existingMemberships = await this.familyUserRepository.find({
+      where: { familyId },
+      relations: ['user'],
     });
 
-    if (existingUser) {
+    const activeMembership = existingMemberships.find((membership) =>
+      membership.user?.email?.toLowerCase() === normalizedEmail
+      && membership.status === FamilyUserStatus.ACTIVE,
+    );
+
+    if (activeMembership) {
       throw new ForbiddenException('User is already a member of this family');
     }
 
-    // Check if user exists in another family (Limit for MVP: One user, one family)
-    const globalUser = await this.userRepository.findOne({
-      where: { email: data.email },
+    const pendingInvite = await this.inviteRepository.findOne({
+      where: {
+        familyId,
+        email: normalizedEmail,
+        status: InviteStatus.PENDING,
+      },
     });
 
-    if (globalUser) {
-      throw new ForbiddenException('User is already registered in another family');
+    if (pendingInvite && pendingInvite.expiresAt.getTime() >= Date.now()) {
+      throw new ForbiddenException('A pending invite already exists for this email');
     }
 
-    const newUser = this.userRepository.create({
-      ...data,
-      familyId,
-      // Internal logic: In a real app, this would trigger an email invitation
+    const role = await this.roleRepository.findOne({
+      where: { code: data.role },
     });
 
-    return this.userRepository.save(newUser);
+    if (!role || role.code === UserRole.APP_ADMIN) {
+      throw new ForbiddenException('Invalid role for family invitation');
+    }
+
+    const token = this.authService.buildInviteToken();
+    const invite = this.inviteRepository.create({
+      email: normalizedEmail,
+      token,
+      familyId,
+      roleId: role.id,
+      status: InviteStatus.PENDING,
+      invitedByUserId: inviterId,
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    return this.inviteRepository.save(invite);
   }
 
   async updateRole(familyId: string, id: string, newRole: UserRole) {
-    const user = await this.findOne(id, familyId);
-    user.role = newRole;
-    return this.userRepository.save(user);
+    const membership = await this.familyUserRepository.findOne({
+      where: { userId: id, familyId, status: FamilyUserStatus.ACTIVE },
+      relations: ['role', 'user'],
+    });
+
+    if (!membership) {
+      throw new NotFoundException('User not found in this family');
+    }
+
+    const role = await this.roleRepository.findOne({ where: { code: newRole } });
+    if (!role || role.code === UserRole.APP_ADMIN) {
+      throw new ForbiddenException('Invalid family role');
+    }
+
+    if (membership.role?.code === UserRole.FAMILY_ADMIN && newRole !== UserRole.FAMILY_ADMIN) {
+      await this.ensureFamilyKeepsAdmin(familyId);
+    }
+
+    membership.roleId = role.id;
+    membership.role = role;
+    await this.familyUserRepository.save(membership);
+
+    return {
+      ...membership.user,
+      role: membership.role.code,
+      membershipId: membership.id,
+      familyId,
+    };
   }
 
   async update(familyId: string, id: string, data: Partial<User>) {
-    const user = await this.findOne(id, familyId);
+    await this.findOne(id, familyId);
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
     if (data.fullName !== undefined) user.fullName = data.fullName;
     if (data.otherNames !== undefined) user.otherNames = data.otherNames;
     return this.userRepository.save(user);
   }
 
   async remove(familyId: string, id: string) {
-    const user = await this.findOne(id, familyId);
-    // Prevent self-removal or removing the last admin could be added here
-    return this.userRepository.softRemove(user);
+    const membership = await this.familyUserRepository.findOne({
+      where: { userId: id, familyId, status: FamilyUserStatus.ACTIVE },
+      relations: ['role'],
+    });
+    if (!membership) {
+      throw new NotFoundException('Membership not found');
+    }
+    if (membership.role?.code === UserRole.FAMILY_ADMIN) {
+      await this.ensureFamilyKeepsAdmin(familyId);
+    }
+    membership.status = FamilyUserStatus.REMOVED;
+    return this.familyUserRepository.save(membership);
+  }
+
+  private async ensureFamilyKeepsAdmin(familyId: string) {
+    const adminRole = await this.roleRepository.findOne({
+      where: { code: UserRole.FAMILY_ADMIN },
+    });
+
+    if (!adminRole) {
+      throw new ForbiddenException('Family admin role template is missing');
+    }
+
+    const remainingAdmins = await this.familyUserRepository.count({
+      where: {
+        familyId,
+        roleId: adminRole.id,
+        status: FamilyUserStatus.ACTIVE,
+      },
+    });
+
+    if (remainingAdmins <= 1) {
+      throw new ForbiddenException('Family must always keep at least one FAMILY_ADMIN');
+    }
   }
 }

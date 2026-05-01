@@ -3,8 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { HeaderResolver, I18nModule } from 'nestjs-i18n';
 import * as path from 'path';
-
-console.log('APP_MODULE_FILE_LOADED');
+import * as fs from 'fs';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -61,7 +60,6 @@ import { NaturalInputModule } from './modules/natural-input/natural-input.module
       fallbackLanguage: 'vi',
       loaderOptions: {
         path: (() => {
-          const fs = require('fs');
           const pathsToTry = [
             path.join(process.cwd(), 'dist/i18n'),
             path.join(process.cwd(), 'server/dist/i18n'),
@@ -73,11 +71,9 @@ import { NaturalInputModule } from './modules/natural-input/natural-input.module
 
           for (const p of pathsToTry) {
             if (fs.existsSync(p)) {
-              console.log(`I18N_PATH_FOUND: ${p}`);
               return p;
             }
           }
-          console.warn('I18N_PATH_NOT_FOUND, falling back to dist/i18n');
           return path.join(process.cwd(), 'dist/i18n');
         })(),
         watch: process.env.NODE_ENV !== 'production',

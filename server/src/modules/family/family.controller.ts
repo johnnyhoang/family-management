@@ -1,16 +1,15 @@
-import { Controller, Get, Patch, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Patch, Body, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { CheckPermission } from '../../common/decorators/permission.decorator';
 import { FamilyService } from './family.service';
 import { UserRole } from '../../common/entities/user.entity';
-import { FamilyStatus } from '../../common/entities/family.entity';
-import { ForbiddenException } from '@nestjs/common';
+import { ActiveFamilyGuard } from '../../common/guards/active-family.guard';
 
 @ApiTags('Family')
 @ApiBearerAuth()
-@UseGuards(AuthGuard('jwt'), PermissionGuard)
+@UseGuards(AuthGuard('jwt'), ActiveFamilyGuard, PermissionGuard)
 @Controller('family')
 export class FamilyController {
   constructor(private readonly familyService: FamilyService) {}
@@ -23,12 +22,11 @@ export class FamilyController {
   }
 
   @Patch()
-  @ApiOperation({ summary: 'Update family profile (Admin only)' })
-  @CheckPermission('Family', 'edit')
-  async update(@Request() req, @Body() data: { name?: string; status?: FamilyStatus }) {
-    // Only Admin can update family settings
-    if (req.user.role !== UserRole.FAMILY_ADMIN && req.user.role !== UserRole.SYSTEM_ADMIN) {
-      throw new ForbiddenException('Only administrators can update family settings');
+  @ApiOperation({ summary: 'Update family profile (Family admin only)' })
+  @CheckPermission('Family', 'update')
+  async update(@Request() req, @Body() data: { name?: string }) {
+    if (req.user.role !== UserRole.FAMILY_ADMIN) {
+      throw new ForbiddenException('Only family admins can update family settings');
     }
     return this.familyService.update(req.user.familyId, data);
   }

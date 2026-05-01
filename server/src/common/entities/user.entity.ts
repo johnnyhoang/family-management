@@ -1,13 +1,17 @@
-import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
+import { Entity, Column, OneToMany } from 'typeorm';
 import { BaseEntity } from './base.entity';
-import { Family } from './family.entity';
+import { FamilyUser } from './family-user.entity';
+import { Invite } from './invite.entity';
 
 export enum UserRole {
-  SYSTEM_ADMIN = 'SYSTEM_ADMIN',
+  APP_ADMIN = 'APP_ADMIN',
   FAMILY_ADMIN = 'FAMILY_ADMIN',
   MEMBER = 'MEMBER',
-  RELATIVE = 'RELATIVE',
-  VIEWER = 'VIEWER',
+}
+
+export enum SystemRole {
+  USER = 'USER',
+  APP_ADMIN = 'APP_ADMIN',
 }
 
 @Entity('users')
@@ -29,19 +33,20 @@ export class User extends BaseEntity {
 
   @Column({
     type: 'enum',
-    enum: UserRole,
-    default: UserRole.MEMBER,
+    enum: SystemRole,
+    default: SystemRole.USER,
   })
-  role: UserRole;
+  systemRole: SystemRole;
 
-  @Index()
-  @Column()
-  familyId: string;
-
-  @ManyToOne(() => Family)
-  @JoinColumn({ name: 'familyId' })
-  family: Family;
+  @Column({ type: 'uuid', nullable: true })
+  lastActiveFamilyId: string | null;
 
   @Column({ default: true })
   isActive: boolean;
+
+  @OneToMany(() => FamilyUser, (familyUser) => familyUser.user)
+  memberships: FamilyUser[];
+
+  @OneToMany(() => Invite, (invite) => invite.invitedByUser)
+  invitesSent: Invite[];
 }

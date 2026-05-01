@@ -1,6 +1,6 @@
-import { Controller, Get, UseGuards, Req, Res } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Res, Post, Body } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
-import { ApiTags, ApiOperation } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { ConfigService } from '@nestjs/config';
 
@@ -16,7 +16,7 @@ export class AuthController {
   @UseGuards(AuthGuard('google'))
   @ApiOperation({ summary: 'Login with Google' })
   async googleAuth() {
-    console.log('--- GOOGLE_AUTH_INITIATED ---');
+    return;
   }
 
   @Get('google/callback')
@@ -24,15 +24,38 @@ export class AuthController {
   async googleAuthRedirect(@Req() req, @Res() res) {
     const result = await this.authService.validateOAuthUser(req.user);
     const frontendUrl = this.configService.get<string>('FRONTEND_URL');
-    
-    // Redirect to frontend with token (or use cookies in production)
     res.redirect(`${frontendUrl}/login-success?token=${result.access_token}`);
   }
 
   @Get('me')
   @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current user profile' })
-  getProfile(@Req() req) {
-    return req.user;
+  async getProfile(@Req() req) {
+    return this.authService.getSessionProfile(req.user.id, req.user.familyId ?? null);
+  }
+
+  @Get('families')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List families available to current user' })
+  async listFamilies(@Req() req) {
+    return this.authService.listUserFamilies(req.user.id);
+  }
+
+  @Post('switch-family')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Switch active family for the current session' })
+  async switchFamily(@Req() req, @Body('familyId') familyId: string) {
+    return this.authService.switchActiveFamily(req.user.id, familyId);
+  }
+
+  @Post('accept-invite')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Accept a family invite token' })
+  async acceptInvite(@Req() req, @Body('token') token: string) {
+    return this.authService.acceptInvite(req.user.id, token);
   }
 }

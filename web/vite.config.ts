@@ -17,6 +17,9 @@ export default defineConfig(({ mode }) => {
     server: {
       // Cho phép truy cập từ điện thoại / máy khác cùng WiFi (mặc định chỉ localhost)
       host: true,
+      // Cố định 5173: nếu cổng bị chiếm, Vite mặc định nhảy sang 5174… mà vẫn in "5173" trong doc → dễ mở nhầm URL và gặp 404.
+      port: 5173,
+      strictPort: true,
       proxy: {
         '/api': {
           target: `http://127.0.0.1:${apiPort}`,

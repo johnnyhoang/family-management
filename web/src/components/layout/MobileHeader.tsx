@@ -1,11 +1,14 @@
 import { Link } from 'react-router-dom';
 import { Menu } from 'lucide-react';
+import { useSession } from '../auth/SessionProvider';
 
 interface MobileHeaderProps {
     onMenuClick: () => void;
 }
 
 export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
+    const { activeFamilyName, role, systemRole } = useSession();
+
     return (
         <header className="fixed top-0 left-0 right-0 h-14 bg-[rgba(255,251,247,0.92)] backdrop-blur-md border-b border-[rgba(242,214,197,0.72)] z-40 flex items-center justify-between px-3 lg:hidden shadow-[0_10px_24px_rgba(228,189,167,0.08)]">
             <Link
@@ -21,7 +24,11 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                 />
                 <div>
                     <h1 className="font-bold text-[15px] text-[#4f3f37] tracking-tight">Tài sản Gia đình</h1>
-                    <p className="text-[11px] text-[#916e61] leading-none">Gọn và đáng yêu</p>
+                    <p className="text-[11px] text-[#916e61] leading-none">
+                        {systemRole === 'APP_ADMIN'
+                            ? 'Quản trị ứng dụng'
+                            : `${activeFamilyName || 'Chưa chọn gia đình'} · ${role === 'FAMILY_ADMIN' ? 'Quản trị' : 'Thành viên'}`}
+                    </p>
                 </div>
             </Link>
 

@@ -1,38 +1,46 @@
-import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
-import { UserRole } from './user.entity';
+import { Entity, Column, PrimaryGeneratedColumn, OneToMany, Index } from 'typeorm';
+import { RolePermission } from './role-permission.entity';
+
+export enum AppModule {
+  ADMIN = 'ADMIN',
+  FAMILY = 'FAMILY',
+  USER = 'USER',
+  PERMISSION = 'PERMISSION',
+  DASHBOARD = 'DASHBOARD',
+  CATEGORY = 'CATEGORY',
+  CALENDAR = 'CALENDAR',
+  ASSET = 'ASSET',
+  TRANSACTION = 'TRANSACTION',
+}
+
+export enum PermissionAction {
+  VIEW = 'view',
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+}
 
 @Entity('permissions')
+@Index(['moduleKey', 'action'], { unique: true })
 export class Permission {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({
     type: 'enum',
-    enum: UserRole,
+    enum: AppModule,
   })
-  role: UserRole;
+  moduleKey: AppModule;
 
-  @Column({ nullable: true })
-  familyId: string;
+  @Column({
+    type: 'enum',
+    enum: PermissionAction,
+  })
+  action: PermissionAction;
 
   @Column()
-  moduleId: string;
+  name: string;
 
-  @Column({ nullable: true })
-  categoryId: string;
-
-  @Column({ default: false })
-  canView: boolean;
-
-  @Column({ default: false })
-  canAdd: boolean;
-
-  @Column({ default: false })
-  canEdit: boolean;
-
-  @Column({ default: false })
-  canDelete: boolean;
-
-  @Column({ default: false })
-  canNotify: boolean;
+  @OneToMany(() => RolePermission, (rolePermission) => rolePermission.permission)
+  rolePermissions: RolePermission[];
 }

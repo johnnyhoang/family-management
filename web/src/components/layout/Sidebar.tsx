@@ -1,4 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { Select } from 'antd';
 import {
     LayoutDashboard,
     Package,
@@ -11,15 +12,16 @@ import {
     CalendarDays
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { useSession } from '../auth/SessionProvider';
 
 const navigation = [
-    { name: 'Tổng quan', href: '/', icon: LayoutDashboard },
-    { name: 'Quản lý tài sản', href: '/assets', icon: Package },
-    { name: 'Quản lý thu chi', href: '/expenses', icon: Receipt },
-    { name: 'Danh mục', href: '/categories', icon: FolderTree },
-    { name: 'Lịch gia đình', href: '/calendar', icon: CalendarDays },
-    { name: 'Quản lý thành viên', href: '/members', icon: Users },
-    { name: 'Thiết lập', href: '/settings', icon: Settings },
+    { name: 'Tổng quan', href: '/', icon: LayoutDashboard, moduleKey: 'DASHBOARD' as const },
+    { name: 'Quản lý tài sản', href: '/assets', icon: Package, moduleKey: 'ASSET' as const },
+    { name: 'Quản lý thu chi', href: '/expenses', icon: Receipt, moduleKey: 'TRANSACTION' as const },
+    { name: 'Danh mục', href: '/categories', icon: FolderTree, moduleKey: 'CATEGORY' as const },
+    { name: 'Lịch gia đình', href: '/calendar', icon: CalendarDays, moduleKey: 'CALENDAR' as const },
+    { name: 'Quản lý thành viên', href: '/members', icon: Users, moduleKey: 'USER' as const },
+    { name: 'Thiết lập', href: '/settings', icon: Settings, moduleKey: null },
 ];
 
 interface SidebarProps {
@@ -28,12 +30,30 @@ interface SidebarProps {
 
 export const Sidebar = ({ onClose }: SidebarProps) => {
     const navigate = useNavigate();
+    const {
+        activeFamilyId,
+        activeFamilyName,
+        memberships,
+        role,
+        systemRole,
+        canAccess,
+        switchFamily,
+        isSwitchingFamily,
+    } = useSession();
 
     const handleLogout = () => {
         localStorage.removeItem('token');
         navigate('/login');
         onClose?.();
     };
+
+    const visibleNavigation = navigation.filter((item) => item.moduleKey === null || canAccess(item.moduleKey, 'view'));
+
+    const roleLabel = systemRole === 'APP_ADMIN'
+        ? 'Quản trị ứng dụng'
+        : role === 'FAMILY_ADMIN'
+            ? 'Quản trị gia đình'
+            : 'Thành viên';
 
     return (
         <aside className="w-64 h-screen flex flex-col p-3 relative bg-[linear-gradient(180deg,rgba(255,251,247,0.96),rgba(255,245,239,0.92))] border-r border-[rgba(242,214,197,0.75)] shadow-[18px_0_50px_rgba(227,188,165,0.12)] backdrop-blur-md">
@@ -70,14 +90,35 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                 />
             </Link>
 
-            <div className="mb-3 flex flex-wrap gap-1.5">
+            <div className="mb-2 flex flex-wrap gap-1.5">
                 <span className="cute-chip">Nhẹ mắt</span>
                 <span className="cute-chip">Dễ dùng</span>
                 <span className="cute-chip">Gia đình</span>
             </div>
 
+            <div className="mb-3 rounded-2xl border border-white/80 bg-white/70 p-3 shadow-[0_10px_24px_rgba(237,200,183,0.12)]">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9f7d6e]">Phiên làm việc</p>
+                <p className="mt-1 text-sm font-semibold text-[#4f3f37]">{roleLabel}</p>
+                {memberships.length > 0 ? (
+                    <Select
+                        value={activeFamilyId ?? undefined}
+                        size="small"
+                        className="mt-2 w-full"
+                        placeholder="Chọn gia đình"
+                        loading={isSwitchingFamily}
+                        onChange={(value) => switchFamily(value)}
+                        options={memberships.map((membership) => ({
+                            value: membership.familyId,
+                            label: `${membership.familyName} · ${membership.role === 'FAMILY_ADMIN' ? 'Quản trị' : 'Thành viên'}`,
+                        }))}
+                    />
+                ) : (
+                    <p className="mt-2 text-xs text-[#8c6d61]">{activeFamilyName || 'Chưa gắn gia đình hoạt động'}</p>
+                )}
+            </div>
+
             <nav className="flex-1 space-y-1.5">
-                {navigation.map((item) => (
+                {visibleNavigation.map((item) => (
                     <NavLink
                         key={item.name}
                         to={item.href}

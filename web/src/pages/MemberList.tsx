@@ -4,9 +4,11 @@ import { Table, Button, Modal, Form, Input, Select, Space, Tag, message, Avatar,
 import { UserPlus, Shield, Trash2, Mail, Users } from 'lucide-react';
 import { userApi } from '../api/user';
 import type { User } from '../api/user';
+import { useSession } from '../components/auth/SessionProvider';
 
 export const MemberList = () => {
     const queryClient = useQueryClient();
+    const { role, canAccess } = useSession();
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -60,10 +62,15 @@ export const MemberList = () => {
     });
 
     const handleEdit = (user: User) => {
+        if (role !== 'FAMILY_ADMIN') {
+            return;
+        }
         setEditingUser(user);
         editForm.setFieldsValue(user);
         setIsEditModalOpen(true);
     };
+
+    const canManageMembers = role === 'FAMILY_ADMIN' && canAccess('USER', 'update');
 
     const columns = [
         {
@@ -99,11 +106,11 @@ export const MemberList = () => {
                     value={role}
                     size="small"
                     className="w-32"
+                    disabled={!canManageMembers}
                     onChange={(val) => updateRoleMutation.mutate({ id: record.id, role: val })}
                     options={[
                         { value: 'FAMILY_ADMIN', label: 'Quản trị viên' },
                         { value: 'MEMBER', label: 'Thành viên' },
-                        { value: 'VIEWER', label: 'Người xem' },
                     ]}
                 />
             ),
@@ -113,11 +120,11 @@ export const MemberList = () => {
             dataIndex: 'status',
             key: 'status',
             render: (status: string) => {
-                const colors: any = { ACTIVE: 'green', PENDING: 'orange', INACTIVE: 'red' };
+                const colors: Record<string, string> = { ACTIVE: 'green', INVITED: 'orange', REMOVED: 'red' };
                 const labels: Record<string, string> = {
                     ACTIVE: 'Hoạt động',
-                    PENDING: 'Đang chờ',
-                    INACTIVE: 'Ngưng hoạt động',
+                    INVITED: 'Đã mời',
+                    REMOVED: 'Đã rời',
                 };
                 return <Tag color={colors[status] || 'blue'}>{labels[status] || status}</Tag>;
             },
@@ -131,6 +138,7 @@ export const MemberList = () => {
                         <Button
                             type="text"
                             danger
+                            disabled={!canManageMembers}
                             icon={<Trash2 size={16} />}
                             onClick={(e) => {
                                 e.stopPropagation();
@@ -157,6 +165,7 @@ export const MemberList = () => {
                 <Button
                     type="primary"
                     icon={<UserPlus size={18} />}
+                    disabled={!canManageMembers}
                     onClick={() => setIsInviteModalOpen(true)}
                     className="w-full sm:w-auto"
                 >
@@ -173,7 +182,7 @@ export const MemberList = () => {
                         rowKey="id"
                         onRow={(record) => ({
                             onClick: () => handleEdit(record),
-                            style: { cursor: 'pointer' }
+                            style: { cursor: canManageMembers ? 'pointer' : 'default' }
                         })}
                         scroll={{ x: 600 }}
                         size={window.innerWidth < 768 ? 'small' : 'middle'}
@@ -253,13 +262,12 @@ export const MemberList = () => {
                     >
                         <Select options={[
                             { value: 'FAMILY_ADMIN', label: 'Quản trị viên (Toàn quyền)' },
-                            { value: 'MEMBER', label: 'Thành viên (Thêm, sửa, xóa tài sản)' },
-                            { value: 'VIEWER', label: 'Người xem (Chỉ xem dữ liệu)' },
+                            { value: 'MEMBER', label: 'Thành viên (Theo quyền mẫu của gia đình)' },
                         ]} />
                     </Form.Item>
                     <div className="bg-sky-50 p-3 rounded-lg flex gap-3 text-sky-700 text-sm">
                         <Shield size={18} className="flex-shrink-0" />
-                        <p>Thành viên mới sẽ nhận được email mời tham gia sau khi bạn gửi. Họ cần đăng nhập bằng Google để kích hoạt tài khoản.</p>
+                        <p>Hệ thống sẽ tạo lời mời theo email và người nhận cần đăng nhập bằng Google để chấp nhận tham gia gia đình.</p>
                     </div>
                 </Form>
             </Modal>
