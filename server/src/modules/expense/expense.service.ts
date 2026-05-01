@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Expense, ExpenseEntryType, RecurringCycle } from '../../common/entities/expense.entity';
-import { Category, CategoryLevel, CategoryType } from '../../common/entities/category.entity';
+import { Category, CategoryType } from '../../common/entities/category.entity';
 import { stringify } from 'csv-stringify/sync';
 
 @Injectable()
@@ -173,10 +173,6 @@ export class ExpenseService {
 
     if (!category) {
       throw new NotFoundException('Danh mục không tồn tại');
-    }
-
-    if (category.level !== CategoryLevel.CATEGORY) {
-      throw new BadRequestException('Chỉ được chọn danh mục ở cấp cuối');
     }
 
     if (isTransfer) {

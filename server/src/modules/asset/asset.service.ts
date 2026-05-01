@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Asset } from '../../common/entities/asset.entity';
-import { Category, CategoryLevel, CategoryType } from '../../common/entities/category.entity';
+import { Category, CategoryType } from '../../common/entities/category.entity';
 import { stringify } from 'csv-stringify/sync';
 
 @Injectable()
@@ -102,8 +102,8 @@ export class AssetService {
       throw new NotFoundException('Danh mục tài sản không tồn tại');
     }
 
-    if (category.type !== CategoryType.ASSET || category.level !== CategoryLevel.CATEGORY) {
-      throw new BadRequestException('Tài sản phải dùng danh mục lá thuộc nhóm tài sản');
+    if (category.type !== CategoryType.ASSET) {
+      throw new BadRequestException('Tài sản phải dùng danh mục thuộc nhóm tài sản');
     }
   }
 }

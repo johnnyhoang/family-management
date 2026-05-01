@@ -81,7 +81,6 @@ export const ExpenseList = () => {
     mutationFn: (name: string) => categoryApi.create({
       name,
       type: isTransfer ? 'LIABILITY' : transactionType,
-      level: 'CATEGORY',
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -128,7 +127,9 @@ export const ExpenseList = () => {
 
   const categorySelectOptions = useMemo(() => {
     return categories
-      ?.filter((category) => (isTransfer ? isTransferCategory(category) : supportsExpenseEntryType(category, transactionType)))
+      ?.filter((category) => (isTransfer
+        ? isTransferCategory(category)
+        : supportsExpenseEntryType(category, transactionType)))
       .map((category) => ({
         value: category.id,
         label: buildCategoryPathLabel(categories ?? [], category.id),
@@ -140,8 +141,10 @@ export const ExpenseList = () => {
 
     return categories
       ?.filter((category) => {
-        if (category.level !== 'CATEGORY') return false;
-        if (!direction) return category.type !== 'ASSET';
+        if (!direction) {
+          return category.type !== 'ASSET';
+        }
+
         return supportsExpenseEntryType(category, direction);
       })
       .map((category) => ({

@@ -1,47 +1,44 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
-import { Category, CategoryLevel, CategoryType } from '../../common/entities/category.entity';
+import { Category, CategoryType } from '../../common/entities/category.entity';
 
-const DEFAULT_GROUP_NAMES: Record<CategoryType, string> = {
-  [CategoryType.ASSET]: 'Tổng quát',
-  [CategoryType.LIABILITY]: 'Công nợ chung',
-  [CategoryType.INCOME]: 'Thu nhập chung',
-  [CategoryType.EXPENSE]: 'Chi phí chung',
-};
+const MAX_CATEGORY_DEPTH = 1;
 
 const DEFAULT_CATEGORY_TREE: Array<{
   type: CategoryType;
-  groups: Array<{ name: string; categories: string[] }>;
+  roots: Array<{ name: string; children: string[] }>;
 }> = [
   {
     type: CategoryType.ASSET,
-    groups: [
-      { name: 'Thanh khoản', categories: ['Tiền mặt', 'Tài khoản ngân hàng'] },
-      { name: 'Đầu tư', categories: ['Cổ phiếu', 'Crypto'] },
-      { name: 'Tài sản dài hạn', categories: ['Nhà đất', 'Xe cộ'] },
+    roots: [
+      { name: 'Thanh khoản', children: ['Tiền mặt', 'Tài khoản ngân hàng'] },
+      { name: 'Đầu tư', children: ['Cổ phiếu', 'Crypto'] },
+      { name: 'Tài sản dài hạn', children: ['Nhà đất', 'Xe cộ'] },
     ],
   },
   {
     type: CategoryType.LIABILITY,
-    groups: [
-      { name: 'Công nợ', categories: ['Khoản vay', 'Thẻ tín dụng'] },
+    roots: [
+      { name: 'Công nợ', children: ['Khoản vay', 'Thẻ tín dụng'] },
     ],
   },
   {
     type: CategoryType.INCOME,
-    groups: [
-      { name: 'Thu nhập chính', categories: ['Lương / Thu nhập chính'] },
-      { name: 'Thu nhập khác', categories: ['Thưởng, quà, hoàn tiền', 'Lãi đầu tư, cổ tức'] },
+    roots: [
+      { name: 'Thu nhập chính', children: ['Lương / Thu nhập chính'] },
+      { name: 'Thu nhập khác', children: ['Thưởng, quà, hoàn tiền', 'Lãi đầu tư, cổ tức'] },
     ],
   },
   {
     type: CategoryType.EXPENSE,
-    groups: [
-      { name: 'Sinh hoạt', categories: ['Ăn uống', 'Đi lại', 'Hóa đơn'] },
+    roots: [
+      { name: 'Sinh hoạt', children: ['Ăn uống', 'Đi lại', 'Hóa đơn'] },
     ],
   },
 ];
+
+type CategoryShape = Pick<Category, 'id' | 'type' | 'parentId'>;
 
 @Injectable()
 export class CategoryService {
@@ -58,32 +55,25 @@ export class CategoryService {
       relations: ['parent'],
       order: {
         type: 'ASC',
-        level: 'ASC',
         name: 'ASC',
       },
     });
   }
 
-  /**
-   * Kept for backward compatibility with current auth bootstrap.
-   * It now seeds the minimal 3-level finance tree used by the refactored model.
-   */
   async ensureDefaultIncomeCategories(familyId: string): Promise<void> {
     for (const typeDef of DEFAULT_CATEGORY_TREE) {
-      for (const groupDef of typeDef.groups) {
-        const group = await this.findOrCreateCategory(familyId, {
-          name: groupDef.name,
+      for (const rootDef of typeDef.roots) {
+        const rootCategory = await this.findOrCreateCategory(familyId, {
+          name: rootDef.name,
           type: typeDef.type,
-          level: CategoryLevel.GROUP,
           isDefault: true,
         });
 
-        for (const categoryName of groupDef.categories) {
+        for (const childName of rootDef.children) {
           await this.findOrCreateCategory(familyId, {
-            name: categoryName,
+            name: childName,
             type: typeDef.type,
-            level: CategoryLevel.CATEGORY,
-            parentId: group.id,
+            parentId: rootCategory.id,
             isDefault: true,
           });
         }
@@ -92,17 +82,22 @@ export class CategoryService {
   }
 
   async create(familyId: string, data: Partial<Category>) {
-    const type = data.type;
-    const level = data.level ?? CategoryLevel.CATEGORY;
-    this.validateCategoryShape(type, level);
+    this.validateCategoryType(data.type);
 
-    const parentId = await this.resolveParentId(familyId, type, level, data.parentId ?? null);
-    const category = this.categoryRepository.create({
-      ...data,
+    const parentId = await this.resolveParentId(
       familyId,
-      level,
+      data.type,
+      data.parentId ?? null,
+    );
+
+    const category = this.categoryRepository.create({
+      name: data.name,
+      type: data.type,
+      isDefault: data.isDefault ?? false,
+      familyId,
       parentId,
     });
+
     return this.categoryRepository.save(category);
   }
 
@@ -120,33 +115,30 @@ export class CategoryService {
     }
 
     const nextType = data.type ?? category.type;
-    const nextLevel = data.level ?? category.level;
-    this.validateCategoryShape(nextType, nextLevel);
+    this.validateCategoryType(nextType);
 
-    if (nextLevel === CategoryLevel.CATEGORY && category.children?.length) {
-      throw new BadRequestException('Danh mục nhóm đang có danh mục con, không thể chuyển thành danh mục lá');
+    if (nextType !== category.type && category.children?.length) {
+      throw new BadRequestException('Danh mục đang có danh mục con, chưa thể đổi loại chính');
     }
 
     const nextParentId = await this.resolveParentId(
       familyId,
       nextType,
-      nextLevel,
       data.parentId ?? category.parentId ?? null,
       id,
     );
 
-    // Cập nhật trực tiếp bằng UPDATE để tránh TypeORM giữ quan hệ cũ (parent) che giá trị parentId mới
     await this.categoryRepository.update(
       { id, familyId },
       {
         name: data.name !== undefined ? data.name : category.name,
         isDefault: data.isDefault !== undefined ? data.isDefault : category.isDefault,
         type: nextType,
-        level: nextLevel,
         parentId: nextParentId,
         ...(data.updatedBy !== undefined ? { updatedBy: data.updatedBy } : {}),
       },
     );
+
     return this.findOne(id, familyId);
   }
 
@@ -155,16 +147,12 @@ export class CategoryService {
     if (!category) {
       throw new NotFoundException('Không tìm thấy danh mục');
     }
-    return this.categoryRepository.softRemove(category);
-  }
 
-  async ensureDefaultGroup(familyId: string, type: CategoryType): Promise<Category> {
-    return this.findOrCreateCategory(familyId, {
-      name: DEFAULT_GROUP_NAMES[type],
-      type,
-      level: CategoryLevel.GROUP,
-      isDefault: true,
-    });
+    if (category.children?.length) {
+      throw new BadRequestException('Danh mục đang có danh mục con, không thể xóa');
+    }
+
+    return this.categoryRepository.softRemove(category);
   }
 
   private async findOrCreateCategory(familyId: string, data: Partial<Category>): Promise<Category> {
@@ -173,15 +161,18 @@ export class CategoryService {
         familyId,
         name: data.name,
         type: data.type,
-        level: data.level,
         parentId: data.parentId ?? IsNull(),
       },
     });
 
-    if (existing) return existing;
+    if (existing) {
+      return existing;
+    }
 
     const category = this.categoryRepository.create({
-      ...data,
+      name: data.name,
+      type: data.type,
+      isDefault: data.isDefault ?? false,
       familyId,
       parentId: data.parentId ?? null,
     });
@@ -192,126 +183,194 @@ export class CategoryService {
   private async resolveParentId(
     familyId: string,
     type: CategoryType | undefined,
-    level: CategoryLevel,
     parentId: string | null,
     currentCategoryId?: string,
   ): Promise<string | null> {
-    if (!type) {
-      throw new BadRequestException('Loại danh mục là bắt buộc');
-    }
-
-    if (level === CategoryLevel.GROUP) {
-      if (parentId) {
-        throw new BadRequestException('Nhóm danh mục không được có danh mục cha');
-      }
-      return null;
-    }
+    this.validateCategoryType(type);
 
     if (!parentId) {
-      const defaultGroup = await this.ensureDefaultGroup(familyId, type);
-      if (currentCategoryId && defaultGroup.id === currentCategoryId) {
-        throw new BadRequestException('Danh mục không thể tự làm danh mục cha');
-      }
-      return defaultGroup.id;
+      return null;
     }
 
     if (currentCategoryId && parentId === currentCategoryId) {
       throw new BadRequestException('Danh mục không thể tự làm danh mục cha');
     }
 
-    const parent = await this.categoryRepository.findOne({
-      where: { id: parentId, familyId },
-      relations: ['parent'],
+    const categories = await this.categoryRepository.find({
+      where: { familyId },
+      select: ['id', 'type', 'parentId'],
     });
+    const categoryMap = new Map(categories.map((category) => [category.id, category]));
+    const childrenByParent = this.buildChildrenByParent(categories);
 
+    const parent = categoryMap.get(parentId);
     if (!parent) {
       throw new NotFoundException('Danh mục cha không tồn tại');
     }
+
     if (parent.type !== type) {
       throw new BadRequestException('Danh mục cha phải cùng loại chính');
     }
-    if (parent.level !== CategoryLevel.GROUP) {
-      throw new BadRequestException('Danh mục cha phải là cấp nhóm');
+
+    if (currentCategoryId && this.isDescendant(parent.id, currentCategoryId, childrenByParent)) {
+      throw new BadRequestException('Không thể tạo vòng lặp trong cây danh mục');
     }
 
-    if (currentCategoryId) {
-      let currentParent: Category | null = parent;
-      while (currentParent) {
-        if (currentParent.id === currentCategoryId) {
-          throw new BadRequestException('Không thể tạo vòng lặp trong cây danh mục');
-        }
-        if (!currentParent.parentId) break;
-        currentParent = await this.categoryRepository.findOne({
-          where: { id: currentParent.parentId, familyId },
-          relations: ['parent'],
-        });
-      }
+    const parentDepth = this.getDepth(parent.id, categoryMap);
+    const movingSubtreeHeight = currentCategoryId
+      ? this.getSubtreeHeight(currentCategoryId, childrenByParent)
+      : 0;
+
+    if (parentDepth + 1 + movingSubtreeHeight > MAX_CATEGORY_DEPTH) {
+      throw new BadRequestException('Cây danh mục chỉ hỗ trợ tối đa 2 cấp');
     }
 
     return parent.id;
   }
 
-  private validateCategoryShape(type?: CategoryType, level?: CategoryLevel) {
-    if (!type || !level) {
-      throw new BadRequestException('Loại danh mục và cấp danh mục là bắt buộc');
+  private validateCategoryType(type?: CategoryType) {
+    if (!type) {
+      throw new BadRequestException('Loại danh mục là bắt buộc');
     }
 
     if (!Object.values(CategoryType).includes(type)) {
       throw new BadRequestException('Loại danh mục không hợp lệ');
     }
+  }
 
-    if (!Object.values(CategoryLevel).includes(level)) {
-      throw new BadRequestException('Cấp danh mục không hợp lệ');
+  private buildChildrenByParent(categories: CategoryShape[]): Map<string, string[]> {
+    const childrenByParent = new Map<string, string[]>();
+
+    for (const category of categories) {
+      if (!category.parentId) {
+        continue;
+      }
+
+      const children = childrenByParent.get(category.parentId) ?? [];
+      children.push(category.id);
+      childrenByParent.set(category.parentId, children);
     }
+
+    return childrenByParent;
+  }
+
+  private getDepth(categoryId: string, categoryMap: Map<string, CategoryShape>): number {
+    const visited = new Set<string>();
+    let depth = 0;
+    let current = categoryMap.get(categoryId);
+
+    while (current?.parentId) {
+      if (visited.has(current.id)) {
+        return MAX_CATEGORY_DEPTH + 1;
+      }
+
+      visited.add(current.id);
+      const parent = categoryMap.get(current.parentId);
+      if (!parent) {
+        return MAX_CATEGORY_DEPTH + 1;
+      }
+
+      depth += 1;
+      current = parent;
+    }
+
+    return depth;
+  }
+
+  private getSubtreeHeight(categoryId: string, childrenByParent: Map<string, string[]>): number {
+    const children = childrenByParent.get(categoryId) ?? [];
+    if (!children.length) {
+      return 0;
+    }
+
+    return 1 + Math.max(...children.map((childId) => this.getSubtreeHeight(childId, childrenByParent)));
+  }
+
+  private isDescendant(candidateId: string, ancestorId: string, childrenByParent: Map<string, string[]>): boolean {
+    const stack = [...(childrenByParent.get(ancestorId) ?? [])];
+    const visited = new Set<string>();
+
+    while (stack.length) {
+      const currentId = stack.pop()!;
+      if (visited.has(currentId)) {
+        continue;
+      }
+
+      if (currentId === candidateId) {
+        return true;
+      }
+
+      visited.add(currentId);
+      stack.push(...(childrenByParent.get(currentId) ?? []));
+    }
+
+    return false;
   }
 
   private async repairInvalidParentAssignments(familyId: string): Promise<void> {
     const categories = await this.categoryRepository.find({
       where: { familyId },
-      relations: ['parent'],
       order: {
-        isDefault: 'DESC',
         createdAt: 'ASC',
         name: 'ASC',
       },
     });
 
-    const fallbackGroups = new Map<CategoryType, Category>();
-    for (const type of Object.values(CategoryType)) {
-      const existingGroup = categories.find((category) => category.type === type && category.level === CategoryLevel.GROUP);
-      if (existingGroup) {
-        fallbackGroups.set(type, existingGroup);
-      }
-    }
+    const categoryMap = new Map(categories.map((category) => [category.id, category]));
 
     for (const category of categories) {
-      if (category.level !== CategoryLevel.CATEGORY) {
-        continue;
-      }
+      const nextParentId = this.resolveSafeParentId(category, categoryMap);
 
-      const parent = category.parent;
-      const hasInvalidParent = !parent
-        || parent.type !== category.type
-        || parent.level !== CategoryLevel.GROUP;
-
-      if (!hasInvalidParent) {
-        continue;
-      }
-
-      let fallbackGroup = fallbackGroups.get(category.type);
-      if (!fallbackGroup) {
-        fallbackGroup = await this.ensureDefaultGroup(familyId, category.type);
-        fallbackGroups.set(category.type, fallbackGroup);
-      }
-
-      if (category.parentId === fallbackGroup.id) {
+      if (nextParentId === category.parentId) {
         continue;
       }
 
       await this.categoryRepository.update(
         { id: category.id, familyId },
-        { parentId: fallbackGroup.id },
+        { parentId: nextParentId },
       );
+
+      category.parentId = nextParentId;
+      categoryMap.set(category.id, category);
     }
+  }
+
+  private resolveSafeParentId(
+    category: CategoryShape,
+    categoryMap: Map<string, CategoryShape>,
+  ): string | null {
+    if (!category.parentId) {
+      return null;
+    }
+
+    const parent = categoryMap.get(category.parentId);
+    if (!parent || parent.type !== category.type || parent.id === category.id) {
+      return null;
+    }
+
+    let current: CategoryShape | undefined = category;
+    let depth = 0;
+    const visited = new Set<string>();
+
+    while (current?.parentId) {
+      if (visited.has(current.id)) {
+        return null;
+      }
+
+      visited.add(current.id);
+      const nextParent = categoryMap.get(current.parentId);
+      if (!nextParent || nextParent.type !== category.type) {
+        return null;
+      }
+
+      depth += 1;
+      if (depth > MAX_CATEGORY_DEPTH) {
+        return null;
+      }
+
+      current = nextParent;
+    }
+
+    return category.parentId;
   }
 }

@@ -5,10 +5,10 @@ import { Plus, Trash2, FolderTree } from 'lucide-react';
 import {
   buildCategoryPathLabel,
   categoryApi,
-  categoryLevelLabels,
   categoryTypeLabels,
+  getCategoryDepth,
+  getCategorySubtreeHeight,
   type Category,
-  type CategoryLevel,
   type CategoryType,
 } from '../api/category';
 
@@ -18,7 +18,6 @@ export const CategoryList = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [form] = Form.useForm();
   const selectedType = Form.useWatch('type', form) as CategoryType | undefined;
-  const selectedLevel = Form.useWatch('level', form) as CategoryLevel | undefined;
 
   const { data: categories, isLoading } = useQuery({
     queryKey: ['categories'],
@@ -75,23 +74,24 @@ export const CategoryList = () => {
   }, [categories, editingCategory]);
 
   const parentOptions = useMemo(() => {
-    if (selectedLevel !== 'CATEGORY') {
+    if (!selectedType) {
       return [];
     }
 
     const excludedIds = new Set<string>(editingCategory ? [editingCategory.id, ...descendantIds] : [...descendantIds]);
+    const movingSubtreeHeight = editingCategory ? getCategorySubtreeHeight(categories ?? [], editingCategory.id) : 0;
 
     return (categories ?? [])
       .filter((category) =>
         category.type === selectedType
-        && category.level === 'GROUP'
         && !excludedIds.has(category.id),
       )
+      .filter((category) => getCategoryDepth(categories ?? [], category.id) + 1 + movingSubtreeHeight <= 1)
       .map((category) => ({
         value: category.id,
         label: buildCategoryPathLabel(categories ?? [], category.id),
       }));
-  }, [categories, descendantIds, editingCategory, selectedLevel, selectedType]);
+  }, [categories, descendantIds, editingCategory, selectedType]);
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<Category>) => categoryApi.create(data),
@@ -153,16 +153,15 @@ export const CategoryList = () => {
     },
     {
       title: 'Cấp',
-      dataIndex: 'level',
-      key: 'level',
-      render: (level: CategoryLevel) => (
-        <Tag color={level === 'GROUP' ? 'purple' : 'gold'}>
-          {categoryLevelLabels[level]}
+      key: 'depth',
+      render: (_: unknown, record: Category) => (
+        <Tag color="purple">
+          {`Cấp ${getCategoryDepth(categories ?? [], record.id) + 1}`}
         </Tag>
       ),
     },
     {
-      title: 'Nhóm cha',
+      title: 'Danh mục cha',
       dataIndex: 'parentId',
       key: 'parentId',
       render: (parentId?: string | null) => buildCategoryPathLabel(categories ?? [], parentId) || '-',
@@ -196,7 +195,7 @@ export const CategoryList = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">Danh mục</h1>
-          <p className="text-sm text-slate-500">Quản lý hệ danh mục theo 3 tầng: loại chính, nhóm và danh mục lá</p>
+          <p className="text-sm text-slate-500">Quản lý cây danh mục đơn giản, tối đa 2 cấp cha con</p>
         </div>
         <Button
           type="primary"
@@ -206,7 +205,6 @@ export const CategoryList = () => {
             form.resetFields();
             form.setFieldsValue({
               type: 'EXPENSE',
-              level: 'CATEGORY',
               parentId: undefined,
               name: '',
             });
@@ -232,7 +230,6 @@ export const CategoryList = () => {
                 form.setFieldsValue({
                   name: record.name,
                   type: record.type,
-                  level: record.level,
                   parentId: record.parentId ?? undefined,
                 });
                 setIsModalOpen(true);
@@ -263,7 +260,7 @@ export const CategoryList = () => {
           onFinish={(values) => {
             const payload = {
               ...values,
-              parentId: values.level === 'GROUP' ? null : values.parentId || null,
+              parentId: values.parentId || null,
             };
             if (editingCategory) {
               updateMutation.mutate(payload);
@@ -297,32 +294,13 @@ export const CategoryList = () => {
             />
           </Form.Item>
           <Form.Item
-            name="level"
-            label="Cấp danh mục"
-            rules={[{ required: true, message: 'Vui lòng chọn cấp danh mục' }]}
-            initialValue="CATEGORY"
-          >
-            <Select
-              options={[
-                { value: 'GROUP', label: 'Nhóm' },
-                { value: 'CATEGORY', label: 'Danh mục lá' },
-              ]}
-              onChange={(value: CategoryLevel) => {
-                if (value === 'GROUP') {
-                  form.setFieldValue('parentId', undefined);
-                }
-              }}
-            />
-          </Form.Item>
-          <Form.Item
             name="parentId"
-            label="Nhóm cha"
-            extra={selectedLevel === 'CATEGORY' ? 'Nếu để trống, hệ thống sẽ tự đưa vào nhóm mặc định cùng loại.' : undefined}
+            label="Danh mục cha"
+            extra="Để trống nếu là cấp gốc. Hệ thống chỉ cho phép tối đa 2 cấp."
           >
             <Select
               allowClear
-              disabled={selectedLevel !== 'CATEGORY'}
-              placeholder={selectedLevel === 'CATEGORY' ? 'Chọn nhóm cha' : 'Nhóm không có cha'}
+              placeholder="Chọn danh mục cha"
               options={parentOptions}
             />
           </Form.Item>

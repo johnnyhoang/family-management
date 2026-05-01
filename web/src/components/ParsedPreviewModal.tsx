@@ -7,6 +7,7 @@ import {
     categoryApi,
     expenseEntryTypeLabels,
     isAssetCategory,
+    isTransferCategory,
     supportsExpenseEntryType,
     type ExpenseEntryType,
 } from '../api/category';
@@ -44,6 +45,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
 }) => {
     const [form] = Form.useForm();
     const watchedEntryType = Form.useWatch('entryType', form) as ExpenseEntryType | undefined;
+    const watchedIsTransfer = Form.useWatch('isTransfer', form) as boolean | undefined;
     const [intent, setIntent] = useState<string>('');
     const [users, setUsers] = useState<User[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -243,9 +245,10 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
                             <Select
                                 options={categories
-                                    .filter((category) => supportsExpenseEntryType(
-                                        category,
-                                        entryTypeForFilter,
+                                    .filter((category) => (
+                                        watchedIsTransfer
+                                            ? isTransferCategory(category)
+                                            : supportsExpenseEntryType(category, entryTypeForFilter)
                                     ))
                                     .map((category) => ({
                                         label: buildCategoryPathLabel(categories, category.id),
