@@ -253,6 +253,15 @@ export class AuthService {
     };
   }
 
+  async updateMe(userId: string, data: { fullName?: string; otherNames?: string }) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+    if (data.fullName !== undefined) user.fullName = data.fullName;
+    if (data.otherNames !== undefined) user.otherNames = data.otherNames;
+    await this.userRepository.save(user);
+    return { id: user.id, email: user.email, fullName: user.fullName, avatarUrl: user.avatarUrl, otherNames: user.otherNames };
+  }
+
   buildInviteToken() {
     return randomUUID();
   }
