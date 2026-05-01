@@ -147,6 +147,12 @@ export class CategoryService {
         ...(data.updatedBy !== undefined ? { updatedBy: data.updatedBy } : {}),
       },
     );
+
+    // Cascade type change to children when GROUP type changes
+    if (nextType !== category.type && nextLevel === CategoryLevel.GROUP) {
+      await this.categoryRepository.update({ familyId, parentId: id }, { type: nextType });
+    }
+
     return this.findOne(id, familyId);
   }
 

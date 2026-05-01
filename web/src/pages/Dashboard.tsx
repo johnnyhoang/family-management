@@ -26,15 +26,14 @@ export const Dashboard = () => {
         },
     });
 
-    if (!canViewDashboard || systemRole === 'APP_ADMIN') {
+    if (!canViewDashboard) {
         return (
             <div className="glass-card p-6 lg:p-8">
                 <h1 className="text-2xl font-bold text-slate-900 font-display">Tổng quan hệ thống</h1>
                 <p className="mt-2 text-sm text-slate-600">
-                    Tài khoản quản trị ứng dụng không được truy cập dữ liệu tài chính của từng gia đình.
-                </p>
-                <p className="mt-3 text-sm text-slate-500">
-                    Bạn vẫn có thể dùng các API quản trị hệ thống ở backend. Giao diện quản trị ứng dụng riêng cần được tách thành một module riêng trước khi launch.
+                    {systemRole === 'APP_ADMIN'
+                        ? 'Tài khoản quản trị ứng dụng chưa tham gia gia đình nào. Hãy chấp nhận lời mời hoặc được thêm vào gia đình để xem tổng quan.'
+                        : 'Bạn không có quyền xem tổng quan. Vui lòng liên hệ quản trị viên gia đình.'}
                 </p>
             </div>
         );
