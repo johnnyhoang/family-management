@@ -7,7 +7,6 @@ import {
   categoryApi,
   categoryTypeLabels,
   type Category,
-  type CategoryLevel,
   type CategoryType,
 } from '../api/category';
 
@@ -17,7 +16,6 @@ export const CategoryList = () => {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [form] = Form.useForm();
   const selectedType = Form.useWatch('type', form) as CategoryType | undefined;
-  const selectedLevel = Form.useWatch('level', form) as CategoryLevel | undefined;
 
   const { data: categories, isLoading, isError } = useQuery({
     queryKey: ['categories'],
@@ -81,23 +79,19 @@ export const CategoryList = () => {
   }, [categories, editingCategory]);
 
   const parentOptions = useMemo(() => {
-    if (selectedLevel !== 'CATEGORY') {
-      return [];
-    }
-
     const excludedIds = new Set<string>(editingCategory ? [editingCategory.id, ...descendantIds] : [...descendantIds]);
 
     return (categories ?? [])
       .filter((category) =>
         category.type === selectedType
-        && category.level === 'GROUP'
+        && !category.parentId
         && !excludedIds.has(category.id),
       )
       .map((category) => ({
         value: category.id,
         label: buildCategoryPathLabel(categories ?? [], category.id),
       }));
-  }, [categories, descendantIds, editingCategory, selectedLevel, selectedType]);
+  }, [categories, descendantIds, editingCategory, selectedType]);
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<Category>) => categoryApi.create(data),
@@ -146,8 +140,8 @@ export const CategoryList = () => {
       key: 'name',
       render: (text: string, record: Category) => (
         <Space>
-          <FolderTree size={16} className={record.level === 'GROUP' ? 'text-slate-500' : 'text-slate-300'} />
-          <span className={record.level === 'GROUP' ? 'font-semibold text-slate-800' : 'text-slate-700'}>{text}</span>
+          <FolderTree size={16} className={!record.parentId ? 'text-slate-500' : 'text-slate-300'} />
+          <span className={!record.parentId ? 'font-semibold text-slate-800' : 'text-slate-700'}>{text}</span>
         </Space>
       ),
     },
@@ -184,12 +178,14 @@ export const CategoryList = () => {
     },
   ];
 
+  const isEditingGroup = editingCategory !== null && (editingCategory.children?.length ?? 0) > 0;
+
   return (
     <div className="space-y-4 lg:space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">Danh mục</h1>
-          <p className="text-sm text-slate-500">Quản lý hệ danh mục theo 3 tầng: loại chính, nhóm và danh mục lá</p>
+          <p className="text-sm text-slate-500">Quản lý danh mục 2 cấp: nhóm cha (không có cha) và danh mục lá (có nhóm cha)</p>
         </div>
         <Button
           type="primary"
@@ -199,7 +195,6 @@ export const CategoryList = () => {
             form.resetFields();
             form.setFieldsValue({
               type: 'EXPENSE',
-              level: 'CATEGORY',
               parentId: undefined,
               name: '',
             });
@@ -226,7 +221,6 @@ export const CategoryList = () => {
                 form.setFieldsValue({
                   name: record.name,
                   type: record.type,
-                  level: record.level,
                   parentId: record.parentId ?? undefined,
                 });
                 setIsModalOpen(true);
@@ -257,7 +251,7 @@ export const CategoryList = () => {
           onFinish={(values) => {
             const payload = {
               ...values,
-              parentId: values.level === 'GROUP' ? null : values.parentId || null,
+              parentId: values.parentId || null,
             };
             if (editingCategory) {
               updateMutation.mutate(payload);
@@ -291,32 +285,18 @@ export const CategoryList = () => {
             />
           </Form.Item>
           <Form.Item
-            name="level"
-            label="Cấp danh mục"
-            rules={[{ required: true, message: 'Vui lòng chọn cấp danh mục' }]}
-            initialValue="CATEGORY"
-          >
-            <Select
-              options={[
-                { value: 'GROUP', label: 'Nhóm' },
-                { value: 'CATEGORY', label: 'Danh mục lá' },
-              ]}
-              onChange={(value: CategoryLevel) => {
-                if (value === 'GROUP') {
-                  form.setFieldValue('parentId', undefined);
-                }
-              }}
-            />
-          </Form.Item>
-          <Form.Item
             name="parentId"
             label="Nhóm cha"
-            extra={selectedLevel === 'CATEGORY' ? 'Nếu để trống, hệ thống sẽ tự đưa vào nhóm mặc định cùng loại.' : undefined}
+            extra={
+              isEditingGroup
+                ? 'Danh mục này có con, không thể thêm nhóm cha.'
+                : 'Để trống để tạo nhóm cha. Chọn nhóm cha để tạo danh mục lá.'
+            }
           >
             <Select
               allowClear
-              disabled={selectedLevel !== 'CATEGORY'}
-              placeholder={selectedLevel === 'CATEGORY' ? 'Chọn nhóm cha' : 'Nhóm không có cha'}
+              disabled={isEditingGroup}
+              placeholder={isEditingGroup ? 'Nhóm — không có cha' : 'Chọn nhóm cha (tùy chọn)'}
               options={parentOptions}
             />
           </Form.Item>

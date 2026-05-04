@@ -8,11 +8,6 @@ export enum CategoryType {
   EXPENSE = 'EXPENSE',
 }
 
-export enum CategoryLevel {
-  GROUP = 'GROUP',
-  CATEGORY = 'CATEGORY',
-}
-
 @Entity('categories')
 export class Category extends BaseEntity {
   @Column()
@@ -29,13 +24,6 @@ export class Category extends BaseEntity {
     enum: CategoryType,
   })
   type: CategoryType;
-
-  @Column({
-    type: 'enum',
-    enum: CategoryLevel,
-    default: CategoryLevel.CATEGORY,
-  })
-  level: CategoryLevel;
 
   @Column({ nullable: true })
   parentId: string | null;

@@ -1,14 +1,12 @@
 import api from './client';
 
 export type CategoryType = 'ASSET' | 'LIABILITY' | 'INCOME' | 'EXPENSE';
-export type CategoryLevel = 'GROUP' | 'CATEGORY';
 export type ExpenseEntryType = 'INCOME' | 'EXPENSE' | 'LIABILITY';
 
 export interface Category {
   id: string;
   name: string;
   type: CategoryType;
-  level: CategoryLevel;
   parentId?: string | null;
   parent?: Pick<Category, 'id' | 'name'> | null;
   children?: Category[];
@@ -22,31 +20,26 @@ export const categoryTypeLabels: Record<CategoryType, string> = {
   EXPENSE: 'Chi phí',
 };
 
-export const categoryLevelLabels: Record<CategoryLevel, string> = {
-  GROUP: 'Nhóm',
-  CATEGORY: 'Danh mục',
-};
-
 export const expenseEntryTypeLabels: Record<ExpenseEntryType, string> = {
   INCOME: 'Thu nhập',
   EXPENSE: 'Chi phí',
   LIABILITY: 'Nợ',
 };
 
-export const isLeafCategory = (category?: Pick<Category, 'level'> | null) =>
-  category?.level === 'CATEGORY';
+export const isLeafCategory = (category?: Pick<Category, 'parentId'> | null) =>
+  !!category?.parentId;
 
-export const isAssetCategory = (category?: Pick<Category, 'type' | 'level'> | null) =>
-  category?.type === 'ASSET' && category?.level === 'CATEGORY';
+export const isAssetCategory = (category?: Pick<Category, 'type' | 'parentId'> | null) =>
+  category?.type === 'ASSET' && !!category?.parentId;
 
 export const supportsExpenseEntryType = (
-  category: Pick<Category, 'type' | 'level'> | null | undefined,
+  category: Pick<Category, 'type' | 'parentId'> | null | undefined,
   entryType: ExpenseEntryType,
-) => category?.level === 'CATEGORY' && category.type === entryType;
+) => !!category?.parentId && category.type === entryType;
 
 export const isTransferCategory = (
-  category: Pick<Category, 'type' | 'level'> | null | undefined,
-) => category?.level === 'CATEGORY' && (category.type === 'ASSET' || category.type === 'LIABILITY');
+  category: Pick<Category, 'type' | 'parentId'> | null | undefined,
+) => !!category?.parentId && (category.type === 'ASSET' || category.type === 'LIABILITY');
 
 export const buildCategoryPathLabel = (
   categories: Category[] = [],

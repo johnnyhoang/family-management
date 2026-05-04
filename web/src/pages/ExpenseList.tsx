@@ -81,7 +81,6 @@ export const ExpenseList = () => {
     mutationFn: (name: string) => categoryApi.create({
       name,
       type: isTransfer ? 'LIABILITY' : transactionType,
-      level: 'CATEGORY',
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -143,7 +142,7 @@ export const ExpenseList = () => {
     return categories
       ?.filter((category) => {
         if (!direction) {
-          return category.level === 'CATEGORY' && category.type !== 'ASSET';
+          return !!category.parentId && category.type !== 'ASSET';
         }
 
         return supportsExpenseEntryType(category, direction);

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
-import { Category, CategoryLevel, CategoryType } from '../../common/entities/category.entity';
+import { Category, CategoryType } from '../../common/entities/category.entity';
 
 const DEFAULT_GROUP_NAMES: Record<CategoryType, string> = {
   [CategoryType.ASSET]: 'Tổng quát',
@@ -58,7 +58,6 @@ export class CategoryService {
       relations: ['parent'],
       order: {
         type: 'ASC',
-        level: 'ASC',
         name: 'ASC',
       },
     });
@@ -70,7 +69,7 @@ export class CategoryService {
         const group = await this.findOrCreateCategory(familyId, {
           name: groupDef.name,
           type: typeDef.type,
-          level: CategoryLevel.GROUP,
+          parentId: null,
           isDefault: true,
         });
 
@@ -78,7 +77,6 @@ export class CategoryService {
           await this.findOrCreateCategory(familyId, {
             name: categoryName,
             type: typeDef.type,
-            level: CategoryLevel.CATEGORY,
             parentId: group.id,
             isDefault: true,
           });
@@ -89,16 +87,22 @@ export class CategoryService {
 
   async create(familyId: string, data: Partial<Category>) {
     const type = data.type;
-    const level = data.level ?? CategoryLevel.CATEGORY;
-    this.validateCategoryShape(type, level);
+    if (!type) throw new BadRequestException('Loại danh mục là bắt buộc');
 
-    const parentId = await this.resolveParentId(familyId, type, level, data.parentId ?? null);
-    const category = this.categoryRepository.create({
-      ...data,
-      familyId,
-      level,
-      parentId,
-    });
+    // parentId === null  → explicitly creating a root/group
+    // parentId === undefined/missing → auto-assign leaf to default group (quick-add convenience)
+    // parentId === <id> → leaf with explicit parent
+    let parentId: string | null;
+    if (data.parentId === null) {
+      parentId = null;
+    } else if (data.parentId) {
+      parentId = await this.validateParent(familyId, type, data.parentId);
+    } else {
+      const defaultGroup = await this.ensureDefaultGroup(familyId, type);
+      parentId = defaultGroup.id;
+    }
+
+    const category = this.categoryRepository.create({ ...data, familyId, parentId });
     return this.categoryRepository.save(category);
   }
 
@@ -111,25 +115,19 @@ export class CategoryService {
 
   async update(id: string, familyId: string, data: Partial<Category>) {
     const category = await this.findOne(id, familyId);
-    if (!category) {
-      throw new NotFoundException('Không tìm thấy danh mục');
-    }
+    if (!category) throw new NotFoundException('Không tìm thấy danh mục');
 
     const nextType = data.type ?? category.type;
-    const nextLevel = data.level ?? category.level;
-    this.validateCategoryShape(nextType, nextLevel);
+    const nextParentId = 'parentId' in data ? (data.parentId ?? null) : category.parentId;
 
-    if (nextLevel === CategoryLevel.CATEGORY && category.children?.length) {
-      throw new BadRequestException('Danh mục nhóm đang có danh mục con, không thể chuyển thành danh mục lá');
+    // A category with children is a group — cannot receive a parent
+    if (nextParentId !== null && (category.children?.length ?? 0) > 0) {
+      throw new BadRequestException('Danh mục đang có danh mục con, không thể thêm danh mục cha');
     }
 
-    const nextParentId = await this.resolveParentId(
-      familyId,
-      nextType,
-      nextLevel,
-      data.parentId ?? category.parentId ?? null,
-      id,
-    );
+    const resolvedParentId = nextParentId
+      ? await this.validateParent(familyId, nextType, nextParentId, id)
+      : null;
 
     await this.categoryRepository.update(
       { id, familyId },
@@ -137,14 +135,13 @@ export class CategoryService {
         name: data.name !== undefined ? data.name : category.name,
         isDefault: data.isDefault !== undefined ? data.isDefault : category.isDefault,
         type: nextType,
-        level: nextLevel,
-        parentId: nextParentId,
+        parentId: resolvedParentId,
         ...(data.updatedBy !== undefined ? { updatedBy: data.updatedBy } : {}),
       },
     );
 
-    // Cascade type change to children when GROUP type changes
-    if (nextType !== category.type && nextLevel === CategoryLevel.GROUP) {
+    // Cascade type change to children when root type changes
+    if (nextType !== category.type && resolvedParentId === null) {
       await this.categoryRepository.update({ familyId, parentId: id }, { type: nextType });
     }
 
@@ -153,9 +150,7 @@ export class CategoryService {
 
   async delete(id: string, familyId: string) {
     const category = await this.findOne(id, familyId);
-    if (!category) {
-      throw new NotFoundException('Không tìm thấy danh mục');
-    }
+    if (!category) throw new NotFoundException('Không tìm thấy danh mục');
     return this.categoryRepository.softRemove(category);
   }
 
@@ -163,7 +158,7 @@ export class CategoryService {
     return this.findOrCreateCategory(familyId, {
       name: DEFAULT_GROUP_NAMES[type],
       type,
-      level: CategoryLevel.GROUP,
+      parentId: null,
       isDefault: true,
     });
   }
@@ -174,7 +169,6 @@ export class CategoryService {
         familyId,
         name: data.name,
         type: data.type,
-        level: data.level,
         parentId: data.parentId ?? IsNull(),
       },
     });
@@ -190,80 +184,25 @@ export class CategoryService {
     return this.categoryRepository.save(category);
   }
 
-  private async resolveParentId(
+  private async validateParent(
     familyId: string,
-    type: CategoryType | undefined,
-    level: CategoryLevel,
-    parentId: string | null,
+    type: CategoryType,
+    parentId: string,
     currentCategoryId?: string,
-  ): Promise<string | null> {
-    if (!type) {
-      throw new BadRequestException('Loại danh mục là bắt buộc');
-    }
-
-    if (level === CategoryLevel.GROUP) {
-      if (parentId) {
-        throw new BadRequestException('Nhóm danh mục không được có danh mục cha');
-      }
-      return null;
-    }
-
-    if (!parentId) {
-      const defaultGroup = await this.ensureDefaultGroup(familyId, type);
-      if (currentCategoryId && defaultGroup.id === currentCategoryId) {
-        throw new BadRequestException('Danh mục không thể tự làm danh mục cha');
-      }
-      return defaultGroup.id;
-    }
-
+  ): Promise<string> {
     if (currentCategoryId && parentId === currentCategoryId) {
       throw new BadRequestException('Danh mục không thể tự làm danh mục cha');
     }
 
     const parent = await this.categoryRepository.findOne({
       where: { id: parentId, familyId },
-      relations: ['parent'],
     });
 
-    if (!parent) {
-      throw new NotFoundException('Danh mục cha không tồn tại');
-    }
-    if (parent.type !== type) {
-      throw new BadRequestException('Danh mục cha phải cùng loại chính');
-    }
-    if (parent.level !== CategoryLevel.GROUP) {
-      throw new BadRequestException('Danh mục cha phải là cấp nhóm');
-    }
-
-    if (currentCategoryId) {
-      let currentParent: Category | null = parent;
-      while (currentParent) {
-        if (currentParent.id === currentCategoryId) {
-          throw new BadRequestException('Không thể tạo vòng lặp trong cây danh mục');
-        }
-        if (!currentParent.parentId) break;
-        currentParent = await this.categoryRepository.findOne({
-          where: { id: currentParent.parentId, familyId },
-          relations: ['parent'],
-        });
-      }
-    }
+    if (!parent) throw new NotFoundException('Danh mục cha không tồn tại');
+    if (parent.type !== type) throw new BadRequestException('Danh mục cha phải cùng loại chính');
+    if (parent.parentId !== null) throw new BadRequestException('Danh mục cha phải là danh mục gốc (không có cha)');
 
     return parent.id;
-  }
-
-  private validateCategoryShape(type?: CategoryType, level?: CategoryLevel) {
-    if (!type || !level) {
-      throw new BadRequestException('Loại danh mục và cấp danh mục là bắt buộc');
-    }
-
-    if (!Object.values(CategoryType).includes(type)) {
-      throw new BadRequestException('Loại danh mục không hợp lệ');
-    }
-
-    if (!Object.values(CategoryLevel).includes(level)) {
-      throw new BadRequestException('Cấp danh mục không hợp lệ');
-    }
   }
 
   private async repairInvalidParentAssignments(familyId: string): Promise<void> {
@@ -279,25 +218,19 @@ export class CategoryService {
 
     const fallbackGroups = new Map<CategoryType, Category>();
     for (const type of Object.values(CategoryType)) {
-      const existingGroup = categories.find((category) => category.type === type && category.level === CategoryLevel.GROUP);
-      if (existingGroup) {
-        fallbackGroups.set(type, existingGroup);
-      }
+      const existingGroup = categories.find((c) => c.type === type && c.parentId === null);
+      if (existingGroup) fallbackGroups.set(type, existingGroup);
     }
 
     for (const category of categories) {
-      if (category.level !== CategoryLevel.CATEGORY) {
-        continue;
-      }
+      if (category.parentId === null) continue;
 
       const parent = category.parent;
       const hasInvalidParent = !parent
         || parent.type !== category.type
-        || parent.level !== CategoryLevel.GROUP;
+        || parent.parentId !== null;
 
-      if (!hasInvalidParent) {
-        continue;
-      }
+      if (!hasInvalidParent) continue;
 
       let fallbackGroup = fallbackGroups.get(category.type);
       if (!fallbackGroup) {
@@ -305,9 +238,7 @@ export class CategoryService {
         fallbackGroups.set(category.type, fallbackGroup);
       }
 
-      if (category.parentId === fallbackGroup.id) {
-        continue;
-      }
+      if (category.parentId === fallbackGroup.id) continue;
 
       await this.categoryRepository.update(
         { id: category.id, familyId },
