@@ -223,7 +223,7 @@ export const CategoryList = () => {
             onRow={(record) => ({
               onClick: () => {
                 setEditingCategory(record);
-                form.setFieldsValues({
+                form.setFieldsValue({
                   name: record.name,
                   type: record.type,
                   level: record.level,
