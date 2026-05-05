@@ -72,30 +72,6 @@ export const Dashboard = () => {
         },
     });
 
-    if (!canViewDashboard) {
-        return (
-            <div className="glass-card p-6 lg:p-8">
-                <h1 className="text-2xl font-bold text-slate-900 font-display">Tổng quan hệ thống</h1>
-                <p className="mt-2 text-sm text-slate-600">
-                    {systemRole === 'APP_ADMIN'
-                        ? 'Tài khoản quản trị ứng dụng chưa tham gia gia đình nào. Hãy chấp nhận lời mời hoặc được thêm vào gia đình để xem tổng quan.'
-                        : 'Bạn không có quyền xem tổng quan. Vui lòng liên hệ quản trị viên gia đình.'}
-                </p>
-            </div>
-        );
-    }
-
-    if (isLoading) return <div className="p-8 text-center text-slate-500 font-medium">Đang tải dữ liệu...</div>;
-    if (isError) return <div className="p-8 text-center text-red-500 font-medium">Không thể tải dữ liệu tổng quan cho gia đình đang chọn.</div>;
-
-    const incomeDelta = formatPercentDelta(stats?.monthlyIncome || 0, stats?.prevMonthIncome || 0);
-    const expensesDelta = formatPercentDelta(stats?.monthlyExpenses || 0, stats?.prevMonthExpenses || 0);
-
-    const trendData = (stats?.monthlyTrend || []).map((row: any) => ({
-        ...row,
-        monthLabel: dayjs(row.month + '-01').format('MM/YY'),
-    }));
-
     const categoryBreakdown: CategoryBreakdownRow[] = stats?.categoryBreakdown || [];
 
     // Per-entry-type breakdown (for the pie + ranked list)
@@ -135,6 +111,30 @@ export const Dashboard = () => {
             .map((row) => ({ ...row, net: row.income - row.expense - row.liability }))
             .sort((a, b) => (b.income + b.expense + b.liability) - (a.income + a.expense + a.liability));
     }, [categoryBreakdown]);
+
+    if (!canViewDashboard) {
+        return (
+            <div className="glass-card p-6 lg:p-8">
+                <h1 className="text-2xl font-bold text-slate-900 font-display">Tổng quan hệ thống</h1>
+                <p className="mt-2 text-sm text-slate-600">
+                    {systemRole === 'APP_ADMIN'
+                        ? 'Tài khoản quản trị ứng dụng chưa tham gia gia đình nào. Hãy chấp nhận lời mời hoặc được thêm vào gia đình để xem tổng quan.'
+                        : 'Bạn không có quyền xem tổng quan. Vui lòng liên hệ quản trị viên gia đình.'}
+                </p>
+            </div>
+        );
+    }
+
+    if (isLoading) return <div className="p-8 text-center text-slate-500 font-medium">Đang tải dữ liệu...</div>;
+    if (isError) return <div className="p-8 text-center text-red-500 font-medium">Không thể tải dữ liệu tổng quan cho gia đình đang chọn.</div>;
+
+    const incomeDelta = formatPercentDelta(stats?.monthlyIncome || 0, stats?.prevMonthIncome || 0);
+    const expensesDelta = formatPercentDelta(stats?.monthlyExpenses || 0, stats?.prevMonthExpenses || 0);
+
+    const trendData = (stats?.monthlyTrend || []).map((row: any) => ({
+        ...row,
+        monthLabel: dayjs(row.month + '-01').format('MM/YY'),
+    }));
 
     const breakdownTotal = filteredBreakdown.reduce((sum, row) => sum + row.amount, 0);
 
