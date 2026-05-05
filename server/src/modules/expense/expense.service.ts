@@ -182,6 +182,11 @@ export class ExpenseService {
       return entryType;
     }
 
+    // Giao dịch thường vẫn có thể chọn danh mục lá thuộc nhóm Tài sản (ví dụ đầu tư).
+    if (category.type === CategoryType.ASSET) {
+      return entryType;
+    }
+
     if (category.type !== this.mapEntryTypeToCategoryType(entryType)) {
       throw new BadRequestException('Danh mục không khớp với loại giao dịch đã chọn');
     }

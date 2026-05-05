@@ -248,7 +248,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                                     .filter((category) => (
                                         watchedIsTransfer
                                             ? isTransferCategory(category)
-                                            : supportsExpenseEntryType(category, entryTypeForFilter)
+                                            : supportsExpenseEntryType(category, entryTypeForFilter) || isAssetCategory(category)
                                     ))
                                     .map((category) => ({
                                         label: buildCategoryPathLabel(categories, category.id),

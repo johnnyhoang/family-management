@@ -9,6 +9,7 @@ import {
   buildCategoryPathLabel,
   categoryApi,
   expenseEntryTypeLabels,
+  isAssetCategory,
   isTransferCategory,
   type ExpenseEntryType,
   supportsExpenseEntryType,
@@ -129,7 +130,7 @@ export const ExpenseList = () => {
     return categories
       ?.filter((category) => (isTransfer
         ? isTransferCategory(category)
-        : supportsExpenseEntryType(category, transactionType)))
+        : supportsExpenseEntryType(category, transactionType) || isAssetCategory(category)))
       .map((category) => ({
         value: category.id,
         label: buildCategoryPathLabel(categories ?? [], category.id),
@@ -280,7 +281,8 @@ export const ExpenseList = () => {
 
   const buildExpensePayload = (values: any) => ({
     ...values,
-    expenseDate: values.expenseDate?.toISOString(),
+    // Theo ngày lịch người dùng chọn; tránh toISOString() làm lệch ngày khi sang UTC.
+    expenseDate: values.expenseDate ? dayjs(values.expenseDate).format('YYYY-MM-DD') : undefined,
     entryType: transactionType,
     isTransfer: Boolean(values.isTransfer),
   });
@@ -303,7 +305,7 @@ export const ExpenseList = () => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">
-            Quản lý Thu chi
+            Quản lý tài chính
           </h1>
           <p className="text-sm text-slate-500">Theo dõi dòng tiền thu nhập, chi phí và công nợ trong gia đình</p>
         </div>
@@ -387,8 +389,8 @@ export const ExpenseList = () => {
             onChange={(dates) => {
               setFilters({
                 ...filters,
-                startDate: dates ? dates[0]?.toISOString() : undefined,
-                endDate: dates ? dates[1]?.toISOString() : undefined,
+                startDate: dates ? dates[0]?.format('YYYY-MM-DD') : undefined,
+                endDate: dates ? dates[1]?.format('YYYY-MM-DD') : undefined,
               });
             }}
           />
