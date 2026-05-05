@@ -341,3 +341,65 @@ body {
   from { opacity: 0; transform: translateY(4px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Mobile: form/modal gọn, không tràn màn hình */
+@media (max-width: 640px) {
+  .ant-modal {
+    max-width: calc(100vw - 24px) !important;
+    margin: 12px auto !important;
+    padding-bottom: 0 !important;
+  }
+
+  .ant-modal .ant-modal-content {
+    padding: 14px 12px 10px !important;
+  }
+
+  /* Nội dung form dài cuộn trong modal, không đẩy tràn toàn bộ viewport */
+  .ant-modal .ant-modal-body {
+    max-height: calc(100dvh - 168px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ant-modal .ant-modal-footer {
+    flex-shrink: 0;
+  }
+
+  .ant-form-item {
+    margin-bottom: 10px !important;
+  }
+
+  .ant-btn {
+    padding-inline: 10px !important;
+  }
+
+  .ant-input,
+  .ant-input-affix-wrapper,
+  .ant-input-number,
+  .ant-input-number-affix-wrapper,
+  .ant-picker,
+  .ant-select-selector,
+  .ant-radio-button-wrapper {
+    min-height: 34px !important;
+  }
+
+  .ant-select-selector {
+    min-height: 34px !important;
+  }
+}
+
+/* Radio chọn intent (AI preview): 2 cột mobile, hàng ngang tablet+ */
+.parsed-preview-intent-radio.ant-radio-group {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .parsed-preview-intent-radio.ant-radio-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+}

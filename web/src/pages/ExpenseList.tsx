@@ -435,7 +435,9 @@ export const ExpenseList = () => {
         }}
         onOk={() => form.submit()}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
-        width={500}
+        width={window.innerWidth < 480 ? '100%' : 500}
+        style={window.innerWidth < 480 ? { top: 12 } : undefined}
+        bodyStyle={window.innerWidth < 480 ? { padding: 12, maxHeight: 'calc(100vh - 140px)', overflowY: 'auto' } : undefined}
         className={transactionType === 'INCOME' ? 'rounded-2xl transaction-modal-income' : 'rounded-2xl transaction-modal-expense'}
         footer={[
           <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-4 w-full">
@@ -497,7 +499,8 @@ export const ExpenseList = () => {
 
           <Form.Item name="amount" label="Số tiền" rules={[{ required: true }]}>
             <InputNumber
-              className="w-full h-12 text-lg font-bold"
+              size={window.innerWidth < 480 ? 'middle' : 'large'}
+              className={window.innerWidth < 480 ? 'w-full' : 'w-full h-12 text-lg font-bold'}
               formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
               parser={(val) => val!.replace(/\$\s?|(,*)/g, '')}
               prefix={<Wallet size={18} className="text-slate-400 mr-2" />}
@@ -517,10 +520,11 @@ export const ExpenseList = () => {
             </div>
           </div>
 
-          <Row gutter={16}>
-            <Col span={12}>
+          <Row gutter={window.innerWidth < 480 ? 8 : 16}>
+            <Col xs={24} sm={12}>
               <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
                 <Select
+                  size={window.innerWidth < 480 ? 'middle' : 'large'}
                   placeholder={isTransfer ? 'Chọn danh mục tài sản hoặc công nợ' : 'Chọn danh mục'}
                   options={categorySelectOptions}
                   notFoundContent={
@@ -538,6 +542,7 @@ export const ExpenseList = () => {
                       <Divider style={{ margin: '8px 0' }} />
                       <Space style={{ padding: '0 8px 4px' }}>
                         <Input
+                          size="middle"
                           placeholder="Thêm mới..."
                           ref={inputRef}
                           value={newCategoryName}
@@ -553,15 +558,19 @@ export const ExpenseList = () => {
                 />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="expenseDate" label="Ngày thực hiện" initialValue={dayjs()}>
-                <DatePicker className="w-full" />
+                <DatePicker className="w-full" size={window.innerWidth < 480 ? 'middle' : 'large'} />
               </Form.Item>
             </Col>
           </Row>
 
           <Form.Item name="assetId" label="Tài sản liên quan (Tùy chọn)">
-            <Select allowClear options={assets?.map((a) => ({ value: a.id, label: a.name }))} />
+            <Select
+              allowClear
+              size={window.innerWidth < 480 ? 'middle' : 'large'}
+              options={assets?.map((a) => ({ value: a.id, label: a.name }))}
+            />
           </Form.Item>
 
           <div className="bg-slate-50 p-4 rounded-xl mb-6">

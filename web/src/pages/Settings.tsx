@@ -173,7 +173,7 @@ export const Settings = () => {
                         />
                     </div>
 
-                    <div className="mt-4 grid grid-cols-2 gap-3">
+                    <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className={`rounded-2xl border p-3 shadow-sm transition-all ${themeMode === 'light' ? 'border-[#f4d4bf] ring-2 ring-[#ffd8ca]' : 'border-[rgba(243,212,191,0.78)] bg-white/85'}`}>
                             <div className="mb-2 flex items-center gap-2 text-[#b9745f]">
                                 <SunMedium size={16} />

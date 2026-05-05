@@ -268,7 +268,7 @@ export const AssetList = () => {
                 confirmLoading={createMutation.isPending || updateMutation.isPending}
                 width={600}
                 footer={[
-                    <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-4 w-full">
+                    <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-2 sm:px-4 w-full">
                         {editingAsset?.createdAt && (
                             <span>Tạo bởi {editingAsset.creator?.fullName || editingAsset.creator?.email || 'Hệ thống'} lúc {dayjs(editingAsset.createdAt).format('HH:mm DD/MM/YYYY')}</span>
                         )}
@@ -304,8 +304,8 @@ export const AssetList = () => {
                     }}
                     className="mt-4"
                 >
-                    <div className="grid grid-cols-2 gap-4">
-                        <Form.Item name="name" label="Tên tài sản" rules={[{ required: true }]} className="col-span-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                        <Form.Item name="name" label="Tên tài sản" rules={[{ required: true }]} className="sm:col-span-2">
                             <Input />
                         </Form.Item>
                         <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
@@ -346,7 +346,7 @@ export const AssetList = () => {
                                 placeholder="Chọn người sử dụng..."
                             />
                         </Form.Item>
-                        <Form.Item name="description" label="Mô tả" className="col-span-2">
+                        <Form.Item name="description" label="Mô tả" className="sm:col-span-2">
                             <Input.TextArea rows={3} />
                         </Form.Item>
                     </div>

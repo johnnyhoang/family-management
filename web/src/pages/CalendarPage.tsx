@@ -208,7 +208,7 @@ export const CalendarPage = () => {
                 open={isModalVisible}
                 onCancel={() => setIsModalVisible(false)}
                 footer={[
-                    <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-4 w-full">
+                    <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-2 sm:px-4 w-full">
                         {selectedEvent?.createdAt && (
                             <span>Tạo bởi {selectedEvent.creator?.fullName || selectedEvent.creator?.email || 'Hệ thống'} lúc {dayjs(selectedEvent.createdAt).format('HH:mm DD/MM/YYYY')}</span>
                         )}
@@ -238,7 +238,7 @@ export const CalendarPage = () => {
                         <Input placeholder="Ví dụ: Bảo trì xe máy, Tiệc sinh nhật..." className="rounded-lg h-10" />
                     </Form.Item>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <Form.Item
                             name="type"
                             label="Loại"
@@ -269,7 +269,7 @@ export const CalendarPage = () => {
                         </Form.Item>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <Form.Item
                             name="recurrenceRule"
                             label="Lặp lại"
@@ -296,7 +296,7 @@ export const CalendarPage = () => {
                         </Form.Item>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                         <Form.Item
                             name="startDate"
                             label="Bắt đầu"
