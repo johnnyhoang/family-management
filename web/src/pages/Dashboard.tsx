@@ -18,6 +18,7 @@ import { getDateBadgeClassName, getMoneyBadgeClassName } from '../utils/display'
 import dayjs from 'dayjs';
 
 type EntryTypeFilter = 'INCOME' | 'EXPENSE' | 'LIABILITY';
+type PeriodMode = 'month' | 'year' | 'custom';
 
 interface CategoryBreakdownRow {
     categoryId: string;
@@ -55,13 +56,40 @@ export const Dashboard = () => {
     const canViewDashboard = canAccess('DASHBOARD', 'view');
 
     const [breakdownEntryType, setBreakdownEntryType] = useState<EntryTypeFilter>('EXPENSE');
+    const [periodMode, setPeriodMode] = useState<PeriodMode>('month');
+    const [selectedMonth, setSelectedMonth] = useState<any>(dayjs());
+    const [selectedYear, setSelectedYear] = useState<any>(dayjs());
     const [breakdownDateRange, setBreakdownDateRange] = useState<[any, any] | null>(null);
 
     const expenseFilterParams = useMemo(() => {
-        const startDate = breakdownDateRange?.[0] ? dayjs(breakdownDateRange[0]).format('YYYY-MM-DD') : undefined;
-        const endDate = breakdownDateRange?.[1] ? dayjs(breakdownDateRange[1]).format('YYYY-MM-DD') : undefined;
-        return { startDate, endDate };
-    }, [breakdownDateRange]);
+        if (periodMode === 'month' && selectedMonth) {
+            return {
+                startDate: dayjs(selectedMonth).startOf('month').format('YYYY-MM-DD'),
+                endDate: dayjs(selectedMonth).endOf('month').format('YYYY-MM-DD'),
+            };
+        }
+        if (periodMode === 'year' && selectedYear) {
+            return {
+                startDate: dayjs(selectedYear).startOf('year').format('YYYY-MM-DD'),
+                endDate: dayjs(selectedYear).endOf('year').format('YYYY-MM-DD'),
+            };
+        }
+        if (periodMode === 'custom') {
+            const startDate = breakdownDateRange?.[0] ? dayjs(breakdownDateRange[0]).format('YYYY-MM-DD') : undefined;
+            const endDate = breakdownDateRange?.[1] ? dayjs(breakdownDateRange[1]).format('YYYY-MM-DD') : undefined;
+            return { startDate, endDate };
+        }
+        return {};
+    }, [periodMode, selectedMonth, selectedYear, breakdownDateRange]);
+
+    const periodLabel = useMemo(() => {
+        if (periodMode === 'month' && selectedMonth) return `Tháng ${dayjs(selectedMonth).format('MM/YYYY')}`;
+        if (periodMode === 'year' && selectedYear) return `Năm ${dayjs(selectedYear).format('YYYY')}`;
+        if (periodMode === 'custom' && breakdownDateRange?.[0] && breakdownDateRange?.[1]) {
+            return `${dayjs(breakdownDateRange[0]).format('DD/MM/YYYY')} – ${dayjs(breakdownDateRange[1]).format('DD/MM/YYYY')}`;
+        }
+        return 'Tháng này';
+    }, [periodMode, selectedMonth, selectedYear, breakdownDateRange]);
 
     const { data: stats, isLoading, isError } = useQuery({
         queryKey: ['dashboard-stats', expenseFilterParams],
@@ -228,14 +256,14 @@ export const Dashboard = () => {
 
             {/* Category breakdown — flexible by entryType */}
             <div className="glass-card p-4 lg:p-5">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
-                    <div>
-                        <h2 className="font-bold text-lg lg:text-xl text-[#4a3a34] font-display">Phân tích thu chi theo danh mục</h2>
-                        <p className="text-xs text-[#886f63] mt-0.5">
-                            Chuyển đổi giữa Thu nhập / Chi tiêu / Nợ để xem từng danh mục cụ thể.
-                        </p>
-                    </div>
-                    <div className="flex gap-2 items-center flex-wrap">
+                <div className="flex flex-col gap-3 mb-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                        <div>
+                            <h2 className="font-bold text-lg lg:text-xl text-[#4a3a34] font-display">Phân tích thu chi theo danh mục</h2>
+                            <p className="text-xs text-[#886f63] mt-0.5">
+                                Đang xem: <span className="font-semibold text-[#4a3a34]">{periodLabel}</span>
+                            </p>
+                        </div>
                         <Radio.Group
                             value={breakdownEntryType}
                             onChange={(e) => setBreakdownEntryType(e.target.value)}
@@ -246,12 +274,47 @@ export const Dashboard = () => {
                             <Radio.Button value="EXPENSE">Chi</Radio.Button>
                             <Radio.Button value="LIABILITY">Nợ</Radio.Button>
                         </Radio.Group>
-                        <DatePicker.RangePicker
+                    </div>
+                    <div className="flex gap-2 items-center flex-wrap">
+                        <Radio.Group
+                            value={periodMode}
+                            onChange={(e) => setPeriodMode(e.target.value)}
                             size="small"
-                            value={breakdownDateRange as any}
-                            onChange={(val) => setBreakdownDateRange(val as any)}
-                            placeholder={['Từ', 'Đến']}
-                        />
+                        >
+                            <Radio.Button value="month">Tháng</Radio.Button>
+                            <Radio.Button value="year">Năm</Radio.Button>
+                            <Radio.Button value="custom">Tùy chọn</Radio.Button>
+                        </Radio.Group>
+                        {periodMode === 'month' && (
+                            <DatePicker
+                                picker="month"
+                                size="small"
+                                value={selectedMonth}
+                                onChange={(val) => setSelectedMonth(val)}
+                                format="MM/YYYY"
+                                placeholder="Chọn tháng"
+                                allowClear={false}
+                            />
+                        )}
+                        {periodMode === 'year' && (
+                            <DatePicker
+                                picker="year"
+                                size="small"
+                                value={selectedYear}
+                                onChange={(val) => setSelectedYear(val)}
+                                format="YYYY"
+                                placeholder="Chọn năm"
+                                allowClear={false}
+                            />
+                        )}
+                        {periodMode === 'custom' && (
+                            <DatePicker.RangePicker
+                                size="small"
+                                value={breakdownDateRange as any}
+                                onChange={(val) => setBreakdownDateRange(val as any)}
+                                placeholder={['Từ', 'Đến']}
+                            />
+                        )}
                     </div>
                 </div>
 
