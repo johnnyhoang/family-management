@@ -38,3 +38,7 @@ Thumbs.db
 
 # Local QA artifacts
 *-cute-ui.png
+
+# Claude Code worktrees and local config
+.claude/worktrees/
+.claude/settings.local.json
