@@ -4,11 +4,12 @@ import { DashboardController } from './dashboard.controller';
 import { DashboardService } from './dashboard.service';
 import { Asset } from '../../common/entities/asset.entity';
 import { Expense } from '../../common/entities/expense.entity';
+import { CalendarEvent } from '../../common/entities/calendar-event.entity';
 import { PermissionModule } from '../permission/permission.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Asset, Expense]),
+    TypeOrmModule.forFeature([Asset, Expense, CalendarEvent]),
     PermissionModule,
   ],
   controllers: [DashboardController],

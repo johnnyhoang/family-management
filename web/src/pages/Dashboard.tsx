@@ -1,27 +1,73 @@
+import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { DatePicker, Radio, Tag } from 'antd';
 import {
-    PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
-    Legend
+    PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
+    Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Line,
 } from 'recharts';
-import { Package, Receipt, AlertTriangle, Clock } from 'lucide-react';
+import {
+    Package, Receipt, AlertTriangle, Wallet, PiggyBank, Wrench,
+    CalendarDays, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
+} from 'lucide-react';
 import api from '../api/client';
 import { cn } from '../utils/cn';
 import { NaturalInputBox } from '../components/NaturalInputBox';
 import { useSession } from '../components/auth/SessionProvider';
 import { formatVndAmount } from '../utils/currency';
 import { getDateBadgeClassName, getMoneyBadgeClassName } from '../utils/display';
+import dayjs from 'dayjs';
 
-const COLORS = ['#f58a7a', '#f3b665', '#7cb7ef', '#7fc7aa', '#f5a6c1', '#b8a5ff'];
+type EntryTypeFilter = 'INCOME' | 'EXPENSE' | 'LIABILITY';
+
+interface CategoryBreakdownRow {
+    categoryId: string;
+    categoryName: string;
+    parentName: string | null;
+    entryType: EntryTypeFilter;
+    amount: number;
+    count: number;
+}
+
+const PIE_COLORS = ['#f58a7a', '#f3b665', '#7cb7ef', '#7fc7aa', '#f5a6c1', '#b8a5ff', '#fac57a', '#7fb3ee'];
+
+const formatCompactVnd = (val: number) => {
+    const abs = Math.abs(val);
+    if (abs >= 1_000_000_000) return `${(val / 1_000_000_000).toFixed(1)} tỷ`;
+    if (abs >= 1_000_000) return `${(val / 1_000_000).toFixed(1)} tr`;
+    if (abs >= 1_000) return `${Math.round(val / 1_000)}k`;
+    return `${val}`;
+};
+
+const formatPercentDelta = (current: number, previous: number) => {
+    if (!previous) return null;
+    return Math.round(((current - previous) / Math.abs(previous)) * 100);
+};
+
+const eventTypeMeta: Record<string, { label: string; color: string }> = {
+    PAYMENT: { label: 'Thanh toán', color: 'orange' },
+    MAINTENANCE: { label: 'Bảo dưỡng', color: 'blue' },
+    REMINDER: { label: 'Nhắc nhở', color: 'purple' },
+    EVENT: { label: 'Sự kiện', color: 'green' },
+};
 
 export const Dashboard = () => {
     const { systemRole, canAccess } = useSession();
     const canViewDashboard = canAccess('DASHBOARD', 'view');
 
+    const [breakdownEntryType, setBreakdownEntryType] = useState<EntryTypeFilter>('EXPENSE');
+    const [breakdownDateRange, setBreakdownDateRange] = useState<[any, any] | null>(null);
+
+    const expenseFilterParams = useMemo(() => {
+        const startDate = breakdownDateRange?.[0] ? dayjs(breakdownDateRange[0]).format('YYYY-MM-DD') : undefined;
+        const endDate = breakdownDateRange?.[1] ? dayjs(breakdownDateRange[1]).format('YYYY-MM-DD') : undefined;
+        return { startDate, endDate };
+    }, [breakdownDateRange]);
+
     const { data: stats, isLoading, isError } = useQuery({
-        queryKey: ['dashboard-stats'],
+        queryKey: ['dashboard-stats', expenseFilterParams],
         enabled: canViewDashboard,
         queryFn: async () => {
-            const { data } = await api.get('/dashboard/stats');
+            const { data } = await api.get('/dashboard/stats', { params: expenseFilterParams });
             return data;
         },
     });
@@ -42,153 +88,509 @@ export const Dashboard = () => {
     if (isLoading) return <div className="p-8 text-center text-slate-500 font-medium">Đang tải dữ liệu...</div>;
     if (isError) return <div className="p-8 text-center text-red-500 font-medium">Không thể tải dữ liệu tổng quan cho gia đình đang chọn.</div>;
 
-    const summaryCards = [
-        { label: 'Tổng tài sản', value: stats?.totalAssets || 0, icon: Package, color: 'text-[#5f87c2]', bg: 'bg-[#edf6ff]' },
-        {
-            label: 'Chi tiêu tháng này',
-            value: formatVndAmount(stats?.monthlyExpenses || 0),
-            valueClassName: getMoneyBadgeClassName(stats?.monthlyExpenses || 0, 'text-sm lg:text-base'),
-            icon: Receipt,
-            color: 'text-[#d56f63]',
-            bg: 'bg-[#fff0ea]',
-        },
-        { label: 'Bảo hành sắp hết hạn', value: stats?.expiringAssets?.length || 0, icon: AlertTriangle, color: 'text-[#c58c2e]', bg: 'bg-[#fff8df]' },
-        { label: 'Nhắc nhở sắp tới', value: 0, icon: Clock, color: 'text-[#6fb3a2]', bg: 'bg-[#eef9f4]' },
-    ];
+    const incomeDelta = formatPercentDelta(stats?.monthlyIncome || 0, stats?.prevMonthIncome || 0);
+    const expensesDelta = formatPercentDelta(stats?.monthlyExpenses || 0, stats?.prevMonthExpenses || 0);
+
+    const trendData = (stats?.monthlyTrend || []).map((row: any) => ({
+        ...row,
+        monthLabel: dayjs(row.month + '-01').format('MM/YY'),
+    }));
+
+    const categoryBreakdown: CategoryBreakdownRow[] = stats?.categoryBreakdown || [];
+
+    // Per-entry-type breakdown (for the pie + ranked list)
+    const filteredBreakdown = useMemo(
+        () => categoryBreakdown.filter((row) => row.entryType === breakdownEntryType),
+        [categoryBreakdown, breakdownEntryType],
+    );
+
+    // Pivot per category: { categoryId, name, income, expense, liability, net }
+    const pivotedBreakdown = useMemo(() => {
+        const map = new Map<string, {
+            categoryId: string;
+            name: string;
+            parentName: string | null;
+            income: number;
+            expense: number;
+            liability: number;
+        }>();
+        for (const row of categoryBreakdown) {
+            const key = row.categoryId;
+            if (!map.has(key)) {
+                map.set(key, {
+                    categoryId: row.categoryId,
+                    name: row.categoryName,
+                    parentName: row.parentName,
+                    income: 0,
+                    expense: 0,
+                    liability: 0,
+                });
+            }
+            const entry = map.get(key)!;
+            if (row.entryType === 'INCOME') entry.income += row.amount;
+            else if (row.entryType === 'EXPENSE') entry.expense += row.amount;
+            else if (row.entryType === 'LIABILITY') entry.liability += row.amount;
+        }
+        return Array.from(map.values())
+            .map((row) => ({ ...row, net: row.income - row.expense - row.liability }))
+            .sort((a, b) => (b.income + b.expense + b.liability) - (a.income + a.expense + a.liability));
+    }, [categoryBreakdown]);
+
+    const breakdownTotal = filteredBreakdown.reduce((sum, row) => sum + row.amount, 0);
+
+    const entryTypeLabels: Record<EntryTypeFilter, string> = {
+        INCOME: 'Thu nhập',
+        EXPENSE: 'Chi tiêu',
+        LIABILITY: 'Nợ',
+    };
+
+    const entryTypeColors: Record<EntryTypeFilter, string> = {
+        INCOME: 'text-emerald-600',
+        EXPENSE: 'text-rose-600',
+        LIABILITY: 'text-amber-600',
+    };
 
     return (
-        <div className="space-y-4 animate-in fade-in duration-700">
+        <div className="space-y-4 lg:space-y-5 animate-in fade-in duration-700">
             <header>
                 <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight font-display">Tổng quan gia đình</h1>
-                <p className="text-slate-500 mt-1 text-sm lg:text-base">Hôm nay là {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                <p className="text-slate-500 mt-1 text-sm lg:text-base">
+                    {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
             </header>
-
-            <section className="soft-panel overflow-hidden px-4 py-4 lg:px-6 lg:py-5">
-                <div className="grid items-center gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                    <div className="space-y-3">
-                        <span className="cute-chip">Nhìn một lần là nắm được</span>
-                        <div className="space-y-1.5">
-                            <h2 className="text-xl lg:text-[1.7rem] font-bold text-[#4d3b35] leading-tight">Tài sản, thu chi và việc gia đình giờ trông nhẹ nhàng hơn.</h2>
-                            <p className="max-w-2xl text-sm text-[#7f675c]">
-                                Mọi số liệu quan trọng được gom lại ở một nơi với màu sắc dịu mắt, giúp cả nhà dễ theo dõi mà không thấy nặng nề.
-                            </p>
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                            <span className="cute-chip">Tài sản</span>
-                            <span className="cute-chip">Thu chi</span>
-                            <span className="cute-chip">Bảo hành</span>
-                        </div>
-                    </div>
-                    <div className="relative">
-                        <div className="absolute inset-0 rounded-[28px] bg-white/35" />
-                        <img
-                            src="/family-soft-illustration.svg"
-                            alt="Minh họa giao diện gia đình"
-                            className="relative h-[180px] w-full rounded-[22px] object-cover"
-                        />
-                    </div>
-                </div>
-            </section>
 
             <NaturalInputBox />
 
-            {/* Stats Overview */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-                {summaryCards.map((card) => (
-                    <div key={card.label} className="glass-card p-3.5 lg:p-4 flex items-center gap-3 transition-all hover:shadow-lg hover:-translate-y-1">
-                        <div className={cn("w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm shrink-0", card.bg, card.color)}>
-                            <card.icon size={20} className="lg:hidden" />
-                            <card.icon size={20} className="hidden lg:block" />
-                        </div>
-                        <div>
-                            <p className="text-xs lg:text-sm font-semibold text-[#8a6f61]">{card.label}</p>
-                            <p className="text-lg lg:text-xl font-bold text-[#473934] tracking-tight">
-                                <span className={cn(card.valueClassName)}>
-                                    {card.value}
-                                </span>
-                            </p>
-                        </div>
-                    </div>
-                ))}
+            {/* KPI Cards */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+                <KpiCard
+                    label="Tài sản ròng"
+                    primary={formatVndAmount(stats?.netWorth || 0)}
+                    secondary={`${stats?.totalAssetCount || 0} tài sản • Nợ ${formatCompactVnd(stats?.totalLiabilities || 0)}đ`}
+                    icon={Wallet}
+                    accent="blue"
+                />
+                <KpiCard
+                    label="Thu nhập tháng này"
+                    primary={formatVndAmount(stats?.monthlyIncome || 0)}
+                    secondary={incomeDelta !== null
+                        ? <DeltaText pct={incomeDelta} positiveIsGood />
+                        : 'Chưa có dữ liệu tháng trước'}
+                    icon={ArrowDownRight}
+                    accent="green"
+                />
+                <KpiCard
+                    label="Chi tiêu tháng này"
+                    primary={formatVndAmount(stats?.monthlyExpenses || 0)}
+                    secondary={expensesDelta !== null
+                        ? <DeltaText pct={expensesDelta} positiveIsGood={false} />
+                        : 'Chưa có dữ liệu tháng trước'}
+                    icon={ArrowUpRight}
+                    accent="red"
+                />
+                <KpiCard
+                    label="Số dư tháng này"
+                    primary={formatVndAmount(stats?.monthlyNet || 0)}
+                    secondary={`Tỷ lệ tiết kiệm ${stats?.savingsRate || 0}%`}
+                    icon={PiggyBank}
+                    accent={(stats?.monthlyNet || 0) >= 0 ? 'mint' : 'amber'}
+                />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
-                {/* Expenses by Category */}
-                <div className="glass-card p-4 lg:p-5 flex flex-col">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="font-bold text-lg lg:text-xl text-[#4a3a34] font-display">Chi tiêu theo danh mục</h2>
-                        <div className="cute-chip">Tháng này</div>
+            {/* 6-month trend */}
+            <div className="glass-card p-4 lg:p-5">
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                    <h2 className="font-bold text-lg lg:text-xl text-[#4a3a34] font-display">Thu chi 6 tháng gần đây</h2>
+                    <span className="text-xs text-[#886f63]">Cột: thu nhập / chi tiêu • Đường: số dư</span>
+                </div>
+                <div className="h-[260px] lg:h-[300px]">
+                    {trendData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <ComposedChart data={trendData}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#f0e3d8" />
+                                <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} />
+                                <YAxis tickFormatter={(val) => formatCompactVnd(val)} tick={{ fontSize: 12 }} />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '14px', border: '1px solid #f4d6c7' }}
+                                    formatter={(val: any) => formatVndAmount(val || 0)}
+                                />
+                                <Legend />
+                                <Bar dataKey="income" name="Thu nhập" fill="#7fc7aa" radius={[8, 8, 0, 0]} />
+                                <Bar dataKey="expenses" name="Chi tiêu" fill="#f58a7a" radius={[8, 8, 0, 0]} />
+                                <Line type="monotone" dataKey="net" name="Số dư" stroke="#5f87c2" strokeWidth={2.5} dot={{ r: 4 }} />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <EmptyState icon={Receipt} message="Chưa có dữ liệu thu chi" />
+                    )}
+                </div>
+            </div>
+
+            {/* Category breakdown — flexible by entryType */}
+            <div className="glass-card p-4 lg:p-5">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-4">
+                    <div>
+                        <h2 className="font-bold text-lg lg:text-xl text-[#4a3a34] font-display">Phân tích thu chi theo danh mục</h2>
+                        <p className="text-xs text-[#886f63] mt-0.5">
+                            Chuyển đổi giữa Thu nhập / Chi tiêu / Nợ để xem từng danh mục cụ thể.
+                        </p>
                     </div>
-                    <div className="h-[240px] lg:h-[280px] w-full flex-1">
-                        {stats?.expensesByCategory?.length > 0 ? (
+                    <div className="flex gap-2 items-center flex-wrap">
+                        <Radio.Group
+                            value={breakdownEntryType}
+                            onChange={(e) => setBreakdownEntryType(e.target.value)}
+                            buttonStyle="solid"
+                            size="small"
+                        >
+                            <Radio.Button value="INCOME">Thu</Radio.Button>
+                            <Radio.Button value="EXPENSE">Chi</Radio.Button>
+                            <Radio.Button value="LIABILITY">Nợ</Radio.Button>
+                        </Radio.Group>
+                        <DatePicker.RangePicker
+                            size="small"
+                            value={breakdownDateRange as any}
+                            onChange={(val) => setBreakdownDateRange(val as any)}
+                            placeholder={['Từ', 'Đến']}
+                        />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+                    {/* Pie chart */}
+                    <div className="h-[260px]">
+                        {filteredBreakdown.length > 0 ? (
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
                                     <Pie
-                                        data={stats.expensesByCategory}
+                                        data={filteredBreakdown}
                                         dataKey="amount"
-                                        nameKey="category"
+                                        nameKey="categoryName"
                                         cx="50%"
                                         cy="50%"
                                         innerRadius={54}
                                         outerRadius={88}
-                                        paddingAngle={5}
-                                        label={window.innerWidth > 768 ? ({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%` : false}
+                                        paddingAngle={4}
+                                        label={({ percent }) => `${((percent || 0) * 100).toFixed(0)}%`}
                                     >
-                                        {stats.expensesByCategory.map((_: any, index: number) => (
-                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} className="stroke-white stroke-2" />
+                                        {filteredBreakdown.map((_: any, index: number) => (
+                                            <Cell key={`bd-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} className="stroke-white stroke-2" />
                                         ))}
                                     </Pie>
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '16px', border: '1px solid #f4d6c7', boxShadow: '0 16px 30px rgba(226, 184, 160, 0.18)' }}
-                                        formatter={(val: any) => formatVndAmount(val || 0)}
-                                    />
-                                    <Legend iconType="circle" />
+                                    <Tooltip formatter={(val: any) => formatVndAmount(val || 0)} />
+                                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                                <Receipt size={48} className="mb-2 opacity-20" />
-                                <p>Chưa có dữ liệu chi tiêu</p>
+                            <EmptyState icon={Receipt} message={`Chưa có dữ liệu ${entryTypeLabels[breakdownEntryType].toLowerCase()}`} />
+                        )}
+                    </div>
+
+                    {/* Ranked list */}
+                    <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                        {filteredBreakdown.length > 0 ? (
+                            <>
+                                <div className="flex justify-between items-center text-xs text-[#886f63] px-1 pb-1 border-b border-[rgba(242,214,197,0.7)]">
+                                    <span>Tổng cộng</span>
+                                    <span className={cn('font-bold', entryTypeColors[breakdownEntryType])}>
+                                        {formatVndAmount(breakdownTotal)}
+                                    </span>
+                                </div>
+                                {filteredBreakdown.map((row, idx) => {
+                                    const pct = breakdownTotal > 0 ? (row.amount / breakdownTotal) * 100 : 0;
+                                    return (
+                                        <div key={row.categoryId} className="p-2.5 rounded-xl bg-white/85 border border-[rgba(242,214,197,0.6)]">
+                                            <div className="flex items-center justify-between gap-2 mb-1">
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <span
+                                                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                                                        style={{ backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}
+                                                    />
+                                                    <p className="font-semibold text-[#4a3a34] text-sm truncate">
+                                                        {row.parentName ? `${row.parentName} / ` : ''}{row.categoryName}
+                                                    </p>
+                                                </div>
+                                                <span className={cn('text-sm font-bold whitespace-nowrap', entryTypeColors[breakdownEntryType])}>
+                                                    {formatVndAmount(row.amount)}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center justify-between gap-2 text-[11px] text-[#886f63]">
+                                                <div className="flex-1 h-1.5 rounded-full bg-[#f3e6db] overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full"
+                                                        style={{ width: `${pct}%`, backgroundColor: PIE_COLORS[idx % PIE_COLORS.length] }}
+                                                    />
+                                                </div>
+                                                <span className="shrink-0">{pct.toFixed(1)}% • {row.count} giao dịch</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </>
+                        ) : (
+                            <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                                Chưa có giao dịch trong khoảng này
                             </div>
                         )}
                     </div>
                 </div>
 
-                {/* Expiring Assets */}
+                {/* Summary table — all entry types per category */}
+                {pivotedBreakdown.length > 0 && (
+                    <div className="mt-5 pt-4 border-t border-[rgba(242,214,197,0.7)]">
+                        <h3 className="font-bold text-sm text-[#4a3a34] mb-3">Tổng hợp các danh mục</h3>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                                <thead>
+                                    <tr className="text-xs text-[#886f63] border-b border-[rgba(242,214,197,0.7)]">
+                                        <th className="text-left py-2 px-2 font-semibold">Danh mục</th>
+                                        <th className="text-right py-2 px-2 font-semibold text-emerald-600">Thu</th>
+                                        <th className="text-right py-2 px-2 font-semibold text-rose-600">Chi</th>
+                                        <th className="text-right py-2 px-2 font-semibold text-amber-600">Nợ</th>
+                                        <th className="text-right py-2 px-2 font-semibold">Số dư</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {pivotedBreakdown.map((row) => (
+                                        <tr key={row.categoryId} className="border-b border-[rgba(242,214,197,0.4)] hover:bg-white/60 transition-colors">
+                                            <td className="py-2 px-2 text-[#4a3a34]">
+                                                <div className="font-medium">{row.name}</div>
+                                                {row.parentName && (
+                                                    <div className="text-[11px] text-[#886f63]">{row.parentName}</div>
+                                                )}
+                                            </td>
+                                            <td className="py-2 px-2 text-right text-emerald-600">
+                                                {row.income > 0 ? formatVndAmount(row.income) : '—'}
+                                            </td>
+                                            <td className="py-2 px-2 text-right text-rose-600">
+                                                {row.expense > 0 ? formatVndAmount(row.expense) : '—'}
+                                            </td>
+                                            <td className="py-2 px-2 text-right text-amber-600">
+                                                {row.liability > 0 ? formatVndAmount(row.liability) : '—'}
+                                            </td>
+                                            <td className={cn('py-2 px-2 text-right font-bold', row.net >= 0 ? 'text-emerald-600' : 'text-rose-600')}>
+                                                {formatVndAmount(row.net)}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Asset distribution */}
+            <div className="glass-card p-4 lg:p-5 flex flex-col">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="font-bold text-lg lg:text-xl text-[#4a3a34] font-display">Phân bổ tài sản</h2>
+                    <span className="text-xs text-[#886f63]">{formatVndAmount(stats?.totalAssetValue || 0)}</span>
+                </div>
+                <div className="h-[260px]">
+                    {stats?.assetsByCategory?.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                                <Pie
+                                    data={stats.assetsByCategory}
+                                    dataKey="value"
+                                    nameKey="category"
+                                    cx="50%"
+                                    cy="50%"
+                                    innerRadius={54}
+                                    outerRadius={88}
+                                    paddingAngle={4}
+                                    label={({ percent }) => `${((percent || 0) * 100).toFixed(0)}%`}
+                                >
+                                    {stats.assetsByCategory.map((_: any, index: number) => (
+                                        <Cell key={`ac-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} className="stroke-white stroke-2" />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(val: any) => formatVndAmount(val || 0)} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                            </PieChart>
+                        </ResponsiveContainer>
+                    ) : (
+                        <EmptyState icon={Package} message="Chưa có dữ liệu tài sản" />
+                    )}
+                </div>
+            </div>
+
+            {/* Top expenses & expiring warranty */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
                 <div className="glass-card p-4 lg:p-5">
-                    <h2 className="font-bold text-lg lg:text-xl mb-4 text-[#4a3a34] font-display">Tài sản sắp hết hạn bảo hành</h2>
-                    <div className="space-y-2.5 lg:space-y-3">
-                        {stats?.expiringAssets?.length > 0 ? (
-                            stats.expiringAssets.map((asset: any) => (
-                                <div key={asset.id} className="group flex items-center justify-between p-3 rounded-[16px] bg-white/90 border border-[rgba(242,214,197,0.76)] shadow-sm transition-all hover:border-[#f1c49c] hover:bg-[#fffaf0]">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 rounded-xl bg-[#fff3cf] flex items-center justify-center text-[#c58c2e] group-hover:scale-110 transition-transform shrink-0">
-                                            <AlertTriangle size={18} className="lg:hidden" />
-                                            <AlertTriangle size={18} className="hidden lg:block" />
+                    <h2 className="font-bold text-lg lg:text-xl mb-3 text-[#4a3a34] font-display">Giao dịch lớn nhất tháng</h2>
+                    {stats?.topExpenses?.length > 0 ? (
+                        <div className="space-y-2.5">
+                            {stats.topExpenses.map((exp: any) => (
+                                <div key={exp.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/85 border border-[rgba(242,214,197,0.7)]">
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-bold text-[#4a3a34] text-sm truncate">
+                                            {exp.note?.trim() || exp.category?.name || 'Giao dịch'}
+                                        </p>
+                                        <p className="text-xs text-[#886f63] truncate">
+                                            {exp.category?.name || '—'} • {dayjs(exp.expenseDate).format('DD/MM/YYYY')}
+                                        </p>
+                                    </div>
+                                    <span className={getMoneyBadgeClassName(exp.amount, 'text-sm font-bold whitespace-nowrap')}>
+                                        {formatVndAmount(exp.amount || 0)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <EmptyState icon={Receipt} message="Chưa có giao dịch tháng này" compact />
+                    )}
+                </div>
+
+                <div className="glass-card p-4 lg:p-5">
+                    <h2 className="font-bold text-lg lg:text-xl mb-3 text-[#4a3a34] font-display">Bảo hành sắp hết hạn</h2>
+                    {stats?.expiringAssets?.length > 0 ? (
+                        <div className="space-y-2.5">
+                            {stats.expiringAssets.map((asset: any) => (
+                                <div key={asset.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/85 border border-[rgba(242,214,197,0.7)] hover:border-[#f1c49c] transition-colors">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-8 h-8 rounded-xl bg-[#fff3cf] flex items-center justify-center text-[#c58c2e] shrink-0">
+                                            <AlertTriangle size={18} />
                                         </div>
                                         <div className="min-w-0">
                                             <p className="font-bold text-[#4a3a34] text-sm truncate">{asset.name}</p>
-                                            <p className="text-[10px] lg:text-xs text-[#886f63]">
-                                                Hết hạn: <span className={getDateBadgeClassName(asset.warrantyExpiredAt, 'ml-1')}>
-                                                    {asset.warrantyExpiredAt ? new Date(asset.warrantyExpiredAt).toLocaleDateString('vi-VN') : 'Không rõ'}
+                                            <p className="text-xs text-[#886f63]">
+                                                Hết hạn:
+                                                <span className={getDateBadgeClassName(asset.warrantyExpiredAt, 'ml-1')}>
+                                                    {asset.warrantyExpiredAt ? new Date(asset.warrantyExpiredAt).toLocaleDateString('vi-VN') : '—'}
                                                 </span>
                                             </p>
                                         </div>
                                     </div>
-                                    <button className="text-[10px] lg:text-xs text-[#d56f63] font-bold px-2 py-1 rounded-xl hover:bg-white transition-colors shrink-0">
-                                        Xem ngay
-                                    </button>
                                 </div>
-                            ))
-                        ) : (
-                            <div className="h-[200px] lg:h-[300px] flex flex-col items-center justify-center text-slate-400">
-                                <Package size={48} className="mb-2 opacity-20" />
-                                <p className="text-sm">Tất cả tài sản vẫn còn bảo hành</p>
-                            </div>
-                        )}
-                    </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <EmptyState icon={Package} message="Tất cả tài sản còn bảo hành" compact />
+                    )}
+                </div>
+            </div>
+
+            {/* Maintenance & events */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
+                <div className="glass-card p-4 lg:p-5">
+                    <h2 className="font-bold text-lg lg:text-xl mb-3 text-[#4a3a34] font-display">Bảo dưỡng sắp tới</h2>
+                    {stats?.upcomingMaintenance?.length > 0 ? (
+                        <div className="space-y-2.5">
+                            {stats.upcomingMaintenance.map((asset: any) => (
+                                <div key={asset.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/85 border border-[rgba(242,214,197,0.7)]">
+                                    <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-8 h-8 rounded-xl bg-[#dff1ff] flex items-center justify-center text-[#5f87c2] shrink-0">
+                                            <Wrench size={18} />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-[#4a3a34] text-sm truncate">{asset.name}</p>
+                                            <p className="text-xs text-[#886f63]">
+                                                Bảo dưỡng:
+                                                <span className={getDateBadgeClassName(asset.nextMaintenanceDate, 'ml-1')}>
+                                                    {new Date(asset.nextMaintenanceDate).toLocaleDateString('vi-VN')}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <EmptyState icon={Wrench} message="Chưa có lịch bảo dưỡng" compact />
+                    )}
+                </div>
+
+                <div className="glass-card p-4 lg:p-5">
+                    <h2 className="font-bold text-lg lg:text-xl mb-3 text-[#4a3a34] font-display">Sự kiện 7 ngày tới</h2>
+                    {stats?.upcomingEvents?.length > 0 ? (
+                        <div className="space-y-2.5">
+                            {stats.upcomingEvents.map((event: any) => {
+                                const meta = eventTypeMeta[event.type] || eventTypeMeta.EVENT;
+                                return (
+                                    <div key={event.id} className="flex items-center justify-between gap-3 p-3 rounded-2xl bg-white/85 border border-[rgba(242,214,197,0.7)]">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-8 h-8 rounded-xl bg-[#eef9f4] flex items-center justify-center text-[#6fb3a2] shrink-0">
+                                                <CalendarDays size={18} />
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="font-bold text-[#4a3a34] text-sm truncate">{event.title}</p>
+                                                <p className="text-xs text-[#886f63] truncate">
+                                                    {dayjs(event.startDate).format('HH:mm DD/MM')}
+                                                    {event.location ? ` • ${event.location}` : ''}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <Tag color={meta.color} className="shrink-0">{meta.label}</Tag>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <EmptyState icon={CalendarDays} message="Không có sự kiện sắp tới" compact />
+                    )}
                 </div>
             </div>
         </div>
     );
 };
+
+// ===== Helper components =====
+
+interface KpiCardProps {
+    label: string;
+    primary: React.ReactNode;
+    secondary: React.ReactNode;
+    icon: React.ComponentType<{ size?: number }>;
+    accent: 'blue' | 'green' | 'red' | 'mint' | 'amber';
+}
+
+const KpiCard = ({ label, primary, secondary, icon: Icon, accent }: KpiCardProps) => {
+    const colors: Record<string, { color: string; bg: string }> = {
+        blue: { color: 'text-[#5f87c2]', bg: 'bg-[#edf6ff]' },
+        green: { color: 'text-[#6fb3a2]', bg: 'bg-[#eef9f4]' },
+        red: { color: 'text-[#d56f63]', bg: 'bg-[#fff0ea]' },
+        mint: { color: 'text-[#7fc7aa]', bg: 'bg-[#eaf7f0]' },
+        amber: { color: 'text-[#c58c2e]', bg: 'bg-[#fff8df]' },
+    };
+    const c = colors[accent];
+    return (
+        <div className="glass-card p-3.5 lg:p-4 transition-all hover:shadow-lg hover:-translate-y-1">
+            <div className="flex items-start gap-3">
+                <div className={cn('w-10 h-10 rounded-2xl flex items-center justify-center shadow-sm shrink-0', c.bg, c.color)}>
+                    <Icon size={20} />
+                </div>
+                <div className="min-w-0 flex-1">
+                    <p className="text-xs lg:text-sm font-semibold text-[#8a6f61] truncate">{label}</p>
+                    <p className="text-base lg:text-xl font-bold text-[#473934] tracking-tight truncate">{primary}</p>
+                    <div className="text-[11px] lg:text-xs text-[#8a6f61] mt-0.5 truncate">{secondary}</div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+const DeltaText = ({ pct, positiveIsGood }: { pct: number; positiveIsGood: boolean }) => {
+    if (pct === 0) {
+        return <span className="text-slate-500">Bằng tháng trước</span>;
+    }
+    const isPositive = pct > 0;
+    const isGood = positiveIsGood ? isPositive : !isPositive;
+    const Arrow = isPositive ? TrendingUp : TrendingDown;
+    return (
+        <span className={cn('inline-flex items-center gap-1 font-medium', isGood ? 'text-emerald-600' : 'text-rose-600')}>
+            <Arrow size={12} />
+            {Math.abs(pct)}% so với tháng trước
+        </span>
+    );
+};
+
+const EmptyState = ({ icon: Icon, message, compact }: {
+    icon: React.ComponentType<{ size?: number; className?: string }>;
+    message: string;
+    compact?: boolean;
+}) => (
+    <div className={cn('flex flex-col items-center justify-center text-slate-400', compact ? 'h-[180px]' : 'h-full')}>
+        <Icon size={compact ? 36 : 48} className="mb-2 opacity-25" />
+        <p className="text-sm">{message}</p>
+    </div>
+);

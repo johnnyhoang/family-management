@@ -159,9 +159,12 @@ export const AssetList = () => {
         },
     ];
 
-    const confirmDuplicateAsset = async (data: Partial<Asset>) => {
+    const confirmDuplicateAsset = async (
+        data: Partial<Asset>,
+        options?: { ignoreEditingAsset?: boolean },
+    ) => {
         const duplicate = findDuplicateAsset(assets ?? [], {
-            id: editingAsset?.id,
+            id: options?.ignoreEditingAsset ? undefined : editingAsset?.id,
             name: data.name,
             categoryId: data.categoryId,
         });
@@ -176,6 +179,24 @@ export const AssetList = () => {
                 `Danh mục: ${getCategoryLabel(categories ?? [], data.categoryId)}`,
             ],
         });
+    };
+
+    const buildAssetPayload = (values: any) => ({
+        ...values,
+        purchaseDate: values.purchaseDate?.toISOString(),
+        warrantyExpiredAt: values.warrantyExpiredAt?.toISOString(),
+    });
+
+    const handleCloneAsset = async () => {
+        try {
+            const values = await form.validateFields();
+            const data = buildAssetPayload(values);
+            const shouldContinue = await confirmDuplicateAsset(data, { ignoreEditingAsset: true });
+            if (!shouldContinue) return;
+            createMutation.mutate(data);
+        } catch {
+            // Ant Design form validation already handles field feedback.
+        }
     };
 
     return (
@@ -276,6 +297,15 @@ export const AssetList = () => {
                             <span>Cập nhật cuối bởi {editingAsset.updater?.fullName || editingAsset.updater?.email || '-'} lúc {dayjs(editingAsset.updatedAt).format('HH:mm DD/MM/YYYY')}</span>
                         )}
                     </div>,
+                    editingAsset ? (
+                        <Button
+                            key="clone"
+                            onClick={handleCloneAsset}
+                            loading={createMutation.isPending || updateMutation.isPending}
+                        >
+                            Nhân bản
+                        </Button>
+                    ) : null,
                     <Button key="cancel" onClick={() => { setIsModalOpen(false); setEditingAsset(null); form.resetFields(); }}>
                         Hủy
                     </Button>,
@@ -288,11 +318,7 @@ export const AssetList = () => {
                     form={form}
                     layout="vertical"
                     onFinish={async (values) => {
-                        const data = {
-                            ...values,
-                            purchaseDate: values.purchaseDate?.toISOString(),
-                            warrantyExpiredAt: values.warrantyExpiredAt?.toISOString(),
-                        };
+                        const data = buildAssetPayload(values);
                         const shouldContinue = await confirmDuplicateAsset(data);
                         if (!shouldContinue) return;
 

@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { DashboardService } from './dashboard.service';
@@ -15,7 +15,10 @@ export class DashboardController {
   @Get('stats')
   @CheckPermission('Dashboard', 'view')
   @ApiOperation({ summary: 'Get family dashboard statistics' })
-  getStats(@Req() req) {
-    return this.dashboardService.getStats(req.user.familyId);
+  getStats(
+    @Req() req,
+    @Query() query: { startDate?: string; endDate?: string; categoryId?: string },
+  ) {
+    return this.dashboardService.getStats(req.user.familyId, query);
   }
 }
