@@ -88,6 +88,7 @@ export const MemberList = () => {
                     </div>
                 </Space>
             ),
+            sorter: (a: User, b: User) => (a.fullName || a.email || '').localeCompare(b.fullName || b.email || ''),
         },
         {
             title: 'Tên khác (AI)',
@@ -96,6 +97,7 @@ export const MemberList = () => {
             render: (text: string) => (
                 <span className="text-slate-600 italic text-sm">{text || '-'}</span>
             ),
+            sorter: (a: User, b: User) => (a.otherNames || '').localeCompare(b.otherNames || ''),
         },
         {
             title: 'Vai trò',
@@ -114,6 +116,7 @@ export const MemberList = () => {
                     ]}
                 />
             ),
+            sorter: (a: User, b: User) => (a.role || '').localeCompare(b.role || ''),
         },
         {
             title: 'Trạng thái',
@@ -128,6 +131,7 @@ export const MemberList = () => {
                 };
                 return <Tag color={colors[status] || 'blue'}>{labels[status] || status}</Tag>;
             },
+            sorter: (a: User, b: User) => (a.status || '').localeCompare(b.status || ''),
         },
         {
             title: 'Thao tác',

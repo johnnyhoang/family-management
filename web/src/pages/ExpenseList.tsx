@@ -174,6 +174,7 @@ export const ExpenseList = () => {
       dataIndex: 'expenseDate',
       key: 'expenseDate',
       render: (date: string) => renderDateBadge(date),
+      sorter: (a: Expense, b: Expense) => dayjs(a.expenseDate).valueOf() - dayjs(b.expenseDate).valueOf(),
     },
     {
       title: 'Số tiền',
@@ -183,6 +184,7 @@ export const ExpenseList = () => {
         const isIncome = record.entryType === 'INCOME' && !record.isTransfer;
         return renderMoneyBadge(val, { forceSign: isIncome ? 'plus' : 'minus' });
       },
+      sorter: (a: Expense, b: Expense) => Number(a.amount || 0) - Number(b.amount || 0),
     },
     {
       title: 'Danh mục',
@@ -194,6 +196,7 @@ export const ExpenseList = () => {
           {record.isTransfer ? <Tag color="blue">Chuyển nội bộ</Tag> : null}
         </Space>
       ),
+      sorter: (a: Expense, b: Expense) => (a.category?.name || '').localeCompare(b.category?.name || ''),
     },
     {
       title: 'Loại giao dịch',
@@ -204,12 +207,14 @@ export const ExpenseList = () => {
           {expenseEntryTypeLabels[entryType]}
         </Tag>
       ),
+      sorter: (a: Expense, b: Expense) => (a.entryType || '').localeCompare(b.entryType || ''),
     },
     {
       title: 'Tài sản',
       dataIndex: ['asset', 'name'],
       key: 'asset',
       render: (name: string) => name || '-',
+      sorter: (a: Expense, b: Expense) => (a.asset?.name || '').localeCompare(b.asset?.name || ''),
     },
     {
       title: 'Định kỳ',
@@ -218,6 +223,7 @@ export const ExpenseList = () => {
       render: (is: boolean, record: Expense) => (
         is ? <Tag color="purple">{recurringCycleLabels[record.recurringCycle || ''] || record.recurringCycle}</Tag> : <Tag color="default">Không</Tag>
       ),
+      sorter: (a: Expense, b: Expense) => Number(Boolean(a.isRecurring)) - Number(Boolean(b.isRecurring)),
     },
     {
       title: 'Thao tác',
@@ -497,29 +503,6 @@ export const ExpenseList = () => {
             </Radio.Group>
           </Form.Item>
 
-          <Form.Item name="amount" label="Số tiền" rules={[{ required: true }]}>
-            <InputNumber
-              size={window.innerWidth < 480 ? 'middle' : 'large'}
-              className={window.innerWidth < 480 ? 'w-full' : 'w-full h-12 text-lg font-bold'}
-              formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(val) => val!.replace(/\$\s?|(,*)/g, '')}
-              prefix={<Wallet size={18} className="text-slate-400 mr-2" />}
-              addonAfter="đồng"
-            />
-          </Form.Item>
-
-          <div className="bg-slate-50 p-3 rounded-xl mb-4">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-medium text-slate-700">Chuyển khoản nội bộ</div>
-                <div className="text-xs text-slate-500">Không tính vào tổng thu nhập hoặc chi phí.</div>
-              </div>
-              <Form.Item name="isTransfer" valuePropName="checked" className="mb-0">
-                <Switch size="small" onChange={() => form.setFieldValue('categoryId', undefined)} />
-              </Form.Item>
-            </div>
-          </div>
-
           <Row gutter={window.innerWidth < 480 ? 8 : 16}>
             <Col xs={24} sm={12}>
               <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
@@ -565,6 +548,17 @@ export const ExpenseList = () => {
             </Col>
           </Row>
 
+          <Form.Item name="amount" label="Số tiền" rules={[{ required: true }]}>
+            <InputNumber
+              size={window.innerWidth < 480 ? 'middle' : 'large'}
+              className={window.innerWidth < 480 ? 'w-full' : 'w-full h-12 text-lg font-bold'}
+              formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              parser={(val) => val!.replace(/\$\s?|(,*)/g, '')}
+              prefix={<Wallet size={18} className="text-slate-400 mr-2" />}
+              addonAfter="đồng"
+            />
+          </Form.Item>
+
           <Form.Item name="assetId" label="Tài sản liên quan (Tùy chọn)">
             <Select
               allowClear
@@ -572,6 +566,22 @@ export const ExpenseList = () => {
               options={assets?.map((a) => ({ value: a.id, label: a.name }))}
             />
           </Form.Item>
+
+          <Form.Item name="note" label="Ghi chú">
+            <Input.TextArea rows={2} placeholder="Nhập ghi chú thêm..." />
+          </Form.Item>
+
+          <div className="bg-slate-50 p-3 rounded-xl mb-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <div className="text-sm font-medium text-slate-700">Chuyển khoản nội bộ</div>
+                <div className="text-xs text-slate-500">Không tính vào tổng thu nhập hoặc chi phí.</div>
+              </div>
+              <Form.Item name="isTransfer" valuePropName="checked" className="mb-0">
+                <Switch size="small" onChange={() => form.setFieldValue('categoryId', undefined)} />
+              </Form.Item>
+            </div>
+          </div>
 
           <div className="bg-slate-50 p-4 rounded-xl mb-6">
             <div className="flex items-center justify-between">
@@ -596,10 +606,6 @@ export const ExpenseList = () => {
               </Form.Item>
             </div>
           </div>
-
-          <Form.Item name="note" label="Ghi chú">
-            <Input.TextArea rows={2} placeholder="Nhập ghi chú thêm..." />
-          </Form.Item>
         </Form>
       </Modal>
     </div>

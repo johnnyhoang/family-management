@@ -97,29 +97,34 @@ export const AssetList = () => {
                     <div className="text-xs text-slate-500">{record.description}</div>
                 </div>
             ),
+            sorter: (a: Asset, b: Asset) => (a.name || '').localeCompare(b.name || ''),
         },
         {
             title: 'Danh mục',
             dataIndex: ['category', 'name'],
             key: 'category',
+            sorter: (a: Asset, b: Asset) => (a.category?.name || '').localeCompare(b.category?.name || ''),
         },
         {
             title: 'Người đứng tên',
             dataIndex: ['owner', 'fullName'],
             key: 'owner',
             render: (name: string, record: Asset) => name || record.owner?.email || '-',
+            sorter: (a: Asset, b: Asset) => (a.owner?.fullName || a.owner?.email || '').localeCompare(b.owner?.fullName || b.owner?.email || ''),
         },
         {
             title: 'Người sử dụng',
             dataIndex: ['usedBy', 'fullName'],
             key: 'usedBy',
             render: (name: string, record: Asset) => name || record.usedBy?.email || '-',
+            sorter: (a: Asset, b: Asset) => (a.usedBy?.fullName || a.usedBy?.email || '').localeCompare(b.usedBy?.fullName || b.usedBy?.email || ''),
         },
         {
             title: 'Giá trị',
             dataIndex: 'purchasePrice',
             key: 'purchasePrice',
             render: (val: number) => renderMoneyBadge(val),
+            sorter: (a: Asset, b: Asset) => Number(a.purchasePrice || 0) - Number(b.purchasePrice || 0),
         },
         {
             title: 'Trạng thái',
@@ -135,6 +140,7 @@ export const AssetList = () => {
                 };
                 return <Tag color={colors[status] || 'blue'}>{labels[status] || status}</Tag>;
             },
+            sorter: (a: Asset, b: Asset) => (a.status || '').localeCompare(b.status || ''),
         },
         {
             title: 'Thao tác',

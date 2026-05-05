@@ -226,6 +226,17 @@ body {
   box-shadow: 0 0 0 4px rgba(255, 159, 144, 0.12) !important;
 }
 
+/* Giữ text luôn đọc được cho radio button đang chọn */
+.ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+  background: rgba(255, 159, 144, 0.18) !important;
+  color: #473934 !important;
+}
+
+:root[data-theme='dark'] .ant-radio-button-wrapper-checked:not(.ant-radio-button-wrapper-disabled) {
+  background: rgba(255, 159, 144, 0.22) !important;
+  color: #edf2ff !important;
+}
+
 .ant-radio-button-wrapper:first-child,
 .ant-radio-button-wrapper:last-child {
   border-radius: 10px !important;

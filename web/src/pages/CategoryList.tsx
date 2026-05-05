@@ -144,6 +144,7 @@ export const CategoryList = () => {
           <span className={!record.parentId ? 'font-semibold text-slate-800' : 'text-slate-700'}>{text}</span>
         </Space>
       ),
+      sorter: (a: Category, b: Category) => (a.name || '').localeCompare(b.name || ''),
     },
     {
       title: 'Loại',
@@ -153,6 +154,7 @@ export const CategoryList = () => {
       render: (type: CategoryType) => (
         <Tag color={typeColors[type]}>{categoryTypeLabels[type]}</Tag>
       ),
+      sorter: (a: Category, b: Category) => (a.type || '').localeCompare(b.type || ''),
     },
     {
       title: 'Thao tác',
