@@ -13,7 +13,7 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { CategoryService } from './category.service';
-import { Category, CategoryType } from '../../common/entities/category.entity';
+import { Category } from '../../common/entities/category.entity';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { CheckPermission } from '../../common/decorators/permission.decorator';
 
@@ -27,8 +27,8 @@ export class CategoryController {
   @Get()
   @CheckPermission('Category', 'view')
   @ApiOperation({ summary: 'Get family categories' })
-  findAll(@Req() req, @Query('type') type?: CategoryType) {
-    return this.categoryService.findAll(req.user.familyId, type);
+  findAll(@Req() req) {
+    return this.categoryService.findAll(req.user.familyId);
   }
 
   @Post()
@@ -45,10 +45,21 @@ export class CategoryController {
     return this.categoryService.update(id, req.user.familyId, data);
   }
 
+  @Get(':id/usage')
+  @CheckPermission('Category', 'view')
+  @ApiOperation({ summary: 'Số tài sản / giao dịch / danh mục con trước khi xóa' })
+  getUsage(@Req() req, @Param('id') id: string) {
+    return this.categoryService.getUsageBeforeDelete(id, req.user.familyId);
+  }
+
   @Delete(':id')
   @CheckPermission('Category', 'delete')
-  @ApiOperation({ summary: 'Delete category' })
-  remove(@Req() req, @Param('id') id: string) {
-    return this.categoryService.delete(id, req.user.familyId);
+  @ApiOperation({ summary: 'Delete category; khi còn dữ liệu gắn thì truyền query reassignTo (id danh mục lá đích)' })
+  remove(
+    @Req() req,
+    @Param('id') id: string,
+    @Query('reassignTo') reassignTo?: string,
+  ) {
+    return this.categoryService.delete(id, req.user.familyId, reassignTo);
   }
 }

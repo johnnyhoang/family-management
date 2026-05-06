@@ -1,4 +1,4 @@
-import api from './client';
+import api, { type PaginatedList } from './client';
 
 export interface User {
   id: string;
@@ -16,7 +16,7 @@ export interface User {
 }
 
 export const userApi = {
-  findAll: () => api.get<User[]>('/users'),
+  findAll: (params?: Record<string, unknown>) => api.get<User[] | PaginatedList<User>>('/users', { params }),
   invite: (email: string, role: string, fullName?: string) => api.post('/users/invite', { email, role, fullName }),
   update: (id: string, data: Partial<User>) => api.patch(`/users/${id}`, data),
   updateRole: (id: string, role: string) => api.patch(`/users/${id}/role`, { role }),

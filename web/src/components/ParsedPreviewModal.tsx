@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Form, Input, InputNumber, DatePicker, Radio, Space, Typography, Tag, Divider, Select, Switch } from 'antd';
+import { Modal, Form, Input, InputNumber, DatePicker, Radio, Space, Typography, Tag, Divider, Select, Switch, Button } from 'antd';
+import { X, Check } from 'lucide-react';
 import dayjs from 'dayjs';
 import { userApi } from '../api/user';
+import { asArray } from '../api/client';
 import {
     buildCategoryPathLabel,
     categoryApi,
     expenseEntryTypeLabels,
-    isAssetCategory,
-    isTransferCategory,
-    supportsExpenseEntryType,
+    isLeafCategory,
     type ExpenseEntryType,
 } from '../api/category';
 import { assetApi } from '../api/asset';
@@ -44,8 +44,6 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
     loading,
 }) => {
     const [form] = Form.useForm();
-    const watchedEntryType = Form.useWatch('entryType', form) as ExpenseEntryType | undefined;
-    const watchedIsTransfer = Form.useWatch('isTransfer', form) as boolean | undefined;
     const [intent, setIntent] = useState<string>('');
     const [users, setUsers] = useState<User[]>([]);
     const [categories, setCategories] = useState<Category[]>([]);
@@ -60,10 +58,10 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 assetApi.findAll(),
                 expenseApi.findAll(),
             ]).then(([userRes, catRes, assetRes, expenseRes]) => {
-                setUsers(userRes.data);
+                setUsers(asArray(userRes.data));
                 setCategories(catRes.data);
-                setAssets(assetRes.data);
-                setExpenses(expenseRes.data);
+                setAssets(asArray(assetRes.data));
+                setExpenses(asArray(expenseRes.data));
             });
         }
     }, [visible]);
@@ -217,8 +215,6 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
         switch (intent) {
             case 'create_expense':
             case 'create_income': {
-                const entryTypeForFilter: ExpenseEntryType =
-                    watchedEntryType ?? (intent === 'create_income' ? 'INCOME' : 'EXPENSE');
                 return (
                     <>
                         <Form.Item name="entryType" label="Loại bút toán">
@@ -245,11 +241,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
                             <Select
                                 options={categories
-                                    .filter((category) => (
-                                        watchedIsTransfer
-                                            ? isTransferCategory(category)
-                                            : supportsExpenseEntryType(category, entryTypeForFilter) || isAssetCategory(category)
-                                    ))
+                                    .filter((category) => isLeafCategory(category))
                                     .map((category) => ({
                                         label: buildCategoryPathLabel(categories, category.id),
                                         value: category.id,
@@ -282,16 +274,16 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         <Form.Item name="name" label="Tên tài sản" rules={[{ required: true }]}>
                             <Input />
                         </Form.Item>
-                        <Form.Item name="categoryId" label="Loại tài sản">
+                        <Form.Item name="categoryId" label="Danh mục">
                             <Select
                                 options={categories
-                                    .filter((category) => isAssetCategory(category))
+                                    .filter((category) => isLeafCategory(category))
                                     .map((category) => ({
                                         label: buildCategoryPathLabel(categories, category.id),
                                         value: category.id,
                                     }))
                                 }
-                                placeholder="Chọn loại tài sản..."
+                                placeholder="Chọn danh mục..."
                                 showSearch
                             />
                         </Form.Item>
@@ -362,12 +354,28 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                 </Space>
             }
             open={visible}
+            forceRender
             onCancel={onCancel}
-            onOk={() => form.submit()}
-            confirmLoading={loading}
             width={520}
-            okText="Xác nhận & Lưu"
-            cancelText="Hủy"
+            footer={[
+                <Button
+                    key="cancel"
+                    type="text"
+                    icon={<X size={18} />}
+                    title="Hủy"
+                    aria-label="Hủy"
+                    onClick={onCancel}
+                />,
+                <Button
+                    key="ok"
+                    type="primary"
+                    icon={<Check size={18} />}
+                    title="Xác nhận và lưu"
+                    aria-label="Xác nhận và lưu"
+                    loading={loading}
+                    onClick={() => form.submit()}
+                />,
+            ]}
             styles={{ body: { paddingTop: 16 } }}
         >
             <div style={{ marginBottom: 16 }}>

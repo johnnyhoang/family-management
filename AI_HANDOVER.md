@@ -6,8 +6,7 @@
 
 Các thay đổi quan trọng gần đây:
 
-- Refactor category tài chính sang 4 type chính: `ASSET`, `LIABILITY`, `INCOME`, `EXPENSE`
-- Chuẩn hóa hierarchy danh mục: `type -> group -> category`
+- Danh mục **bỏ hẳn `type`**: chỉ còn cây 2 cấp (nhóm gốc + danh mục lá); nơi cần chọn danh mục thì load toàn bộ danh mục gia đình và lọc lá khi gán.
 - Bổ sung `isTransfer` và chuẩn hóa `isRecurring` cho transaction
 - Thêm multi-family membership bằng `family_users`
 - Thêm RBAC theo role template

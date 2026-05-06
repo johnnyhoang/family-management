@@ -1,4 +1,4 @@
-import api from './client';
+import api, { type PaginatedList } from './client';
 import type { Category, ExpenseEntryType } from './category';
 
 export interface Expense {
@@ -24,7 +24,7 @@ export interface Expense {
 }
 
 export const expenseApi = {
-  findAll: (params?: any) => api.get<Expense[]>('/expenses', { params }),
+  findAll: (params?: any) => api.get<Expense[] | PaginatedList<Expense>>('/expenses', { params }),
   create: (data: Partial<Expense>) => api.post<Expense>('/expenses', data),
   update: (id: string, data: Partial<Expense>) => api.put<Expense>(`/expenses/${id}`, data),
   delete: (id: string) => api.delete(`/expenses/${id}`),

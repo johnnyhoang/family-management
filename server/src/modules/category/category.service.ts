@@ -1,45 +1,21 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { IsNull, Repository } from 'typeorm';
-import { Category, CategoryType } from '../../common/entities/category.entity';
+import { Category } from '../../common/entities/category.entity';
+import { Asset } from '../../common/entities/asset.entity';
+import { Expense } from '../../common/entities/expense.entity';
 
-const DEFAULT_GROUP_NAMES: Record<CategoryType, string> = {
-  [CategoryType.ASSET]: 'Tổng quát',
-  [CategoryType.LIABILITY]: 'Công nợ chung',
-  [CategoryType.INCOME]: 'Thu nhập chung',
-  [CategoryType.EXPENSE]: 'Chi phí chung',
-};
+/** Nhóm mặc định dùng khi thêm nhanh danh mục lá mà không chọn nhóm cha. */
+const DEFAULT_QUICK_GROUP_NAME = 'Danh mục chung';
 
-const DEFAULT_CATEGORY_TREE: Array<{
-  type: CategoryType;
-  groups: Array<{ name: string; categories: string[] }>;
-}> = [
+/** Cây danh mục mặc định khi tạo gia đình (chỉ còn phân cấp cha–con, không có “loại”). */
+const DEFAULT_CATEGORY_GROUPS: Array<{ name: string; categories: string[] }> = [
+  { name: 'Sinh hoạt', categories: ['Ăn uống', 'Đi lại', 'Hóa đơn'] },
+  { name: 'Thu nhập', categories: ['Lương / Thu nhập chính', 'Thưởng, quà, hoàn tiền'] },
+  { name: 'Khoản nợ', categories: ['Khoản vay', 'Thẻ tín dụng'] },
   {
-    type: CategoryType.ASSET,
-    groups: [
-      { name: 'Thanh khoản', categories: ['Tiền mặt', 'Tài khoản ngân hàng'] },
-      { name: 'Đầu tư', categories: ['Cổ phiếu', 'Crypto'] },
-      { name: 'Tài sản dài hạn', categories: ['Nhà đất', 'Xe cộ'] },
-    ],
-  },
-  {
-    type: CategoryType.LIABILITY,
-    groups: [
-      { name: 'Công nợ', categories: ['Khoản vay', 'Thẻ tín dụng'] },
-    ],
-  },
-  {
-    type: CategoryType.INCOME,
-    groups: [
-      { name: 'Thu nhập chính', categories: ['Lương / Thu nhập chính'] },
-      { name: 'Thu nhập khác', categories: ['Thưởng, quà, hoàn tiền', 'Lãi đầu tư, cổ tức'] },
-    ],
-  },
-  {
-    type: CategoryType.EXPENSE,
-    groups: [
-      { name: 'Sinh hoạt', categories: ['Ăn uống', 'Đi lại', 'Hóa đơn'] },
-    ],
+    name: 'Tài sản & thanh khoản',
+    categories: ['Tiền mặt', 'Tài khoản ngân hàng', 'Nhà đất', 'Xe cộ', 'Cổ phiếu', 'Crypto'],
   },
 ];
 
@@ -48,61 +24,64 @@ export class CategoryService {
   constructor(
     @InjectRepository(Category)
     private categoryRepository: Repository<Category>,
+    @InjectRepository(Asset)
+    private assetRepository: Repository<Asset>,
+    @InjectRepository(Expense)
+    private expenseRepository: Repository<Expense>,
   ) {}
 
-  async findAll(familyId: string, type?: CategoryType) {
+  async findAll(familyId: string) {
     await this.repairInvalidParentAssignments(familyId);
-    const where = type ? { familyId, type } : { familyId };
     return this.categoryRepository.find({
-      where,
+      where: { familyId },
       relations: ['parent'],
       order: {
-        type: 'ASC',
+        parentId: 'ASC',
         name: 'ASC',
       },
     });
   }
 
   async ensureDefaultIncomeCategories(familyId: string): Promise<void> {
-    for (const typeDef of DEFAULT_CATEGORY_TREE) {
-      for (const groupDef of typeDef.groups) {
-        const group = await this.findOrCreateCategory(familyId, {
-          name: groupDef.name,
-          type: typeDef.type,
-          parentId: null,
+    for (const groupDef of DEFAULT_CATEGORY_GROUPS) {
+      const group = await this.findOrCreateCategory(familyId, {
+        name: groupDef.name,
+        parentId: null,
+        isDefault: true,
+      });
+
+      for (const categoryName of groupDef.categories) {
+        await this.findOrCreateCategory(familyId, {
+          name: categoryName,
+          parentId: group.id,
           isDefault: true,
         });
-
-        for (const categoryName of groupDef.categories) {
-          await this.findOrCreateCategory(familyId, {
-            name: categoryName,
-            type: typeDef.type,
-            parentId: group.id,
-            isDefault: true,
-          });
-        }
       }
     }
   }
 
   async create(familyId: string, data: Partial<Category>) {
-    const type = data.type;
-    if (!type) throw new BadRequestException('Loại danh mục là bắt buộc');
+    const name = data.name?.trim();
+    if (!name) {
+      throw new BadRequestException('Tên danh mục là bắt buộc');
+    }
 
-    // parentId === null  → explicitly creating a root/group
-    // parentId === undefined/missing → auto-assign leaf to default group (quick-add convenience)
-    // parentId === <id> → leaf with explicit parent
     let parentId: string | null;
     if (data.parentId === null) {
       parentId = null;
     } else if (data.parentId) {
-      parentId = await this.validateParent(familyId, type, data.parentId);
+      parentId = await this.validateParent(familyId, data.parentId);
     } else {
-      const defaultGroup = await this.ensureDefaultGroup(familyId, type);
+      const defaultGroup = await this.ensureDefaultQuickGroup(familyId);
       parentId = defaultGroup.id;
     }
 
-    const category = this.categoryRepository.create({ ...data, familyId, parentId });
+    const category = this.categoryRepository.create({
+      familyId,
+      name,
+      parentId,
+      isDefault: data.isDefault ?? false,
+    });
     return this.categoryRepository.save(category);
   }
 
@@ -117,68 +96,140 @@ export class CategoryService {
     const category = await this.findOne(id, familyId);
     if (!category) throw new NotFoundException('Không tìm thấy danh mục');
 
-    const nextType = data.type ?? category.type;
     const nextParentId = 'parentId' in data ? (data.parentId ?? null) : category.parentId;
 
-    // A category with children is a group — cannot receive a parent
     if (nextParentId !== null && (category.children?.length ?? 0) > 0) {
       throw new BadRequestException('Danh mục đang có danh mục con, không thể thêm danh mục cha');
     }
 
-    const resolvedParentId = nextParentId
-      ? await this.validateParent(familyId, nextType, nextParentId, id)
-      : null;
+    const resolvedParentId =
+      nextParentId === null ? null : await this.validateParent(familyId, nextParentId, id);
+
+    const nextName = data.name !== undefined ? data.name.trim() : category.name;
+    if (!nextName) {
+      throw new BadRequestException('Tên danh mục không được để trống');
+    }
 
     await this.categoryRepository.update(
       { id, familyId },
       {
-        name: data.name !== undefined ? data.name : category.name,
+        name: nextName,
         isDefault: data.isDefault !== undefined ? data.isDefault : category.isDefault,
-        type: nextType,
         parentId: resolvedParentId,
         ...(data.updatedBy !== undefined ? { updatedBy: data.updatedBy } : {}),
       },
     );
 
-    // Cascade type change to children when root type changes
-    if (nextType !== category.type && resolvedParentId === null) {
-      await this.categoryRepository.update({ familyId, parentId: id }, { type: nextType });
-    }
-
     return this.findOne(id, familyId);
   }
 
-  async delete(id: string, familyId: string) {
-    const category = await this.findOne(id, familyId);
-    if (!category) throw new NotFoundException('Không tìm thấy danh mục');
-    return this.categoryRepository.softRemove(category);
+  /** Thống kê trước khi xóa (tài sản / giao dịch / danh mục con). */
+  async getUsageBeforeDelete(id: string, familyId: string) {
+    const category = await this.categoryRepository.findOne({ where: { id, familyId } });
+    if (!category) {
+      throw new NotFoundException('Không tìm thấy danh mục');
+    }
+    const childCategoryCount = await this.categoryRepository.count({
+      where: { parentId: id, familyId },
+    });
+    const assetCount = await this.assetRepository.count({
+      where: { categoryId: id, familyId },
+    });
+    const expenseCount = await this.expenseRepository.count({
+      where: { categoryId: id, familyId },
+    });
+    return { assetCount, expenseCount, childCategoryCount };
   }
 
-  async ensureDefaultGroup(familyId: string, type: CategoryType): Promise<Category> {
+  /**
+   * Xóa danh mục. Có danh mục con thì từ chối.
+   * Còn tài sản hoặc giao dịch gắn danh mục thì bắt buộc truyền `reassignToCategoryId` (danh mục lá khác) để chuyển hết rồi mới xóa.
+   */
+  async delete(id: string, familyId: string, reassignToCategoryId?: string) {
+    const category = await this.findOne(id, familyId);
+    if (!category) {
+      throw new NotFoundException('Không tìm thấy danh mục');
+    }
+
+    const childCategoryCount = await this.categoryRepository.count({
+      where: { parentId: id, familyId },
+    });
+    if (childCategoryCount > 0) {
+      throw new BadRequestException(
+        `Không thể xóa: danh mục còn ${childCategoryCount} danh mục con. Hãy xóa hoặc gom các danh mục con trước.`,
+      );
+    }
+
+    const assetCount = await this.assetRepository.count({
+      where: { categoryId: id, familyId },
+    });
+    const expenseCount = await this.expenseRepository.count({
+      where: { categoryId: id, familyId },
+    });
+
+    if (assetCount === 0 && expenseCount === 0) {
+      return this.categoryRepository.softRemove(category);
+    }
+
+    const targetRaw = reassignToCategoryId?.trim();
+    if (!targetRaw) {
+      throw new BadRequestException(
+        `Không thể xóa: còn ${assetCount} tài sản và ${expenseCount} giao dịch gắn danh mục này. Chọn một danh mục lá khác để chuyển toàn bộ tài sản và giao dịch sang, rồi thử xóa lại.`,
+      );
+    }
+
+    if (targetRaw === id) {
+      throw new BadRequestException('Danh mục đích phải khác danh mục đang xóa');
+    }
+
+    const target = await this.categoryRepository.findOne({
+      where: { id: targetRaw, familyId },
+    });
+    if (!target) {
+      throw new NotFoundException('Danh mục đích không tồn tại');
+    }
+    if (target.parentId === null) {
+      throw new BadRequestException('Danh mục đích phải là danh mục lá (có nhóm cha), không được là nhóm gốc');
+    }
+
+    return this.categoryRepository.manager.transaction(async (em) => {
+      if (assetCount > 0) {
+        await em.update(Asset, { familyId, categoryId: id }, { categoryId: targetRaw });
+      }
+      if (expenseCount > 0) {
+        await em.update(Expense, { familyId, categoryId: id }, { categoryId: targetRaw });
+      }
+      return em.softRemove(category);
+    });
+  }
+
+  private async ensureDefaultQuickGroup(familyId: string): Promise<Category> {
     return this.findOrCreateCategory(familyId, {
-      name: DEFAULT_GROUP_NAMES[type],
-      type,
+      name: DEFAULT_QUICK_GROUP_NAME,
       parentId: null,
       isDefault: true,
     });
   }
 
-  private async findOrCreateCategory(familyId: string, data: Partial<Category>): Promise<Category> {
+  private async findOrCreateCategory(
+    familyId: string,
+    data: { name: string; parentId: string | null; isDefault?: boolean },
+  ): Promise<Category> {
     const existing = await this.categoryRepository.findOne({
       where: {
         familyId,
         name: data.name,
-        type: data.type,
-        parentId: data.parentId ?? IsNull(),
+        parentId: data.parentId === null ? IsNull() : data.parentId,
       },
     });
 
     if (existing) return existing;
 
     const category = this.categoryRepository.create({
-      ...data,
       familyId,
-      parentId: data.parentId ?? null,
+      name: data.name,
+      parentId: data.parentId,
+      isDefault: data.isDefault ?? false,
     });
 
     return this.categoryRepository.save(category);
@@ -186,7 +237,6 @@ export class CategoryService {
 
   private async validateParent(
     familyId: string,
-    type: CategoryType,
     parentId: string,
     currentCategoryId?: string,
   ): Promise<string> {
@@ -199,12 +249,16 @@ export class CategoryService {
     });
 
     if (!parent) throw new NotFoundException('Danh mục cha không tồn tại');
-    if (parent.type !== type) throw new BadRequestException('Danh mục cha phải cùng loại chính');
-    if (parent.parentId !== null) throw new BadRequestException('Danh mục cha phải là danh mục gốc (không có cha)');
+    if (parent.parentId !== null) {
+      throw new BadRequestException('Danh mục cha phải là nhóm gốc (không có cha)');
+    }
 
     return parent.id;
   }
 
+  /**
+   * Gắn lại các bản ghi lá bị treo (cha mất / cha không phải nhóm gốc) vào nhóm mặc định.
+   */
   private async repairInvalidParentAssignments(familyId: string): Promise<void> {
     const categories = await this.categoryRepository.find({
       where: { familyId },
@@ -216,34 +270,19 @@ export class CategoryService {
       },
     });
 
-    const fallbackGroups = new Map<CategoryType, Category>();
-    for (const type of Object.values(CategoryType)) {
-      const existingGroup = categories.find((c) => c.type === type && c.parentId === null);
-      if (existingGroup) fallbackGroups.set(type, existingGroup);
-    }
+    const defaultGroup = await this.ensureDefaultQuickGroup(familyId);
 
     for (const category of categories) {
       if (category.parentId === null) continue;
 
       const parent = category.parent;
-      const hasInvalidParent = !parent
-        || parent.type !== category.type
-        || parent.parentId !== null;
+      const invalid = !parent || parent.parentId !== null;
 
-      if (!hasInvalidParent) continue;
+      if (!invalid) continue;
 
-      let fallbackGroup = fallbackGroups.get(category.type);
-      if (!fallbackGroup) {
-        fallbackGroup = await this.ensureDefaultGroup(familyId, category.type);
-        fallbackGroups.set(category.type, fallbackGroup);
-      }
+      if (category.parentId === defaultGroup.id) continue;
 
-      if (category.parentId === fallbackGroup.id) continue;
-
-      await this.categoryRepository.update(
-        { id: category.id, familyId },
-        { parentId: fallbackGroup.id },
-      );
+      await this.categoryRepository.update({ id: category.id, familyId }, { parentId: defaultGroup.id });
     }
   }
 }

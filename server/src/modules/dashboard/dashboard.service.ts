@@ -4,6 +4,7 @@ import { Between, Repository } from 'typeorm';
 import { Asset, AssetStatus } from '../../common/entities/asset.entity';
 import { Expense, ExpenseEntryType } from '../../common/entities/expense.entity';
 import { CalendarEvent } from '../../common/entities/calendar-event.entity';
+import { AssetService } from '../asset/asset.service';
 
 @Injectable()
 export class DashboardService {
@@ -14,6 +15,7 @@ export class DashboardService {
     private expenseRepository: Repository<Expense>,
     @InjectRepository(CalendarEvent)
     private calendarRepository: Repository<CalendarEvent>,
+    private readonly assetService: AssetService,
   ) {}
 
   async getStats(
@@ -36,10 +38,11 @@ export class DashboardService {
     const next30Days = new Date(today);
     next30Days.setDate(next30Days.getDate() + 30);
 
-    // ===== Asset / wealth summary =====
-    const activeAssets = await this.assetRepository.find({
-      where: { familyId, status: AssetStatus.ACTIVE },
+    // ===== Asset / wealth summary (currentValue tính động theo giao dịch gắn tài sản) =====
+    const activeAssetsRaw = await this.assetService.findAll(familyId, {
+      status: AssetStatus.ACTIVE,
     });
+    const activeAssets = Array.isArray(activeAssetsRaw) ? activeAssetsRaw : activeAssetsRaw.items;
     const totalAssetValue = activeAssets.reduce(
       (sum, a) => sum + Number(a.currentValue || 0),
       0,
@@ -186,25 +189,17 @@ export class DashboardService {
       .filter((row) => row.amount > 0)
       .sort((a, b) => b.amount - a.amount);
 
-    // ===== Assets by category =====
-    const assetsByCatRaw = await this.assetRepository
-      .createQueryBuilder('asset')
-      .leftJoin('asset.category', 'category')
-      .where('asset.familyId = :familyId', { familyId })
-      .andWhere('asset.status = :status', { status: AssetStatus.ACTIVE })
-      .select('category.name', 'category')
-      .addSelect('SUM(asset.currentValue)', 'value')
-      .addSelect('COUNT(asset.id)', 'count')
-      .groupBy('category.name')
-      .getRawMany();
-
-    const assetsByCategory = assetsByCatRaw
-      .filter((row) => !!row.category)
-      .map((row) => ({
-        category: row.category,
-        value: Number(row.value || 0),
-        count: Number(row.count || 0),
-      }))
+    // ===== Assets by category (dùng currentValue đã tính động) =====
+    const assetsByCategoryMap = new Map<string, { value: number; count: number }>();
+    for (const a of activeAssets) {
+      const name = a.category?.name || 'Khác';
+      const bucket = assetsByCategoryMap.get(name) ?? { value: 0, count: 0 };
+      bucket.value += Number(a.currentValue || 0);
+      bucket.count += 1;
+      assetsByCategoryMap.set(name, bucket);
+    }
+    const assetsByCategory = Array.from(assetsByCategoryMap.entries())
+      .map(([category, { value, count }]) => ({ category, value, count }))
       .filter((row) => row.value > 0)
       .sort((a, b) => b.value - a.value);
 
@@ -276,6 +271,7 @@ export class DashboardService {
       .orderBy('asset.warrantyExpiredAt', 'ASC')
       .limit(10)
       .getMany();
+    await this.assetService.applyComputedCurrentValue(familyId, expiringAssets);
 
     // ===== Upcoming maintenance (next 30 days) =====
     const upcomingMaintenance = await this.assetRepository
@@ -289,6 +285,7 @@ export class DashboardService {
       .orderBy('asset.nextMaintenanceDate', 'ASC')
       .limit(10)
       .getMany();
+    await this.assetService.applyComputedCurrentValue(familyId, upcomingMaintenance);
 
     // ===== Upcoming calendar events (next 7 days) =====
     const upcomingEvents = await this.calendarRepository.find({

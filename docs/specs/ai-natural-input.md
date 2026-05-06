@@ -32,7 +32,7 @@ User message + application context is sent to OpenAI (`gpt-4o`).
 
 ## 3. Context Injection
 The AI prompt includes dynamic context from the database:
-- **Categories**: Existing categories for Expenses, Income, and Assets.
+- **Categories**: Existing family categories (2-level tree: root groups + leaf categories); no per-category “type” field.
 - **Family Members**: Names of users in the family (mapping "vợ", "chồng", "con").
 - **Assets**: Names of existing assets for maintenance/updates.
 - **Dynamic Context**: Current Date, Day of Week, and Time.

@@ -1,24 +1,15 @@
 import api from './client';
 
-export type CategoryType = 'ASSET' | 'LIABILITY' | 'INCOME' | 'EXPENSE';
 export type ExpenseEntryType = 'INCOME' | 'EXPENSE' | 'LIABILITY';
 
 export interface Category {
   id: string;
   name: string;
-  type: CategoryType;
   parentId?: string | null;
   parent?: Pick<Category, 'id' | 'name'> | null;
   children?: Category[];
   isDefault?: boolean;
 }
-
-export const categoryTypeLabels: Record<CategoryType, string> = {
-  ASSET: 'Tài sản',
-  LIABILITY: 'Nợ phải trả',
-  INCOME: 'Thu nhập',
-  EXPENSE: 'Chi phí',
-};
 
 export const expenseEntryTypeLabels: Record<ExpenseEntryType, string> = {
   INCOME: 'Thu nhập',
@@ -26,20 +17,9 @@ export const expenseEntryTypeLabels: Record<ExpenseEntryType, string> = {
   LIABILITY: 'Nợ',
 };
 
+/** Danh mục lá: có cha (dùng cho chọn trên form giao dịch/tài sản). */
 export const isLeafCategory = (category?: Pick<Category, 'parentId'> | null) =>
   !!category?.parentId;
-
-export const isAssetCategory = (category?: Pick<Category, 'type' | 'parentId'> | null) =>
-  category?.type === 'ASSET' && !!category?.parentId;
-
-export const supportsExpenseEntryType = (
-  category: Pick<Category, 'type' | 'parentId'> | null | undefined,
-  entryType: ExpenseEntryType,
-) => !!category?.parentId && category.type === entryType;
-
-export const isTransferCategory = (
-  category: Pick<Category, 'type' | 'parentId'> | null | undefined,
-) => !!category?.parentId && (category.type === 'ASSET' || category.type === 'LIABILITY');
 
 export const buildCategoryPathLabel = (
   categories: Category[] = [],
@@ -61,9 +41,20 @@ export const buildCategoryPathLabel = (
   return labels.join(' / ');
 };
 
+export type CategoryDeleteUsage = {
+  assetCount: number;
+  expenseCount: number;
+  childCategoryCount: number;
+};
+
 export const categoryApi = {
   findAll: () => api.get<Category[]>('/categories'),
   create: (data: Partial<Category>) => api.post<Category>('/categories', data),
   update: (id: string, data: Partial<Category>) => api.put<Category>(`/categories/${id}`, data),
-  delete: (id: string) => api.delete(`/categories/${id}`),
+  getUsageBeforeDelete: (id: string) =>
+    api.get<CategoryDeleteUsage>(`/categories/${id}/usage`).then((res) => res.data),
+  delete: (id: string, options?: { reassignTo?: string }) =>
+    api.delete(`/categories/${id}`, {
+      params: options?.reassignTo ? { reassignTo: options.reassignTo } : {},
+    }),
 };

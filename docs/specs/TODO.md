@@ -126,7 +126,7 @@ Hiện `APP_ADMIN` được điều hướng về bề mặt an toàn. Sau này 
 - ✅ Add `isError` state to `Dashboard.tsx`, `AssetList.tsx`, `CategoryList.tsx`, `ExpenseList.tsx`
 - ✅ Standardize `web/src/api/calendar.ts` — remove internal `.data` unwrapping to match all other API modules; update `CalendarPage.tsx` usages
 - ✅ Fix `ParsedPreviewModal.tsx` — respect `entryType` and `isTransfer` from AI response instead of always deriving from intent
-- ✅ Updated REQUIREMENTS.md: `ExpenseEntryType`, `isTransfer`, `CategoryType/Level`, `validateAssetCategory`, DB-backed notifications, avatarUrl auto-provisioning
+- ✅ Updated REQUIREMENTS.md: `ExpenseEntryType`, `isTransfer`, mô hình danh mục 2 cấp (không còn `CategoryType` trên danh mục), DB-backed notifications, avatarUrl auto-provisioning
 - ✅ Updated `AI_HANDOVER.md`: notification implementation, OpenAI model config, known issues trimmed to actual remaining debt
 - ✅ Fix `category.service.ts` `update()` TypeORM FK bug — switched from `save()` to `repository.update()` to fix parent change not reflecting in tree
 - ✅ Add `PATCH /auth/me` endpoint (no permission guard) for self-profile update; fix Settings page profile save for MEMBER role

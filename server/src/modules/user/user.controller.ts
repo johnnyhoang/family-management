@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, Request, ForbiddenException, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionGuard } from '../../common/guards/permission.guard';
@@ -17,8 +17,8 @@ export class UserController {
   @Get()
   @ApiOperation({ summary: 'List all family members' })
   @CheckPermission('User', 'view')
-  async findAll(@Request() req) {
-    return this.userService.findAll(req.user.familyId);
+  async findAll(@Request() req, @Query() query?: Record<string, unknown>) {
+    return this.userService.findAll(req.user.familyId, query ?? {});
   }
 
   @Post('invite')

@@ -1,4 +1,4 @@
-import api from './client';
+import api, { type PaginatedList } from './client';
 
 export interface Asset {
   id: string;
@@ -8,6 +8,10 @@ export interface Asset {
   category?: { id?: string; name: string };
   purchasePrice: number;
   currentValue: number;
+  /** Tổng chi (EXPENSE) gắn tài sản — do API tính, dùng hiển thị công thức giá hiện tại */
+  linkedExpenseTotal?: number;
+  /** Tổng thu (INCOME) gắn tài sản — do API tính */
+  linkedIncomeTotal?: number;
   status: string;
   purchaseDate?: string;
   warrantyExpiredAt?: string;
@@ -24,7 +28,7 @@ export interface Asset {
 }
 
 export const assetApi = {
-  findAll: (params?: any) => api.get<Asset[]>('/assets', { params }),
+  findAll: (params?: any) => api.get<Asset[] | PaginatedList<Asset>>('/assets', { params }),
   findOne: (id: string) => api.get<Asset>(`/assets/${id}`),
   create: (data: Partial<Asset>) => api.post<Asset>('/assets', data),
   update: (id: string, data: Partial<Asset>) => api.put<Asset>(`/assets/${id}`, data),
