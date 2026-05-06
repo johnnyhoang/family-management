@@ -1,6 +1,7 @@
 import api from './client';
 
 export type MaintenanceStatus = 'open' | 'completed' | 'skipped';
+export type AssetMaintenanceType = 'maintenance' | 'operation' | 'liability';
 
 export type MaintenanceFrequencyType = 'monthly' | 'yearly' | 'custom_days';
 
@@ -9,6 +10,7 @@ export interface AssetMaintenance {
   familyId?: string;
   assetId: string;
   scheduledDate: string;
+  type: AssetMaintenanceType;
   status: MaintenanceStatus;
   content?: string | null;
   cost?: number | null;
@@ -21,6 +23,8 @@ export interface AssetMaintenance {
 export type CreateMaintenancePayload = {
   assetId: string;
   startDate: string;
+  type: AssetMaintenanceType;
+  content?: string;
   frequencyType?: MaintenanceFrequencyType;
   frequencyValue?: number;
   repeatCount?: number;
@@ -28,7 +32,7 @@ export type CreateMaintenancePayload = {
 };
 
 export const maintenanceApi = {
-  findAll: (params?: { assetId?: string; status?: MaintenanceStatus }) =>
+  findAll: (params?: { assetId?: string; status?: MaintenanceStatus; type?: AssetMaintenanceType }) =>
     api.get<AssetMaintenance[]>('/maintenances', { params }),
 
   findOne: (id: string) => api.get<AssetMaintenance>(`/maintenances/${id}`),
@@ -40,6 +44,7 @@ export const maintenanceApi = {
     id: string,
     data: Partial<{
       scheduledDate: string;
+      type: AssetMaintenanceType;
       status: MaintenanceStatus;
       content: string;
       reminderDaysBefore: number | null;

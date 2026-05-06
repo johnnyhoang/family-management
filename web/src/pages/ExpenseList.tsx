@@ -9,7 +9,6 @@ import {
   buildCategoryPathLabel,
   categoryApi,
   expenseEntryTypeLabels,
-  isLeafCategory,
   type ExpenseEntryType,
 } from '../api/category';
 import { userApi } from '../api/user';
@@ -164,8 +163,7 @@ export const ExpenseList = () => {
   const resolveTransactionType = (expense?: Expense | null) => expense?.entryType || 'EXPENSE';
 
   const categorySelectOptions = useMemo(() => {
-    return categories
-      ?.filter((category) => isLeafCategory(category))
+    return (categories ?? [])
       .map((category) => ({
         value: category.id,
         label: buildCategoryPathLabel(categories ?? [], category.id),
@@ -173,20 +171,12 @@ export const ExpenseList = () => {
   }, [categories]);
 
   const categoryFilterOptions = useMemo(() => {
-    return categories
-      ?.filter((category) => isLeafCategory(category))
+    return (categories ?? [])
       .map((category) => ({
         value: category.id,
         label: buildCategoryPathLabel(categories ?? [], category.id),
       }));
   }, [categories]);
-
-  const recurringCycleLabels: Record<string, string> = {
-    DAILY: 'Hằng ngày',
-    WEEKLY: 'Hằng tuần',
-    MONTHLY: 'Hằng tháng',
-    YEARLY: 'Hằng năm',
-  };
 
   useEffect(() => {
     if (isModalOpen && !editingExpense && !copyMode) {
@@ -218,8 +208,6 @@ export const ExpenseList = () => {
       assetId: record.assetId,
       note: record.note,
       isTransfer: Boolean(record.isTransfer),
-      isRecurring: Boolean(record.isRecurring),
-      recurringCycle: record.recurringCycle,
       expenseDate: record.expenseDate ? dayjs(record.expenseDate) : dayjs(),
     });
     setIsModalOpen(true);
@@ -249,7 +237,7 @@ export const ExpenseList = () => {
       key: 'category',
       render: (name: string, record: Expense) => (
         <Space size={4} wrap>
-          <Tag color={record.entryType === 'INCOME' ? 'green' : record.entryType === 'LIABILITY' ? 'red' : 'orange'}>{name}</Tag>
+          <Tag color={record.entryType === 'INCOME' ? 'green' : 'orange'}>{name}</Tag>
           {record.isTransfer ? <Tag color="blue">Chuyển nội bộ</Tag> : null}
         </Space>
       ),
@@ -260,7 +248,7 @@ export const ExpenseList = () => {
       dataIndex: 'entryType',
       key: 'entryType',
       render: (entryType: ExpenseEntryType) => (
-        <Tag color={entryType === 'INCOME' ? 'green' : entryType === 'LIABILITY' ? 'red' : 'orange'}>
+        <Tag color={entryType === 'INCOME' ? 'green' : 'orange'}>
           {expenseEntryTypeLabels[entryType]}
         </Tag>
       ),
@@ -272,15 +260,6 @@ export const ExpenseList = () => {
       key: 'asset',
       render: (name: string) => name || '-',
       sorter: (a: Expense, b: Expense) => (a.asset?.name || '').localeCompare(b.asset?.name || ''),
-    },
-    {
-      title: 'Định kỳ',
-      dataIndex: 'isRecurring',
-      key: 'isRecurring',
-      render: (is: boolean, record: Expense) => (
-        is ? <Tag color="purple">{recurringCycleLabels[record.recurringCycle || ''] || record.recurringCycle}</Tag> : <Tag color="default">Không</Tag>
-      ),
-      sorter: (a: Expense, b: Expense) => Number(Boolean(a.isRecurring)) - Number(Boolean(b.isRecurring)),
     },
     {
       title: 'Thao tác',
@@ -391,7 +370,6 @@ export const ExpenseList = () => {
             options={[
               { value: 'EXPENSE', label: 'Chi phí' },
               { value: 'INCOME', label: 'Thu nhập' },
-              { value: 'LIABILITY', label: 'Nợ' },
             ]}
           />
           <Select
@@ -477,7 +455,7 @@ export const ExpenseList = () => {
             ? 'Sửa giao dịch'
             : copyMode
               ? 'Sao chép giao dịch'
-              : (transactionType === 'INCOME' ? 'Ghi nhận khoản thu' : transactionType === 'LIABILITY' ? 'Ghi nhận khoản nợ' : 'Ghi nhận chi phí')
+              : (transactionType === 'INCOME' ? 'Ghi nhận khoản thu' : 'Ghi nhận chi phí')
         }
         open={isModalOpen}
         forceRender
@@ -575,7 +553,6 @@ export const ExpenseList = () => {
             >
               <Radio.Button value="EXPENSE" className="w-1/3 text-center">Chi phí</Radio.Button>
               <Radio.Button value="INCOME" className="w-1/3 text-center">Thu nhập</Radio.Button>
-              <Radio.Button value="LIABILITY" className="w-1/3 text-center">Nợ</Radio.Button>
             </Radio.Group>
           </Form.Item>
 
@@ -591,9 +568,7 @@ export const ExpenseList = () => {
                       ? 'Chưa có danh mục chuyển nội bộ phù hợp'
                       : transactionType === 'INCOME'
                         ? 'Chưa có danh mục thu — nhập tên phía dưới và bấm Thêm'
-                        : transactionType === 'LIABILITY'
-                          ? 'Chưa có danh mục nợ — nhập tên phía dưới và bấm Thêm'
-                          : 'Chưa có danh mục — nhập tên phía dưới và bấm Thêm'
+                        : 'Chưa có danh mục — nhập tên phía dưới và bấm Thêm'
                   }
                   dropdownRender={(menu) => (
                     <>
@@ -661,29 +636,6 @@ export const ExpenseList = () => {
             </div>
           </div>
 
-          <div className="bg-slate-50 p-4 rounded-xl mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Switch size="small" onChange={(checked) => form.setFieldValue('isRecurring', checked)} />
-                <span className="text-sm font-medium text-slate-600">Định kỳ / Lặp lại</span>
-              </div>
-              <Form.Item
-                noStyle
-                shouldUpdate={(prev, curr) => prev.isRecurring !== curr.isRecurring}
-              >
-                {({ getFieldValue }) => getFieldValue('isRecurring') ? (
-                  <Form.Item name="recurringCycle" noStyle initialValue="MONTHLY">
-                    <Select className="w-32" size="small" options={[
-                      { value: 'DAILY', label: 'Hằng ngày' },
-                      { value: 'WEEKLY', label: 'Hằng tuần' },
-                      { value: 'MONTHLY', label: 'Hằng tháng' },
-                      { value: 'YEARLY', label: 'Hằng năm' },
-                    ]} />
-                  </Form.Item>
-                ) : null}
-              </Form.Item>
-            </div>
-          </div>
         </Form>
       </Modal>
     </div>

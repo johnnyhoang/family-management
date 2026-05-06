@@ -16,8 +16,10 @@ export interface CalendarEvent {
   participants?: any[];
   participantIds?: string[];
   createdBy?: string;
+  createdAt?: string;
   creator?: { fullName: string; email: string };
   updatedBy?: string;
+  updatedAt?: string;
   updater?: { fullName: string; email: string };
 }
 

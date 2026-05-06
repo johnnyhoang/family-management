@@ -5,7 +5,7 @@ import { Plus, Download, Copy, Search, X, Check, Trash2 } from 'lucide-react';
 import { assetApi } from '../api/asset';
 import { userApi } from '../api/user';
 import type { Asset } from '../api/asset';
-import { buildCategoryPathLabel, categoryApi, isLeafCategory } from '../api/category';
+import { buildCategoryPathLabel, categoryApi } from '../api/category';
 import dayjs from 'dayjs';
 import { renderMoneyBadge } from '../utils/display';
 import { confirmDuplicateWarning, findDuplicateAsset, getCategoryLabel } from '../utils/duplicates';
@@ -81,7 +81,6 @@ export const AssetList = () => {
     });
 
     const assetCategoryOptions = (categories ?? [])
-        .filter((category) => isLeafCategory(category))
         .map((category) => ({
             value: category.id,
             label: buildCategoryPathLabel(categories ?? [], category.id),

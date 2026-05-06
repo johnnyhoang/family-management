@@ -6,8 +6,10 @@ import {
   IsInt,
   Min,
   Max,
+  IsString,
 } from 'class-validator';
 import { MaintenanceFrequencyType } from '../maintenance.types';
+import { AssetMaintenanceType } from '../../../common/entities/asset-maintenance.entity';
 
 export class CreateMaintenanceDto {
   @IsUUID()
@@ -15,6 +17,13 @@ export class CreateMaintenanceDto {
 
   @IsDateString()
   startDate: string;
+
+  @IsEnum(AssetMaintenanceType)
+  type: AssetMaintenanceType;
+
+  @IsOptional()
+  @IsString()
+  content?: string;
 
   @IsOptional()
   @IsEnum(MaintenanceFrequencyType)

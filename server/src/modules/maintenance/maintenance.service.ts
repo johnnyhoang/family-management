@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import {
   AssetMaintenance,
+  AssetMaintenanceType,
   MaintenanceStatus,
 } from '../../common/entities/asset-maintenance.entity';
 import { Asset } from '../../common/entities/asset.entity';
@@ -48,19 +49,21 @@ export class MaintenanceService {
         createdBy: userId,
         assetId: dto.assetId,
         scheduledDate,
+        type: dto.type,
         status: MaintenanceStatus.OPEN,
+        content: dto.content ?? null,
         reminderDaysBefore: reminder,
       });
       row = await this.maintenanceRepository.save(row);
 
       const event = await this.calendarService.create(familyId, userId, {
-        title: `Bảo trì: ${asset.name}`,
-        description: 'Lịch bảo trì tài sản',
+        title: `${this.getTypeLabel(dto.type)}: ${asset.name}`,
+        description: this.buildCalendarDescription(dto.type, dto.content, MaintenanceStatus.OPEN),
         startDate: this.scheduledDateToStartIso(scheduledDate),
         isFullDay: true,
         type: CalendarEventType.MAINTENANCE,
-        reminderMinutes: Math.max(0, (reminder ?? 0) * 24 * 60),
-        metadata: JSON.stringify({ maintenanceId: row.id, assetId: asset.id }),
+        reminderMinutes: reminder != null ? Math.max(0, reminder * 24 * 60) : undefined,
+        metadata: this.buildCalendarMetadata(row.id, asset.id, dto.type, MaintenanceStatus.OPEN),
       });
 
       row.calendarEventId = event.id;
@@ -76,7 +79,7 @@ export class MaintenanceService {
 
   async findAll(
     familyId: string,
-    filters: { assetId?: string; status?: MaintenanceStatus },
+    filters: { assetId?: string; status?: MaintenanceStatus; type?: AssetMaintenanceType },
   ) {
     const qb = this.maintenanceRepository
       .createQueryBuilder('m')
@@ -90,6 +93,9 @@ export class MaintenanceService {
     }
     if (filters.status) {
       qb.andWhere('m.status = :status', { status: filters.status });
+    }
+    if (filters.type) {
+      qb.andWhere('m.type = :type', { type: filters.type });
     }
 
     return qb.getMany();
@@ -121,29 +127,28 @@ export class MaintenanceService {
       if (row.status !== MaintenanceStatus.OPEN) {
         throw new BadRequestException('Chỉ bỏ qua lịch đang mở');
       }
-      if (row.calendarEventId) {
-        try {
-          await this.calendarService.remove(row.calendarEventId, familyId);
-        } catch {
-          /* lịch có thể đã xóa tay */
-        }
-        row.calendarEventId = null;
-      }
       row.status = MaintenanceStatus.SKIPPED;
       if (dto.content !== undefined) {
         row.content = dto.content;
       }
       row.updatedBy = userId;
+      if (row.calendarEventId) {
+        await this.calendarService.update(row.calendarEventId, familyId, userId, {
+          title: `${this.getTypeLabel(row.type)}: ${row.asset?.name || 'Tài sản'}`,
+          description: this.buildCalendarDescription(row.type, row.content, row.status),
+          metadata: this.buildCalendarMetadata(row.id, row.assetId, row.type, row.status),
+          reminderMinutes: 0,
+        });
+      }
       return this.maintenanceRepository.save(row);
+    }
+
+    if (dto.type) {
+      row.type = dto.type;
     }
 
     if (dto.scheduledDate && dto.scheduledDate !== row.scheduledDate) {
       row.scheduledDate = dto.scheduledDate.slice(0, 10);
-      if (row.calendarEventId) {
-        await this.calendarService.update(row.calendarEventId, familyId, userId, {
-          startDate: this.scheduledDateToStartIso(row.scheduledDate),
-        });
-      }
     }
 
     if (dto.content !== undefined) {
@@ -151,11 +156,18 @@ export class MaintenanceService {
     }
     if (dto.reminderDaysBefore !== undefined) {
       row.reminderDaysBefore = dto.reminderDaysBefore;
-      if (row.calendarEventId) {
-        await this.calendarService.update(row.calendarEventId, familyId, userId, {
-          reminderMinutes: Math.max(0, (row.reminderDaysBefore ?? 0) * 24 * 60),
-        });
-      }
+    }
+
+    if (row.calendarEventId) {
+      await this.calendarService.update(row.calendarEventId, familyId, userId, {
+        title: `${this.getTypeLabel(row.type)}: ${row.asset?.name || 'Tài sản'}`,
+        description: this.buildCalendarDescription(row.type, row.content, row.status),
+        startDate: this.scheduledDateToStartIso(row.scheduledDate),
+        metadata: this.buildCalendarMetadata(row.id, row.assetId, row.type, row.status),
+        reminderMinutes: row.reminderDaysBefore != null
+          ? Math.max(0, row.reminderDaysBefore * 24 * 60)
+          : undefined,
+      });
     }
 
     row.updatedBy = userId;
@@ -195,9 +207,10 @@ export class MaintenanceService {
       assetId: row.assetId,
       expenseDate: new Date(row.scheduledDate),
       note: dto.content,
-      entryType: ExpenseEntryType.EXPENSE,
+      entryType: row.type === AssetMaintenanceType.OPERATION
+        ? ExpenseEntryType.INCOME
+        : ExpenseEntryType.EXPENSE,
       currency: 'VND',
-      isRecurring: false,
       isTransfer: false,
       customFields: { maintenanceId: row.id },
     });
@@ -209,15 +222,57 @@ export class MaintenanceService {
     row.updatedBy = userId;
 
     if (row.calendarEventId) {
-      try {
-        await this.calendarService.remove(row.calendarEventId, familyId);
-      } catch {
-        /* ignore */
-      }
-      row.calendarEventId = null;
+      await this.calendarService.update(row.calendarEventId, familyId, userId, {
+        title: `${this.getTypeLabel(row.type)}: ${row.asset?.name || 'Tài sản'}`,
+        description: this.buildCalendarDescription(row.type, row.content, row.status),
+        metadata: this.buildCalendarMetadata(row.id, row.assetId, row.type, row.status),
+        reminderMinutes: 0,
+      });
     }
 
     return this.maintenanceRepository.save(row);
+  }
+
+  private getTypeLabel(type: AssetMaintenanceType): string {
+    switch (type) {
+      case AssetMaintenanceType.OPERATION:
+        return 'Khai thác';
+      case AssetMaintenanceType.LIABILITY:
+        return 'Nợ';
+      case AssetMaintenanceType.MAINTENANCE:
+      default:
+        return 'Bảo trì';
+    }
+  }
+
+  private getStatusLabel(status: MaintenanceStatus): string {
+    switch (status) {
+      case MaintenanceStatus.COMPLETED:
+        return 'Đã ghi nhận';
+      case MaintenanceStatus.SKIPPED:
+        return 'Đã bỏ qua';
+      case MaintenanceStatus.OPEN:
+      default:
+        return 'Đang chờ';
+    }
+  }
+
+  private buildCalendarDescription(
+    type: AssetMaintenanceType,
+    content: string | null | undefined,
+    status: MaintenanceStatus,
+  ): string {
+    const base = content || `Lịch ${this.getTypeLabel(type).toLowerCase()} tài sản`;
+    return `${base} · ${this.getStatusLabel(status)}`;
+  }
+
+  private buildCalendarMetadata(
+    maintenanceId: string,
+    assetId: string,
+    type: AssetMaintenanceType,
+    status: MaintenanceStatus,
+  ): string {
+    return JSON.stringify({ maintenanceId, assetId, maintenanceType: type, maintenanceStatus: status });
   }
 
   /** Sinh chuỗi ngày YYYY-MM-DD: không tần suất → 1 ngày; có tần suất → repeatCount bản ghi (mặc định 12). */

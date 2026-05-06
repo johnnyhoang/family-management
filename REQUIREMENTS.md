@@ -107,26 +107,32 @@ Actions:
 
 ## 7. Category system
 
-Danh mục **không còn trường “loại” (type)** trên DB hay API; chỉ còn cây **2 cấp**:
+Danh mục hiện là cây **2 cấp**, dùng chung toàn project:
 
-- **Nhóm gốc** (`parentId = null`)
-- **Danh mục lá** (`parentId` trỏ tới một nhóm gốc)
+- **Danh mục cha** (`parentId = null`)
+- **Danh mục con** (`parentId` trỏ tới một danh mục cha)
 
 Ràng buộc:
 
-- Danh mục lá phải có `parentId` là id của một nhóm gốc (nhóm không có cha).
-- API/UI nơi cần chọn danh mục cho giao dịch hoặc tài sản: **load toàn bộ danh mục** của gia đình, lọc **danh mục lá** khi cần gán vào bản ghi.
+- Không có cấp thứ 3
+- Không có `type` trên bảng `categories`
+- Cùng một cây danh mục được dùng chung cho tài sản, tài chính và các nghiệp vụ tài sản
+- Tài sản và giao dịch có thể gắn vào **bất kỳ danh mục nào**, không bắt buộc là danh mục con
 
 ## 8. Transaction model
 
 Transaction (`Expense` entity hiện tại) hỗ trợ:
 
-- `entryType`: `INCOME | EXPENSE | LIABILITY`
-- `isRecurring: boolean`
+- `entryType`: `INCOME | EXPENSE`
 - `isTransfer: boolean`
 
-Quy tắc:
+Quy tắc vận hành hiện tại:
 
+- Module `Quản lý tài chính` chỉ vận hành trực tiếp với `INCOME` và `EXPENSE`
+- Không còn recurring transaction trong domain hiện tại
+- Không còn `LIABILITY` trong transaction domain
+- `Bảo trì` và `Nợ` từ module tài sản khi thanh toán sẽ tạo transaction `EXPENSE`
+- `Khai thác` từ module tài sản khi hoàn tất sẽ tạo transaction `INCOME`
 - `isTransfer = true` dùng cho chuyển nội bộ
 - transfer không được cộng vào tổng thu/chi dashboard
 - transfer không được làm méo analytics thu nhập/chi phí
@@ -134,8 +140,25 @@ Quy tắc:
 ## 9. Asset management
 
 - Asset luôn thuộc một `familyId`
-- Asset phải dùng **danh mục lá** (có nhóm cha), không dùng nhóm gốc làm `categoryId`
+- Asset dùng danh mục chung như toàn hệ thống, không bắt buộc là danh mục con
 - Hỗ trợ các trường giá mua, giá trị hiện tại, bảo hành, bảo trì, ảnh, tài liệu
+
+### 9.1 Asset operations
+
+Module `Bảo trì khai thác và nợ` là module nghiệp vụ tài sản:
+
+- `Bảo trì`
+- `Khai thác`
+- `Nợ`
+
+Mỗi bản ghi:
+
+- gắn với một tài sản
+- có ngày thực hiện
+- có trạng thái `open | completed | skipped`
+- khi hoàn tất có thể sinh transaction tài chính tương ứng
+- đồng thời tạo lịch trong `Lịch gia đình`
+- lịch này là dữ liệu dùng chung với module lịch, sửa ở đâu cũng phải phản ánh sang nơi còn lại
 
 ## 10. Dashboard
 
@@ -147,6 +170,12 @@ Quy tắc:
 
 - Dữ liệu theo gia đình
 - Hiển thị hay cho phép thao tác dựa trên permission template
+- Hiển thị đồng thời:
+  - sự kiện của ngày đang chọn
+  - danh sách sự kiện tương lai
+  - danh sách sự kiện đã qua
+- Các bản ghi từ module `Bảo trì khai thác và nợ` phải xuất hiện trong lịch gia đình
+- Event sinh từ `Bảo trì khai thác và nợ` dùng chung dữ liệu với module đó; sửa ngày, mô tả, nhắc lịch ở lịch hay ở module tài sản đều phải đồng bộ
 
 ## 12. User settings
 
@@ -185,10 +214,10 @@ Lưu ý hiện tại:
   - role templates
   - permissions
   - invites
-  - finance category hierarchy
-  - transfer / recurring flags
+  - finance category hierarchy 2 cấp dùng chung
+  - transfer flag
+  - loại bản ghi `maintenance / operation / liability` cho nghiệp vụ tài sản
 - Phải có validation cho:
-  - category type consistency
   - active family membership
   - role safety
   - family admin floor

@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Expense, ExpenseEntryType, RecurringCycle } from '../../common/entities/expense.entity';
+import { Expense, ExpenseEntryType } from '../../common/entities/expense.entity';
 import { Category } from '../../common/entities/category.entity';
 import { stringify } from 'csv-stringify/sync';
 
@@ -93,12 +93,6 @@ export class ExpenseService {
       isTransfer: data.isTransfer ?? false,
     });
 
-    if (expense.isRecurring && expense.recurringCycle && expense.expenseDate) {
-      expense.nextOccurrenceDate = this.computeNextOccurrence(expense.recurringCycle, expense.expenseDate);
-    } else {
-      expense.nextOccurrenceDate = null;
-    }
-
     return this.expenseRepository.save(expense);
   }
 
@@ -120,12 +114,6 @@ export class ExpenseService {
     expense.updatedBy = userId;
     expense.entryType = entryType;
     expense.isTransfer = data.isTransfer ?? expense.isTransfer ?? false;
-
-    if (expense.isRecurring && expense.recurringCycle && expense.expenseDate) {
-      expense.nextOccurrenceDate = this.computeNextOccurrence(expense.recurringCycle, expense.expenseDate);
-    } else {
-      expense.nextOccurrenceDate = null;
-    }
 
     return this.expenseRepository.save(expense);
   }
@@ -166,17 +154,6 @@ export class ExpenseService {
         { key: 'asset', header: 'Tài sản' },
       ],
     });
-  }
-
-  private computeNextOccurrence(cycle: RecurringCycle, from: Date): Date {
-    const next = new Date(from);
-    switch (cycle) {
-      case RecurringCycle.DAILY:   next.setDate(next.getDate() + 1); break;
-      case RecurringCycle.WEEKLY:  next.setDate(next.getDate() + 7); break;
-      case RecurringCycle.MONTHLY: next.setMonth(next.getMonth() + 1); break;
-      case RecurringCycle.YEARLY:  next.setFullYear(next.getFullYear() + 1); break;
-    }
-    return next;
   }
 
   private async resolveEntryType(

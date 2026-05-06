@@ -13,10 +13,19 @@
 ## Tính năng hiện tại
 
 - Quản lý tài sản
-- Quản lý giao dịch thu nhập, chi phí, nợ
-- Danh mục tài chính 2 cấp (nhóm gốc + danh mục lá), không còn phân loại `type` trên danh mục
+- Quản lý tài chính cho giao dịch thu nhập và chi phí
+- Module `Bảo trì khai thác và nợ` gắn với tài sản:
+  - `Bảo trì` và `Nợ` khi thanh toán sẽ ghi nhận chi phí
+  - `Khai thác` khi hoàn tất sẽ ghi nhận thu nhập
+- Danh mục 2 cấp, dùng chung toàn project
+- Tài sản và giao dịch có thể dùng bất kỳ danh mục nào, không bắt buộc là danh mục con
 - Chuyển nội bộ với `isTransfer` để không double count vào tổng thu chi
-- Lịch gia đình
+- Lịch gia đình hiển thị:
+  - sự kiện theo ngày
+  - danh sách sự kiện sắp tới
+  - danh sách sự kiện đã qua
+  - các lịch `bảo trì / khai thác / nợ` tạo từ module tài sản
+  - sửa từ `Lịch gia đình` hay từ module `Bảo trì khai thác và nợ` đều dùng chung lịch đó
 - AI nhập liệu tự nhiên bằng tiếng Việt
 - Multi-family membership + chọn `active family`
 - Giao diện tiếng Việt, có Dark Mode
@@ -73,6 +82,8 @@ Các migration gần đây cần được áp dụng trước khi chạy product
 - `1775304000000-RefactorFinanceCategoryHierarchy`
 - `1775400000000-AddMultiFamilyRbac`
 - `1778000000000-RemoveCategoryTypeColumn` (bỏ cột `type` khỏi `categories`)
+- `1779811200000-AddAssetMaintenanceType`
+- `1779900000000-RemoveLiabilityAndRecurringFromExpenses`
 
 ## Tài liệu
 
