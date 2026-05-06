@@ -41,10 +41,10 @@ export class AssetMaintenance extends BaseEntity {
   @Column({ type: 'decimal', precision: 15, scale: 2, nullable: true })
   cost: number | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   expenseId: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'uuid', nullable: true })
   calendarEventId: string | null;
 
   @Column({ type: 'int', nullable: true })
