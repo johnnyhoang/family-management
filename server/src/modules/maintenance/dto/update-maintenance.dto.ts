@@ -1,10 +1,14 @@
 import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import { MaintenanceStatus } from '../../../common/entities/asset-maintenance.entity';
+import { AssetMaintenanceType, MaintenanceStatus } from '../../../common/entities/asset-maintenance.entity';
 
 export class UpdateMaintenanceDto {
   @IsOptional()
   @IsDateString()
   scheduledDate?: string;
+
+  @IsOptional()
+  @IsEnum(AssetMaintenanceType)
+  type?: AssetMaintenanceType;
 
   @IsOptional()
   @IsEnum(MaintenanceStatus)

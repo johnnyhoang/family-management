@@ -6,11 +6,17 @@
 
 Các thay đổi quan trọng gần đây:
 
-- Danh mục **bỏ hẳn `type`**: chỉ còn cây 2 cấp (nhóm gốc + danh mục lá); nơi cần chọn danh mục thì load toàn bộ danh mục gia đình và lọc lá khi gán.
-- Bổ sung `isTransfer` và chuẩn hóa `isRecurring` cho transaction
-- Thêm multi-family membership bằng `family_users`
-- Thêm RBAC theo role template
-- UI bỏ i18n, dùng tiếng Việt trực tiếp
+- Danh mục hiện là cây 2 cấp dùng chung cho nhiều nghiệp vụ
+- Tài sản và giao dịch có thể dùng bất kỳ danh mục nào trong cây
+- Màn `Quản lý tài chính` chỉ còn tập trung vào `thu nhập / chi phí`
+- `LIABILITY` đã bị loại khỏi transaction domain
+- recurring transaction đã bị loại khỏi domain hiện tại
+- Module tài sản đã có surface riêng `Bảo trì khai thác và nợ`
+- Các bản ghi `bảo trì / khai thác / nợ` tạo event trong `Lịch gia đình`
+- event của module tài sản và event trên lịch dùng chung dữ liệu lịch
+- Multi-family membership bằng `family_users`
+- RBAC theo role template
+- UI dùng tiếng Việt trực tiếp
 - Dark Mode hoạt động thật
 
 ## 2. Stack
@@ -76,8 +82,10 @@ Các thay đổi quan trọng gần đây:
 - `user`: member listing, invite, update role, remove membership
 - `family`: family profile trong active family
 - `admin`: cấu trúc hệ thống cho `APP_ADMIN`
-- `category`: hierarchy tài chính
-- `expense`: transactions, recurring, transfer
+- `category`: cây danh mục 2 cấp
+- `expense`: transactions thu nhập/chi phí, transfer, lịch sử tài chính
+- `maintenance`: nghiệp vụ tài sản `bảo trì / khai thác / nợ`
+- `calendar`: lịch tay + lịch nghiệp vụ tài sản
 
 ## 6. Frontend state hiện tại
 
@@ -100,6 +108,8 @@ Các thay đổi quan trọng gần đây:
 
 - `1775304000000-RefactorFinanceCategoryHierarchy`
 - `1775400000000-AddMultiFamilyRbac`
+- `1779811200000-AddAssetMaintenanceType`
+- `1779900000000-RemoveLiabilityAndRecurringFromExpenses`
 
 Khi dựng môi trường mới hoặc deploy DB cũ, cần chạy migration đầy đủ trước.
 
@@ -110,5 +120,7 @@ Khi dựng môi trường mới hoặc deploy DB cũ, cần chạy migration đ�
 3. Kiểm tra login mới, create family, invite, accept invite, switch family
 4. Kiểm tra APP_ADMIN không truy cập finance data
 5. Kiểm tra transfer không vào dashboard tổng thu/chi
-6. Kiểm tra category type consistency
-7. Kiểm tra UI route/menu đúng theo role
+6. Kiểm tra bản ghi `bảo trì / khai thác / nợ` xuất hiện đúng trong lịch gia đình
+7. Kiểm tra sửa event từ `Lịch gia đình` và từ `Bảo trì khai thác và nợ` sync đúng hai chiều
+8. Kiểm tra `Quản lý tài chính` không còn `nợ` và không còn recurring
+9. Kiểm tra UI route/menu đúng theo role

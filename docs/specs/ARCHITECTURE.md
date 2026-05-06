@@ -129,9 +129,14 @@ Lưu ý:
 Category(name, parentId?)
 ```
 
-- **Nhóm gốc**: `parentId = null`
-- **Danh mục lá**: `parentId` trỏ tới một nhóm gốc (đúng 2 cấp)
-- Không còn enum `type` trên bảng `categories`; phân loại thu/chi/nợ thể hiện ở **giao dịch** (`entryType`), không gắn với loại danh mục.
+- **Danh mục cha**: `parentId = null`
+- **Danh mục con**: `parentId` trỏ tới một danh mục cha (đúng 2 cấp)
+- Không còn enum `type` trên bảng `categories`
+- Danh mục hiện được dùng chung cho:
+  - giao dịch tài chính
+  - tài sản
+  - bản ghi `bảo trì / khai thác / nợ`
+- Không ép chọn danh mục con; asset và transaction có thể gắn vào bất kỳ node nào trong cây
 
 Ví dụ:
 
@@ -146,8 +151,7 @@ Thu nhập
 
 Entity transaction hiện dùng `Expense`:
 
-- `entryType`: `INCOME | EXPENSE | LIABILITY`
-- `isRecurring`
+- `entryType`: `INCOME | EXPENSE`
 - `isTransfer`
 
 Analytics rules:
@@ -155,7 +159,34 @@ Analytics rules:
 - `isTransfer = true` không đi vào tổng thu chi
 - transfer không đi vào breakdown income/expense bình thường
 
-## 9. Frontend authorization model
+UI rules hiện tại:
+
+- màn `Quản lý tài chính` chỉ có `INCOME` và `EXPENSE`
+- không còn recurring transaction
+- `Nợ` không còn là transaction type; nó là một nghiệp vụ tài sản và chỉ sinh ra `EXPENSE` khi ghi nhận thanh toán
+
+## 9. Asset operations model
+
+```text
+AssetMaintenance(assetId, type, scheduledDate, status, expenseId?, calendarEventId?)
+```
+
+`type` hiện gồm:
+
+- `maintenance`
+- `operation`
+- `liability`
+
+Mapping nghiệp vụ:
+
+- `maintenance` -> khi hoàn tất sinh transaction `EXPENSE`
+- `operation` -> khi hoàn tất sinh transaction `INCOME`
+- `liability` -> khi hoàn tất sinh transaction `EXPENSE`
+
+Đồng thời mỗi bản ghi tạo/cập nhật một `calendar_event` để xuất hiện trên lịch gia đình.
+Lịch này là dữ liệu dùng chung: sửa ở `Calendar` hay `Maintenance` đều phải sync cùng ngày, mô tả và nhắc lịch.
+
+## 10. Frontend authorization model
 
 Frontend không thay backend authorization, nhưng làm 3 việc:
 
@@ -165,7 +196,7 @@ Frontend không thay backend authorization, nhưng làm 3 việc:
 
 Điều này giảm số màn `403` vô nghĩa và khớp trải nghiệm với backend.
 
-## 10. Production concerns
+## 11. Production concerns
 
 Các điểm còn cần chú ý trước launch:
 
@@ -175,5 +206,5 @@ Các điểm còn cần chú ý trước launch:
   - multi-family isolation
   - switch family
   - invite accept
-  - finance category migration
+  - finance migration loại bỏ `LIABILITY` và recurring
   - transfer exclusion

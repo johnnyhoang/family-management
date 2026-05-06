@@ -8,6 +8,12 @@ export enum MaintenanceStatus {
   SKIPPED = 'skipped',
 }
 
+export enum AssetMaintenanceType {
+  MAINTENANCE = 'maintenance',
+  OPERATION = 'operation',
+  LIABILITY = 'liability',
+}
+
 @Entity('asset_maintenances')
 @Index(['familyId', 'scheduledDate'])
 @Index(['familyId', 'assetId'])
@@ -27,6 +33,13 @@ export class AssetMaintenance extends BaseEntity {
 
   @Column({ type: 'date' })
   scheduledDate: string;
+
+  @Column({
+    type: 'enum',
+    enum: AssetMaintenanceType,
+    default: AssetMaintenanceType.MAINTENANCE,
+  })
+  type: AssetMaintenanceType;
 
   @Column({
     type: 'enum',

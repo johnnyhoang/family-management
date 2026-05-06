@@ -15,7 +15,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { ActiveFamilyGuard } from '../../common/guards/active-family.guard';
 import { PermissionGuard } from '../../common/guards/permission.guard';
 import { CheckPermission } from '../../common/decorators/permission.decorator';
-import { MaintenanceStatus } from '../../common/entities/asset-maintenance.entity';
+import { AssetMaintenanceType, MaintenanceStatus } from '../../common/entities/asset-maintenance.entity';
 import { MaintenanceService } from './maintenance.service';
 import { CreateMaintenanceDto } from './dto/create-maintenance.dto';
 import { UpdateMaintenanceDto } from './dto/update-maintenance.dto';
@@ -40,10 +40,12 @@ export class MaintenanceController {
     @Req() req,
     @Query('assetId') assetId?: string,
     @Query('status') status?: MaintenanceStatus,
+    @Query('type') type?: AssetMaintenanceType,
   ) {
     return this.maintenanceService.findAll(req.user.familyId, {
       assetId,
       status,
+      type,
     });
   }
 

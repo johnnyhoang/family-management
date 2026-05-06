@@ -4,7 +4,6 @@ import { Expense } from '../../common/entities/expense.entity';
 import { Category } from '../../common/entities/category.entity';
 import { ExpenseService } from './expense.service';
 import { ExpenseController } from './expense.controller';
-import { RecurringExpenseScheduler } from './recurring-expense.scheduler';
 import { PermissionModule } from '../permission/permission.module';
 
 @Module({
@@ -13,7 +12,7 @@ import { PermissionModule } from '../permission/permission.module';
     PermissionModule,
   ],
   controllers: [ExpenseController],
-  providers: [ExpenseService, RecurringExpenseScheduler],
+  providers: [ExpenseService],
   exports: [ExpenseService],
 })
 export class ExpenseModule {}

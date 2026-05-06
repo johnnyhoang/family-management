@@ -5,7 +5,6 @@ import { Plus, Copy, FolderTree, X, Check, Trash2 } from 'lucide-react';
 import {
   buildCategoryPathLabel,
   categoryApi,
-  isLeafCategory,
   type Category,
 } from '../api/category';
 
@@ -147,15 +146,15 @@ export const CategoryList = () => {
     },
   });
 
-  const reassignLeafOptions = useMemo(() => {
+  const reassignCategoryOptions = useMemo(() => {
     if (!editingCategory || !categories) return [];
     return categories
-      .filter((c) => isLeafCategory(c) && c.id !== editingCategory.id)
+      .filter((c) => c.id !== editingCategory.id && !descendantIds.has(c.id))
       .map((c) => ({
         value: c.id,
         label: buildCategoryPathLabel(categories, c.id),
       }));
-  }, [categories, editingCategory]);
+  }, [categories, descendantIds, editingCategory]);
 
   const openDeleteCategoryFlow = async () => {
     if (!editingCategory) return;
@@ -190,8 +189,8 @@ export const CategoryList = () => {
     if (!editingCategory) {
       return Promise.reject();
     }
-    if (reassignLeafOptions.length === 0) {
-      message.warning('Chưa có danh mục lá khác để chuyển. Hãy tạo thêm danh mục rồi thử lại.');
+    if (reassignCategoryOptions.length === 0) {
+      message.warning('Chưa có danh mục nào khác để chuyển. Hãy tạo thêm danh mục rồi thử lại.');
       return Promise.reject();
     }
     if (!reassignTargetId) {
@@ -441,20 +440,20 @@ export const CategoryList = () => {
             <p className="text-sm text-slate-700">
               Danh mục <strong>{editingCategory.name}</strong> đang có{' '}
               <strong>{usageSummary.assetCount}</strong> tài sản và{' '}
-              <strong>{usageSummary.expenseCount}</strong> giao dịch. Chọn danh mục lá khác để chuyển
+              <strong>{usageSummary.expenseCount}</strong> giao dịch. Chọn danh mục khác để chuyển
               toàn bộ sang, sau đó hệ thống sẽ xóa danh mục hiện tại.
             </p>
-            {reassignLeafOptions.length === 0 ? (
+            {reassignCategoryOptions.length === 0 ? (
               <p className="text-sm text-amber-700">
-                Chưa có danh mục lá nào khác. Hãy tạo thêm ít nhất một danh mục lá rồi thử lại.
+                Chưa có danh mục nào khác. Hãy tạo thêm ít nhất một danh mục rồi thử lại.
               </p>
             ) : (
               <div>
                 <div className="mb-2 text-sm font-medium text-slate-800">Danh mục đích</div>
                 <Select
                   className="w-full"
-                  placeholder="Chọn danh mục lá"
-                  options={reassignLeafOptions}
+                  placeholder="Chọn danh mục"
+                  options={reassignCategoryOptions}
                   value={reassignTargetId}
                   onChange={(v) => setReassignTargetId(v)}
                   showSearch

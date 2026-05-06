@@ -1,6 +1,6 @@
 import api from './client';
 
-export type ExpenseEntryType = 'INCOME' | 'EXPENSE' | 'LIABILITY';
+export type ExpenseEntryType = 'INCOME' | 'EXPENSE';
 
 export interface Category {
   id: string;
@@ -14,7 +14,6 @@ export interface Category {
 export const expenseEntryTypeLabels: Record<ExpenseEntryType, string> = {
   INCOME: 'Thu nhập',
   EXPENSE: 'Chi phí',
-  LIABILITY: 'Nợ',
 };
 
 /** Danh mục lá: có cha (dùng cho chọn trên form giao dịch/tài sản). */

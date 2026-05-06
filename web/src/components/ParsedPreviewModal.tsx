@@ -8,7 +8,6 @@ import {
     buildCategoryPathLabel,
     categoryApi,
     expenseEntryTypeLabels,
-    isLeafCategory,
     type ExpenseEntryType,
 } from '../api/category';
 import { assetApi } from '../api/asset';
@@ -82,7 +81,7 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
             const normalizeEntryType = (v: any): ExpenseEntryType | undefined => {
                 if (typeof v !== 'string') return undefined;
                 const u = v.trim().toUpperCase();
-                if (u === 'INCOME' || u === 'EXPENSE' || u === 'LIABILITY') return u as ExpenseEntryType;
+                if (u === 'INCOME' || u === 'EXPENSE') return u as ExpenseEntryType;
                 return undefined;
             };
 
@@ -241,7 +240,6 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         <Form.Item name="categoryId" label="Danh mục" rules={[{ required: true }]}>
                             <Select
                                 options={categories
-                                    .filter((category) => isLeafCategory(category))
                                     .map((category) => ({
                                         label: buildCategoryPathLabel(categories, category.id),
                                         value: category.id,
@@ -277,7 +275,6 @@ export const ParsedPreviewModal: React.FC<ParsedPreviewModalProps> = ({
                         <Form.Item name="categoryId" label="Danh mục">
                             <Select
                                 options={categories
-                                    .filter((category) => isLeafCategory(category))
                                     .map((category) => ({
                                         label: buildCategoryPathLabel(categories, category.id),
                                         value: category.id,

@@ -3,17 +3,9 @@ import { BaseEntity } from './base.entity';
 import { Asset } from './asset.entity';
 import { Category } from './category.entity';
 
-export enum RecurringCycle {
-  DAILY = 'DAILY',
-  WEEKLY = 'WEEKLY',
-  MONTHLY = 'MONTHLY',
-  YEARLY = 'YEARLY',
-}
-
 export enum ExpenseEntryType {
   INCOME = 'INCOME',
   EXPENSE = 'EXPENSE',
-  LIABILITY = 'LIABILITY',
 }
 
 @Entity('expenses')
@@ -54,20 +46,7 @@ export class Expense extends BaseEntity {
   expenseDate: Date;
 
   @Column({ default: false })
-  isRecurring: boolean;
-
-  @Column({ default: false })
   isTransfer: boolean;
-
-  @Column({
-    type: 'enum',
-    enum: RecurringCycle,
-    nullable: true,
-  })
-  recurringCycle: RecurringCycle;
-
-  @Column({ type: 'date', nullable: true })
-  nextOccurrenceDate: Date | null;
 
   @Column({ default: false })
   reminderEnabled: boolean;

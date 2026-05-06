@@ -17,7 +17,7 @@ import { formatVndAmount } from '../utils/currency';
 import { getDateBadgeClassName, getMoneyBadgeClassName } from '../utils/display';
 import dayjs from 'dayjs';
 
-type EntryTypeFilter = 'INCOME' | 'EXPENSE' | 'LIABILITY';
+type EntryTypeFilter = 'INCOME' | 'EXPENSE';
 type PeriodMode = 'month' | 'year' | 'custom';
 
 interface CategoryBreakdownRow {
@@ -116,7 +116,6 @@ export const Dashboard = () => {
             parentName: string | null;
             income: number;
             expense: number;
-            liability: number;
         }>();
         for (const row of categoryBreakdown) {
             const key = row.categoryId;
@@ -127,17 +126,15 @@ export const Dashboard = () => {
                     parentName: row.parentName,
                     income: 0,
                     expense: 0,
-                    liability: 0,
                 });
             }
             const entry = map.get(key)!;
             if (row.entryType === 'INCOME') entry.income += row.amount;
             else if (row.entryType === 'EXPENSE') entry.expense += row.amount;
-            else if (row.entryType === 'LIABILITY') entry.liability += row.amount;
         }
         return Array.from(map.values())
-            .map((row) => ({ ...row, net: row.income - row.expense - row.liability }))
-            .sort((a, b) => (b.income + b.expense + b.liability) - (a.income + a.expense + a.liability));
+            .map((row) => ({ ...row, net: row.income - row.expense }))
+            .sort((a, b) => (b.income + b.expense) - (a.income + a.expense));
     }, [categoryBreakdown]);
 
     if (!canViewDashboard) {
@@ -169,13 +166,11 @@ export const Dashboard = () => {
     const entryTypeLabels: Record<EntryTypeFilter, string> = {
         INCOME: 'Thu nhập',
         EXPENSE: 'Chi tiêu',
-        LIABILITY: 'Nợ',
     };
 
     const entryTypeColors: Record<EntryTypeFilter, string> = {
         INCOME: 'text-emerald-600',
         EXPENSE: 'text-rose-600',
-        LIABILITY: 'text-amber-600',
     };
 
     return (
@@ -194,7 +189,7 @@ export const Dashboard = () => {
                 <KpiCard
                     label="Tài sản ròng"
                     primary={formatVndAmount(stats?.netWorth || 0)}
-                    secondary={`${stats?.totalAssetCount || 0} tài sản • Nợ ${formatCompactVnd(stats?.totalLiabilities || 0)}đ`}
+                    secondary={`${stats?.totalAssetCount || 0} tài sản đang theo dõi`}
                     icon={Wallet}
                     accent="blue"
                 />
@@ -272,7 +267,6 @@ export const Dashboard = () => {
                         >
                             <Radio.Button value="INCOME">Thu</Radio.Button>
                             <Radio.Button value="EXPENSE">Chi</Radio.Button>
-                            <Radio.Button value="LIABILITY">Nợ</Radio.Button>
                         </Radio.Group>
                     </div>
                     <div className="flex gap-2 items-center flex-wrap">
@@ -408,7 +402,6 @@ export const Dashboard = () => {
                                         <th className="text-left py-2 px-2 font-semibold">Danh mục</th>
                                         <th className="text-right py-2 px-2 font-semibold text-emerald-600">Thu</th>
                                         <th className="text-right py-2 px-2 font-semibold text-rose-600">Chi</th>
-                                        <th className="text-right py-2 px-2 font-semibold text-amber-600">Nợ</th>
                                         <th className="text-right py-2 px-2 font-semibold">Số dư</th>
                                     </tr>
                                 </thead>
@@ -426,9 +419,6 @@ export const Dashboard = () => {
                                             </td>
                                             <td className="py-2 px-2 text-right text-rose-600">
                                                 {row.expense > 0 ? formatVndAmount(row.expense) : '—'}
-                                            </td>
-                                            <td className="py-2 px-2 text-right text-amber-600">
-                                                {row.liability > 0 ? formatVndAmount(row.liability) : '—'}
                                             </td>
                                             <td className={cn('py-2 px-2 text-right font-bold', row.net >= 0 ? 'text-emerald-600' : 'text-rose-600')}>
                                                 {formatVndAmount(row.net)}

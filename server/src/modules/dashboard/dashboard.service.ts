@@ -49,17 +49,8 @@ export class DashboardService {
     );
     const totalAssetCount = activeAssets.length;
 
-    const liabilitiesResult = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .where('expense.familyId = :familyId', { familyId })
-      .andWhere('expense.isTransfer = false')
-      .andWhere('expense.entryType = :entryType', {
-        entryType: ExpenseEntryType.LIABILITY,
-      })
-      .select('SUM(expense.amount)', 'total')
-      .getRawOne();
-    const totalLiabilities = Number(liabilitiesResult?.total || 0);
-    const netWorth = totalAssetValue - totalLiabilities;
+    const totalLiabilities = 0;
+    const netWorth = totalAssetValue;
 
     // ===== Monthly summaries =====
     const sumExpensesInRange = async (

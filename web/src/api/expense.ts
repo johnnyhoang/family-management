@@ -8,9 +8,7 @@ export interface Expense {
   entryType: ExpenseEntryType;
   categoryId?: string;
   expenseDate: string;
-  isRecurring: boolean;
   isTransfer?: boolean;
-  recurringCycle?: string;
   note?: string;
   assetId?: string;
   asset?: { name: string };

@@ -45,6 +45,14 @@ Hiện chỉnh hồ sơ trên web còn đi qua endpoint user trong active family
 
 Hiện có `ACTIVE | INACTIVE`. Cần xác nhận nghiệp vụ suspend/reactivate trên UI admin và quy trình support.
 
+### 6.1 Rà soát lại migration tài chính trên dữ liệu thật
+
+Cần kiểm tra kỹ sau khi bỏ `LIABILITY` và recurring:
+
+- transaction legacy `LIABILITY` đã được đổi sang `EXPENSE` an toàn
+- dữ liệu cũ không còn phụ thuộc các cột recurring
+- dashboard không còn báo cáo nhầm nợ như một transaction type
+
 ## P2 — Nâng chất lượng kỹ thuật
 
 ### 7. Tăng chỉ số và index cho bảng mới
@@ -132,3 +140,7 @@ Hiện `APP_ADMIN` được điều hướng về bề mặt an toàn. Sau này 
 - ✅ Add `PATCH /auth/me` endpoint (no permission guard) for self-profile update; fix Settings page profile save for MEMBER role
 - ✅ Add Settings page family info card: show name/status, allow FAMILY_ADMIN to rename family via `PATCH /family`
 - ✅ Create `web/src/api/family.ts` with `getMyFamily` and `updateMyFamily`
+- ✅ Quyết định business đã được chốt: danh mục dùng chung toàn project, tối đa 2 cấp, asset/transaction không bắt buộc chọn danh mục con
+- ✅ Loại bỏ `LIABILITY` khỏi transaction domain; `Nợ` chỉ còn là nghiệp vụ trong module `Bảo trì khai thác và nợ`
+- ✅ Loại bỏ recurring transaction khỏi backend/frontend domain hiện tại
+- ✅ Đồng bộ lịch hai chiều giữa `Calendar` và `Bảo trì khai thác và nợ`
