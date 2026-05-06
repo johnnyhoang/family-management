@@ -126,31 +126,20 @@ Lưu ý:
 ## 7. Finance category model
 
 ```text
-Category(type=ASSET|LIABILITY|INCOME|EXPENSE, level=GROUP|CATEGORY, parentId?)
+Category(name, parentId?)
 ```
 
-Rules:
-
-- `GROUP` là tầng trung gian
-- `CATEGORY` phải có `parentId`
-- parent và child phải cùng `type`
+- **Nhóm gốc**: `parentId = null`
+- **Danh mục lá**: `parentId` trỏ tới một nhóm gốc (đúng 2 cấp)
+- Không còn enum `type` trên bảng `categories`; phân loại thu/chi/nợ thể hiện ở **giao dịch** (`entryType`), không gắn với loại danh mục.
 
 Ví dụ:
 
 ```text
-ASSET
-  -> Investment
-    -> Stock
-    -> Crypto
-EXPENSE
-  -> Sinh hoạt
-    -> Điện nước
-INCOME
-  -> Lương
-    -> Lương chính
-LIABILITY
-  -> Vay mượn
-    -> Nợ bạn bè
+Sinh hoạt
+  -> Ăn uống
+Thu nhập
+  -> Lương / Thu nhập chính
 ```
 
 ## 8. Transaction model

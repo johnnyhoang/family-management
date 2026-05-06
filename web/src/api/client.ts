@@ -27,4 +27,32 @@ api.interceptors.response.use(
   }
 );
 
+/** Phản hồi phân trang từ API khi có query page/pageSize */
+export type PaginatedList<T> = {
+  items: T[];
+  total: number;
+  page: number;
+  pageSize: number;
+  hasMore: boolean;
+};
+
+/** Chuẩn hóa mảng hoặc object phân trang — dùng cho infinite query */
+export function asPaginatedList<T>(data: T[] | PaginatedList<T>): PaginatedList<T> {
+  if (Array.isArray(data)) {
+    return {
+      items: data,
+      total: data.length,
+      page: 1,
+      pageSize: data.length,
+      hasMore: false,
+    };
+  }
+  return data;
+}
+
+/** Lấy mảng phần tử dù client cũ chỉ mong đợi mảng */
+export function asArray<T>(data: T[] | PaginatedList<T>): T[] {
+  return Array.isArray(data) ? data : data.items;
+}
+
 export default api;

@@ -22,14 +22,14 @@ export class UserService {
     private authService: AuthService,
   ) {}
 
-  async findAll(familyId: string) {
+  async findAll(familyId: string, query: Record<string, unknown> = {}) {
     const memberships = await this.familyUserRepository.find({
       where: { familyId, status: FamilyUserStatus.ACTIVE },
       relations: ['user', 'role'],
       order: { createdAt: 'ASC' },
     });
 
-    return memberships.map((membership) => ({
+    const mapped = memberships.map((membership) => ({
       ...membership.user,
       role: membership.role?.code,
       status: membership.status,
@@ -37,6 +37,30 @@ export class UserService {
       familyId: membership.familyId,
       invitedByUserId: membership.invitedByUserId,
     }));
+
+    const rawPage = query.page;
+    const wantsPage = rawPage !== undefined && rawPage !== null && rawPage !== '';
+
+    if (!wantsPage) {
+      return mapped;
+    }
+
+    const page = Math.max(1, parseInt(String(rawPage), 10) || 1);
+    const take = Math.min(
+      100,
+      Math.max(1, parseInt(String(query.pageSize ?? 20), 10) || 20),
+    );
+    const skip = (page - 1) * take;
+    const total = mapped.length;
+    const items = mapped.slice(skip, skip + take);
+
+    return {
+      items,
+      total,
+      page,
+      pageSize: take,
+      hasMore: skip + items.length < total,
+    };
   }
 
   async findOne(id: string, familyId: string) {

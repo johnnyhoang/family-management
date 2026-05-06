@@ -14,12 +14,13 @@ import {
     Space,
     Tag
 } from 'antd';
-import { Plus, MapPin, Clock } from 'lucide-react';
+import { Plus, MapPin, Clock, X, Check } from 'lucide-react';
 import dayjs, { Dayjs } from 'dayjs';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { calendarApi } from '../api/calendar';
 import type { CalendarEvent } from '../api/calendar';
 import { userApi } from '../api/user';
+import { asArray } from '../api/client';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const { Title, Text } = Typography;
@@ -38,7 +39,7 @@ export const CalendarPage = () => {
 
     const { data: users = [] } = useQuery({
         queryKey: ['users'],
-        queryFn: () => userApi.findAll().then(res => res.data),
+        queryFn: () => userApi.findAll().then((res) => asArray(res.data)),
     });
 
     const createMutation = useMutation({
@@ -133,10 +134,10 @@ export const CalendarPage = () => {
                         setIsModalVisible(true);
                         form.setFieldsValue({ startDate: selectedDate });
                     }}
-                    className="bg-sky-500 hover:bg-sky-600 border-none shadow-lg shadow-sky-200/50 h-12 px-6 rounded-xl flex items-center justify-center gap-2"
-                >
-                    Thêm sự kiện
-                </Button>
+                    className="bg-sky-500 hover:bg-sky-600 border-none shadow-lg shadow-sky-200/50 h-12 w-12 rounded-xl flex items-center justify-center p-0"
+                    title="Thêm sự kiện"
+                    aria-label="Thêm sự kiện"
+                />
             </motion.div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -206,6 +207,7 @@ export const CalendarPage = () => {
             <Modal
                 title={selectedEvent ? "Sửa sự kiện" : "Thêm sự kiện mới"}
                 open={isModalVisible}
+                forceRender
                 onCancel={() => setIsModalVisible(false)}
                 footer={[
                     <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-2 sm:px-4 w-full">
@@ -216,10 +218,23 @@ export const CalendarPage = () => {
                             <span>Cập nhật cuối bởi {selectedEvent.updater?.fullName || selectedEvent.updater?.email || '-'} lúc {dayjs(selectedEvent.updatedAt).format('HH:mm DD/MM/YYYY')}</span>
                         )}
                     </div>,
-                    <Button key="cancel" onClick={() => setIsModalVisible(false)}>Hủy</Button>,
-                    <Button key="submit" type="primary" onClick={() => form.submit()} loading={createMutation.isPending || updateMutation.isPending}>
-                        {selectedEvent ? 'Cập nhật' : 'Tạo mới'}
-                    </Button>
+                    <Button
+                        key="cancel"
+                        type="text"
+                        icon={<X size={18} />}
+                        title="Hủy"
+                        aria-label="Hủy"
+                        onClick={() => setIsModalVisible(false)}
+                    />,
+                    <Button
+                        key="submit"
+                        type="primary"
+                        icon={<Check size={18} />}
+                        title={selectedEvent ? 'Cập nhật' : 'Tạo mới'}
+                        aria-label={selectedEvent ? 'Cập nhật' : 'Tạo mới'}
+                        onClick={() => form.submit()}
+                        loading={createMutation.isPending || updateMutation.isPending}
+                    />,
                 ]}
                 width={550}
             >
@@ -327,17 +342,23 @@ export const CalendarPage = () => {
                     </Form.Item>
 
                     <div className="flex justify-end gap-3 mt-6">
-                        <Button onClick={() => setIsModalVisible(false)} className="rounded-lg h-10 px-6">
-                            Hủy
-                        </Button>
+                        <Button
+                            type="text"
+                            icon={<X size={18} />}
+                            title="Hủy"
+                            aria-label="Hủy"
+                            onClick={() => setIsModalVisible(false)}
+                            className="rounded-lg h-10 w-10 p-0"
+                        />
                         <Button
                             type="primary"
                             htmlType="submit"
-                            loading={createMutation.isPending}
-                            className="bg-sky-500 hover:bg-sky-600 border-none rounded-lg h-10 px-8"
-                        >
-                            {selectedEvent ? 'Cập nhật' : 'Tạo mới'}
-                        </Button>
+                            icon={<Check size={18} />}
+                            title={selectedEvent ? 'Cập nhật' : 'Tạo mới'}
+                            aria-label={selectedEvent ? 'Cập nhật' : 'Tạo mới'}
+                            loading={createMutation.isPending || updateMutation.isPending}
+                            className="bg-sky-500 hover:bg-sky-600 border-none rounded-lg h-10 w-10 p-0"
+                        />
                     </div>
                 </Form>
             </Modal>

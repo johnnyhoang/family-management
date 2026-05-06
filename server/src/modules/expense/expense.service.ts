@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Expense, ExpenseEntryType, RecurringCycle } from '../../common/entities/expense.entity';
-import { Category, CategoryType } from '../../common/entities/category.entity';
+import { Category } from '../../common/entities/category.entity';
 import { stringify } from 'csv-stringify/sync';
 
 @Injectable()
@@ -15,45 +15,72 @@ export class ExpenseService {
   ) {}
 
   async findAll(familyId: string, filters: any = {}) {
+    const { page, pageSize, ...rest } = filters ?? {};
     const query = this.expenseRepository.createQueryBuilder('expense')
       .leftJoinAndSelect('expense.asset', 'asset')
       .leftJoinAndSelect('expense.category', 'category')
       .where('expense.familyId = :familyId', { familyId });
 
-    if (filters.assetId) {
-      query.andWhere('expense.assetId = :assetId', { assetId: filters.assetId });
+    if (rest.assetId) {
+      query.andWhere('expense.assetId = :assetId', { assetId: rest.assetId });
     }
 
-    if (filters.categoryId) {
-      query.andWhere('expense.categoryId = :categoryId', { categoryId: filters.categoryId });
+    if (rest.categoryId) {
+      query.andWhere('expense.categoryId = :categoryId', { categoryId: rest.categoryId });
     }
 
-    if (filters.direction) {
-      query.andWhere('expense.entryType = :entryType', { entryType: filters.direction });
+    if (rest.direction) {
+      query.andWhere('expense.entryType = :entryType', { entryType: rest.direction });
     }
 
-    if (filters.isTransfer !== undefined) {
+    if (rest.isTransfer !== undefined) {
       query.andWhere('expense.isTransfer = :isTransfer', {
-        isTransfer: filters.isTransfer === true || filters.isTransfer === 'true',
+        isTransfer: rest.isTransfer === true || rest.isTransfer === 'true',
       });
     }
 
-    if (filters.createdBy) {
-      query.andWhere('expense.createdBy = :createdBy', { createdBy: filters.createdBy });
+    if (rest.createdBy) {
+      query.andWhere('expense.createdBy = :createdBy', { createdBy: rest.createdBy });
     }
 
-    if (filters.amount) {
-      query.andWhere('expense.amount = :amount', { amount: Number(filters.amount) });
+    if (rest.amount) {
+      query.andWhere('expense.amount = :amount', { amount: Number(rest.amount) });
     }
 
-    if (filters.startDate && filters.endDate) {
+    if (rest.startDate && rest.endDate) {
       query.andWhere('expense.expenseDate BETWEEN :startDate AND :endDate', {
-        startDate: filters.startDate,
-        endDate: filters.endDate,
+        startDate: rest.startDate,
+        endDate: rest.endDate,
       });
     }
 
-    return query.orderBy('expense.expenseDate', 'DESC').getMany();
+    const wantsPage = page !== undefined && page !== null && page !== '';
+    if (!wantsPage) {
+      return query
+        .orderBy('expense.expenseDate', 'DESC')
+        .addOrderBy('expense.createdAt', 'DESC')
+        .getMany();
+    }
+
+    const p = Math.max(1, parseInt(String(page), 10) || 1);
+    const take = Math.min(100, Math.max(1, parseInt(String(pageSize), 10) || 20));
+    const skip = (p - 1) * take;
+
+    const total = await query.clone().getCount();
+    const items = await query
+      .orderBy('expense.expenseDate', 'DESC')
+      .addOrderBy('expense.createdAt', 'DESC')
+      .skip(skip)
+      .take(take)
+      .getMany();
+
+    return {
+      items,
+      total,
+      page: p,
+      pageSize: take,
+      hasMore: skip + items.length < total,
+    };
   }
 
   async create(familyId: string, userId: string, data: Partial<Expense>) {
@@ -112,7 +139,9 @@ export class ExpenseService {
   }
 
   async exportToCsv(familyId: string, filters: any = {}): Promise<string> {
-    const expenses = await this.findAll(familyId, filters);
+    const { page: _p, pageSize: _ps, ...exportFilters } = filters ?? {};
+    const expensesRaw = await this.findAll(familyId, exportFilters);
+    const expenses = Array.isArray(expensesRaw) ? expensesRaw : expensesRaw.items;
     const flattenedData = expenses.map(e => ({
       id: e.id,
       amount: e.amount,
@@ -157,8 +186,6 @@ export class ExpenseService {
   ): Promise<ExpenseEntryType> {
     const categoryId = data.categoryId ?? currentExpense?.categoryId;
     const entryType = (data.entryType ?? currentExpense?.entryType) as ExpenseEntryType | undefined;
-    const isTransfer = data.isTransfer ?? currentExpense?.isTransfer ?? false;
-
     if (!entryType) {
       throw new BadRequestException('Loại giao dịch là bắt buộc');
     }
@@ -175,34 +202,6 @@ export class ExpenseService {
       throw new NotFoundException('Danh mục không tồn tại');
     }
 
-    if (isTransfer) {
-      if (![CategoryType.ASSET, CategoryType.LIABILITY].includes(category.type)) {
-        throw new BadRequestException('Giao dịch chuyển nội bộ chỉ được gắn với danh mục tài sản hoặc công nợ');
-      }
-      return entryType;
-    }
-
-    // Giao dịch thường vẫn có thể chọn danh mục lá thuộc nhóm Tài sản (ví dụ đầu tư).
-    if (category.type === CategoryType.ASSET) {
-      return entryType;
-    }
-
-    if (category.type !== this.mapEntryTypeToCategoryType(entryType)) {
-      throw new BadRequestException('Danh mục không khớp với loại giao dịch đã chọn');
-    }
-
     return entryType;
-  }
-
-  private mapEntryTypeToCategoryType(entryType: ExpenseEntryType): CategoryType {
-    switch (entryType) {
-      case ExpenseEntryType.INCOME:
-        return CategoryType.INCOME;
-      case ExpenseEntryType.LIABILITY:
-        return CategoryType.LIABILITY;
-      case ExpenseEntryType.EXPENSE:
-      default:
-        return CategoryType.EXPENSE;
-    }
   }
 }

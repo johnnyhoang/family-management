@@ -1,10 +1,13 @@
-import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Input, Select, Space, Tag, message, Avatar, Tooltip } from 'antd';
-import { UserPlus, Shield, Trash2, Mail, Users } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { Table, Button, Modal, Form, Input, Select, Space, Tag, message, Avatar, Spin } from 'antd';
+import { UserPlus, Shield, Copy, Mail, Users, X, Check, Trash2, Send } from 'lucide-react';
 import { userApi } from '../api/user';
 import type { User } from '../api/user';
 import { useSession } from '../components/auth/SessionProvider';
+import { asPaginatedList } from '../api/client';
+
+const MEMBER_PAGE_SIZE = 15;
 
 export const MemberList = () => {
     const queryClient = useQueryClient();
@@ -15,10 +18,37 @@ export const MemberList = () => {
     const [form] = Form.useForm();
     const [editForm] = Form.useForm();
 
-    const { data: members, isLoading } = useQuery({
-        queryKey: ['members'],
-        queryFn: () => userApi.findAll().then(res => res.data),
+    const {
+        data: memberInfinite,
+        isPending: membersLoading,
+        fetchNextPage,
+        hasNextPage,
+        isFetchingNextPage,
+    } = useInfiniteQuery({
+        queryKey: ['members', 'infinite'],
+        initialPageParam: 1,
+        queryFn: ({ pageParam }) =>
+            userApi
+                .findAll({ page: pageParam, pageSize: MEMBER_PAGE_SIZE })
+                .then((res) => asPaginatedList(res.data)),
+        getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
     });
+
+    const members = useMemo(
+        () => memberInfinite?.pages.flatMap((p) => p.items) ?? [],
+        [memberInfinite],
+    );
+
+    const onMemberTableScroll = useCallback(
+        (e: React.UIEvent<HTMLDivElement>) => {
+            const el = e.currentTarget;
+            const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+            if (nearBottom && hasNextPage && !isFetchingNextPage) {
+                fetchNextPage();
+            }
+        },
+        [fetchNextPage, hasNextPage, isFetchingNextPage],
+    );
 
     const inviteMutation = useMutation({
         mutationFn: (values: { email: string; role: string; fullName: string }) =>
@@ -71,6 +101,18 @@ export const MemberList = () => {
     };
 
     const canManageMembers = role === 'FAMILY_ADMIN' && canAccess('USER', 'update');
+
+    const openInviteFromMemberCopy = (record: User, e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!canManageMembers) return;
+        form.resetFields();
+        form.setFieldsValue({
+            fullName: record.fullName || '',
+            email: '',
+            role: record.role || 'MEMBER',
+        });
+        setIsInviteModalOpen(true);
+    };
 
     const columns = [
         {
@@ -136,24 +178,16 @@ export const MemberList = () => {
         {
             title: 'Thao tác',
             key: 'action',
-            render: (_: any, record: User) => (
+            render: (_: unknown, record: User) => (
                 <Space onClick={(e) => e.stopPropagation()}>
-                    <Tooltip title="Xóa">
-                        <Button
-                            type="text"
-                            danger
-                            disabled={!canManageMembers}
-                            icon={<Trash2 size={16} />}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                Modal.confirm({
-                                    title: 'Xác nhận xóa',
-                                    content: `Bạn có chắc muốn xóa "${record.fullName || record.email}" khỏi gia đình?`,
-                                    onOk: () => removeMutation.mutate(record.id),
-                                });
-                            }}
-                        />
-                    </Tooltip>
+                    <Button
+                        type="text"
+                        disabled={!canManageMembers}
+                        icon={<Copy size={16} />}
+                        title="Sao chép để mời (họ tên và vai trò)"
+                        aria-label="Sao chép để mời"
+                        onClick={(e) => openInviteFromMemberCopy(record, e)}
+                    />
                 </Space>
             ),
         },
@@ -170,11 +204,14 @@ export const MemberList = () => {
                     type="primary"
                     icon={<UserPlus size={18} />}
                     disabled={!canManageMembers}
-                    onClick={() => setIsInviteModalOpen(true)}
+                    onClick={() => {
+                        form.resetFields();
+                        setIsInviteModalOpen(true);
+                    }}
                     className="w-full sm:w-auto"
-                >
-                    Mời thành viên
-                </Button>
+                    title="Mời thành viên"
+                    aria-label="Mời thành viên"
+                />
             </div>
 
             <div className="glass-card p-4 lg:p-6 overflow-hidden">
@@ -182,32 +219,84 @@ export const MemberList = () => {
                     <Table
                         columns={columns}
                         dataSource={members}
-                        loading={isLoading}
+                        loading={membersLoading}
                         rowKey="id"
                         onRow={(record) => ({
                             onClick: () => handleEdit(record),
                             style: { cursor: canManageMembers ? 'pointer' : 'default' }
                         })}
-                        scroll={{ x: 600 }}
+                        scroll={{ x: 600, y: 'calc(100vh - 260px)' }}
                         size={window.innerWidth < 768 ? 'small' : 'middle'}
-                        pagination={{
-                            size: 'small',
-                            showSizeChanger: false
-                        }}
+                        pagination={false}
+                        onScroll={onMemberTableScroll}
                     />
+                    {isFetchingNextPage ? (
+                        <div className="flex justify-center py-2">
+                            <Spin size="small" />
+                        </div>
+                    ) : null}
                 </div>
             </div>
 
             <Modal
                 title="Sửa thông tin thành viên"
                 open={isEditModalOpen}
+                forceRender
                 onCancel={() => {
                     setIsEditModalOpen(false);
                     setEditingUser(null);
                     editForm.resetFields();
                 }}
-                onOk={() => editForm.submit()}
                 confirmLoading={updateMutation.isPending}
+                footer={[
+                    editingUser ? (
+                        <Button
+                            key="delete"
+                            danger
+                            icon={<Trash2 size={18} />}
+                            title="Xóa khỏi gia đình"
+                            aria-label="Xóa khỏi gia đình"
+                            loading={removeMutation.isPending}
+                            disabled={!canManageMembers}
+                            onClick={() => {
+                                Modal.confirm({
+                                    title: 'Xác nhận xóa',
+                                    content: `Bạn có chắc muốn xóa "${editingUser.fullName || editingUser.email}" khỏi gia đình?`,
+                                    onOk: () => {
+                                        removeMutation.mutate(editingUser.id, {
+                                            onSuccess: () => {
+                                                setIsEditModalOpen(false);
+                                                setEditingUser(null);
+                                                editForm.resetFields();
+                                            },
+                                        });
+                                    },
+                                });
+                            }}
+                        />
+                    ) : null,
+                    <Button
+                        key="cancel"
+                        type="text"
+                        icon={<X size={18} />}
+                        title="Hủy"
+                        aria-label="Hủy"
+                        onClick={() => {
+                            setIsEditModalOpen(false);
+                            setEditingUser(null);
+                            editForm.resetFields();
+                        }}
+                    />,
+                    <Button
+                        key="submit"
+                        type="primary"
+                        icon={<Check size={18} />}
+                        title="Cập nhật"
+                        aria-label="Cập nhật"
+                        onClick={() => editForm.submit()}
+                        loading={updateMutation.isPending}
+                    />,
+                ]}
             >
                 <Form
                     form={editForm}
@@ -235,9 +324,31 @@ export const MemberList = () => {
             <Modal
                 title="Mời thành viên mới"
                 open={isInviteModalOpen}
-                onCancel={() => setIsInviteModalOpen(false)}
-                onOk={() => form.submit()}
+                forceRender
+                onCancel={() => {
+                    setIsInviteModalOpen(false);
+                    form.resetFields();
+                }}
                 confirmLoading={inviteMutation.isPending}
+                footer={[
+                    <Button
+                        key="cancel"
+                        type="text"
+                        icon={<X size={18} />}
+                        title="Hủy"
+                        aria-label="Hủy"
+                        onClick={() => { setIsInviteModalOpen(false); form.resetFields(); }}
+                    />,
+                    <Button
+                        key="submit"
+                        type="primary"
+                        icon={<Send size={18} />}
+                        title="Gửi lời mời"
+                        aria-label="Gửi lời mời"
+                        onClick={() => form.submit()}
+                        loading={inviteMutation.isPending}
+                    />,
+                ]}
             >
                 <Form
                     form={form}

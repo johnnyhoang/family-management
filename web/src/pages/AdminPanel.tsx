@@ -1,9 +1,12 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, Col, Divider, Row, Select, Table, Tag, Typography, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { Building2, ShieldCheck, Users } from 'lucide-react';
 import { adminApi, type AdminFamily, type AdminUser } from '../api/admin';
+
+const ADMIN_USER_CHUNK = 8;
+const ADMIN_MEMBER_CHUNK = 10;
 
 type FamilyMemberRow = {
   key: string;
@@ -19,6 +22,8 @@ type FamilyMemberRow = {
 
 export const AdminPanel = () => {
   const queryClient = useQueryClient();
+  const [userVisibleCount, setUserVisibleCount] = useState(ADMIN_USER_CHUNK);
+  const [memberVisibleCount, setMemberVisibleCount] = useState(ADMIN_MEMBER_CHUNK);
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats'],
@@ -82,6 +87,48 @@ export const AdminPanel = () => {
       })),
     )
   ), [families]);
+
+  useEffect(() => {
+    setUserVisibleCount(ADMIN_USER_CHUNK);
+  }, [users]);
+
+  useEffect(() => {
+    setMemberVisibleCount(ADMIN_MEMBER_CHUNK);
+  }, [memberRows]);
+
+  const usersTableSlice = useMemo(
+    () => (users ?? []).slice(0, userVisibleCount),
+    [users, userVisibleCount],
+  );
+
+  const memberRowsSlice = useMemo(
+    () => memberRows.slice(0, memberVisibleCount),
+    [memberRows, memberVisibleCount],
+  );
+
+  const onAdminUserTableScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      const total = users?.length ?? 0;
+      if (nearBottom && userVisibleCount < total) {
+        setUserVisibleCount((c) => Math.min(c + ADMIN_USER_CHUNK, total));
+      }
+    },
+    [users?.length, userVisibleCount],
+  );
+
+  const onAdminMemberTableScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      const total = memberRows.length;
+      if (nearBottom && memberVisibleCount < total) {
+        setMemberVisibleCount((c) => Math.min(c + ADMIN_MEMBER_CHUNK, total));
+      }
+    },
+    [memberRows.length, memberVisibleCount],
+  );
 
   const userColumns: ColumnsType<AdminUser> = [
     {
@@ -245,10 +292,11 @@ export const AdminPanel = () => {
         <Table
           rowKey="id"
           columns={userColumns}
-          dataSource={users}
+          dataSource={usersTableSlice}
           loading={usersLoading}
-          pagination={{ pageSize: 8, showSizeChanger: false }}
-          scroll={{ x: 760 }}
+          pagination={false}
+          onScroll={onAdminUserTableScroll}
+          scroll={{ x: 760, y: 360 }}
           size="small"
         />
       </Card>
@@ -290,10 +338,11 @@ export const AdminPanel = () => {
         <Table
           rowKey="key"
           columns={memberColumns}
-          dataSource={memberRows}
+          dataSource={memberRowsSlice}
           loading={familiesLoading}
-          pagination={{ pageSize: 10, showSizeChanger: false }}
-          scroll={{ x: 860 }}
+          pagination={false}
+          onScroll={onAdminMemberTableScroll}
+          scroll={{ x: 860, y: 400 }}
           size="small"
         />
       </Card>

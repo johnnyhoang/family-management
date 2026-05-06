@@ -1,21 +1,24 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Input, Space, message, Select, Tag } from 'antd';
-import { Plus, Trash2, FolderTree } from 'lucide-react';
+import { Table, Button, Modal, Form, Input, Space, message, Select } from 'antd';
+import { Plus, Copy, FolderTree, X, Check, Trash2 } from 'lucide-react';
 import {
   buildCategoryPathLabel,
   categoryApi,
-  categoryTypeLabels,
+  isLeafCategory,
   type Category,
-  type CategoryType,
 } from '../api/category';
 
 export const CategoryList = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [copyMode, setCopyMode] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [form] = Form.useForm();
-  const selectedType = Form.useWatch('type', form) as CategoryType | undefined;
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [usageSummary, setUsageSummary] = useState<{ assetCount: number; expenseCount: number } | null>(null);
+  const [reassignTargetId, setReassignTargetId] = useState<string | undefined>(undefined);
+  const [usageLoading, setUsageLoading] = useState(false);
 
   const { data: categories, isLoading, isError } = useQuery({
     queryKey: ['categories'],
@@ -83,15 +86,14 @@ export const CategoryList = () => {
 
     return (categories ?? [])
       .filter((category) =>
-        category.type === selectedType
-        && !category.parentId
+        !category.parentId
         && !excludedIds.has(category.id),
       )
       .map((category) => ({
         value: category.id,
         label: buildCategoryPathLabel(categories ?? [], category.id),
       }));
-  }, [categories, descendantIds, editingCategory, selectedType]);
+  }, [categories, descendantIds, editingCategory]);
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<Category>) => categoryApi.create(data),
@@ -99,6 +101,7 @@ export const CategoryList = () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       message.success('Danh mục đã được tạo');
       setIsModalOpen(false);
+      setCopyMode(false);
       setEditingCategory(null);
       form.resetFields();
     },
@@ -113,6 +116,7 @@ export const CategoryList = () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
       message.success('Đã cập nhật danh mục');
       setIsModalOpen(false);
+      setCopyMode(false);
       setEditingCategory(null);
       form.resetFields();
     },
@@ -122,15 +126,101 @@ export const CategoryList = () => {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id: string) => categoryApi.delete(id),
+    mutationFn: ({ id, reassignTo }: { id: string; reassignTo?: string }) =>
+      categoryApi.delete(id, reassignTo ? { reassignTo } : undefined),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       message.success('Đã xóa danh mục');
+      setReassignOpen(false);
+      setUsageSummary(null);
+      setReassignTargetId(undefined);
+      setIsModalOpen(false);
+      setEditingCategory(null);
+      setCopyMode(false);
+      form.resetFields();
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Không thể xóa danh mục');
     },
   });
 
-  const typeColors: Record<CategoryType, string> = {
-    ASSET: 'blue', INCOME: 'green', LIABILITY: 'red', EXPENSE: 'orange',
+  const reassignLeafOptions = useMemo(() => {
+    if (!editingCategory || !categories) return [];
+    return categories
+      .filter((c) => isLeafCategory(c) && c.id !== editingCategory.id)
+      .map((c) => ({
+        value: c.id,
+        label: buildCategoryPathLabel(categories, c.id),
+      }));
+  }, [categories, editingCategory]);
+
+  const openDeleteCategoryFlow = async () => {
+    if (!editingCategory) return;
+    setUsageLoading(true);
+    try {
+      const usage = await categoryApi.getUsageBeforeDelete(editingCategory.id);
+      if (usage.childCategoryCount > 0) {
+        message.error(
+          `Không thể xóa: danh mục còn ${usage.childCategoryCount} danh mục con. Hãy xóa hoặc gom các danh mục con trước.`,
+        );
+        return;
+      }
+      if (usage.assetCount + usage.expenseCount === 0) {
+        Modal.confirm({
+          title: 'Xác nhận xóa',
+          content: `Bạn có chắc muốn xóa danh mục "${editingCategory.name}"?`,
+          onOk: () => deleteMutation.mutateAsync({ id: editingCategory.id }),
+        });
+        return;
+      }
+      setUsageSummary({ assetCount: usage.assetCount, expenseCount: usage.expenseCount });
+      setReassignTargetId(undefined);
+      setReassignOpen(true);
+    } catch (error: any) {
+      message.error(error?.response?.data?.message || 'Không tải được thông tin để xóa');
+    } finally {
+      setUsageLoading(false);
+    }
+  };
+
+  const confirmDeleteWithReassign = async () => {
+    if (!editingCategory) {
+      return Promise.reject();
+    }
+    if (reassignLeafOptions.length === 0) {
+      message.warning('Chưa có danh mục lá khác để chuyển. Hãy tạo thêm danh mục rồi thử lại.');
+      return Promise.reject();
+    }
+    if (!reassignTargetId) {
+      message.warning('Vui lòng chọn danh mục đích để chuyển tài sản và giao dịch');
+      return Promise.reject();
+    }
+    await deleteMutation.mutateAsync({ id: editingCategory.id, reassignTo: reassignTargetId });
+  };
+
+  const openCategoryEditModal = (record: Category) => {
+    setCopyMode(false);
+    setEditingCategory(record);
+    form.setFieldsValue({
+      name: record.name,
+      parentId: record.parentId ?? undefined,
+    });
+    setIsModalOpen(true);
+  };
+
+  const openCategoryCopyModal = (record: Category, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingCategory(null);
+    setCopyMode(true);
+    const suggestedName = `${record.name} (bản sao)`;
+    form.setFieldsValue({
+      name: suggestedName,
+      parentId: record.parentId ?? undefined,
+    });
+    setIsModalOpen(true);
   };
 
   const columns = [
@@ -147,16 +237,6 @@ export const CategoryList = () => {
       sorter: (a: Category, b: Category) => (a.name || '').localeCompare(b.name || ''),
     },
     {
-      title: 'Loại',
-      dataIndex: 'type',
-      key: 'type',
-      width: 120,
-      render: (type: CategoryType) => (
-        <Tag color={typeColors[type]}>{categoryTypeLabels[type]}</Tag>
-      ),
-      sorter: (a: Category, b: Category) => (a.type || '').localeCompare(b.type || ''),
-    },
-    {
       title: 'Thao tác',
       key: 'action',
       width: 80,
@@ -164,16 +244,10 @@ export const CategoryList = () => {
         <Space size="middle" onClick={(e) => e.stopPropagation()}>
           <Button
             type="text"
-            danger
-            icon={<Trash2 size={16} />}
-            onClick={(e) => {
-              e.stopPropagation();
-              Modal.confirm({
-                title: 'Xác nhận xóa',
-                content: `Bạn có chắc muốn xóa danh mục "${record.name}"?`,
-                onOk: () => deleteMutation.mutate(record.id),
-              });
-            }}
+            icon={<Copy size={16} />}
+            title="Sao chép"
+            aria-label="Sao chép"
+            onClick={(e) => openCategoryCopyModal(record, e)}
           />
         </Space>
       ),
@@ -194,18 +268,18 @@ export const CategoryList = () => {
           icon={<Plus size={18} />}
           onClick={() => {
             setEditingCategory(null);
+            setCopyMode(false);
             form.resetFields();
             form.setFieldsValue({
-              type: 'EXPENSE',
               parentId: undefined,
               name: '',
             });
             setIsModalOpen(true);
           }}
           className="w-full sm:w-auto"
-        >
-          Thêm danh mục
-        </Button>
+          title="Thêm danh mục"
+          aria-label="Thêm danh mục"
+        />
       </div>
 
       <div className="glass-card p-4 lg:p-6 overflow-hidden">
@@ -218,15 +292,7 @@ export const CategoryList = () => {
             rowKey="id"
             defaultExpandAllRows
             onRow={(record) => ({
-              onClick: () => {
-                setEditingCategory(record);
-                form.setFieldsValue({
-                  name: record.name,
-                  type: record.type,
-                  parentId: record.parentId ?? undefined,
-                });
-                setIsModalOpen(true);
-              },
+              onClick: () => openCategoryEditModal(record),
               style: { cursor: 'pointer' },
             })}
             pagination={false}
@@ -237,15 +303,63 @@ export const CategoryList = () => {
       </div>
 
       <Modal
-        title={editingCategory ? 'Cập nhật danh mục' : 'Thêm danh mục mới'}
+        title={
+          editingCategory
+            ? 'Cập nhật danh mục'
+            : copyMode
+              ? 'Sao chép danh mục'
+              : 'Thêm danh mục mới'
+        }
         open={isModalOpen}
+        forceRender
         onCancel={() => {
           setIsModalOpen(false);
+          setCopyMode(false);
           setEditingCategory(null);
           form.resetFields();
+          setReassignOpen(false);
+          setUsageSummary(null);
+          setReassignTargetId(undefined);
         }}
-        onOk={() => form.submit()}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
+        footer={[
+          editingCategory ? (
+            <Button
+              key="delete"
+              danger
+              icon={<Trash2 size={18} />}
+              title="Xóa danh mục"
+              aria-label="Xóa danh mục"
+              loading={deleteMutation.isPending || usageLoading}
+              onClick={openDeleteCategoryFlow}
+            />
+          ) : null,
+          <Button
+            key="cancel"
+            type="text"
+            icon={<X size={18} />}
+            title="Hủy"
+            aria-label="Hủy"
+            onClick={() => {
+              setIsModalOpen(false);
+              setCopyMode(false);
+              setEditingCategory(null);
+              form.resetFields();
+              setReassignOpen(false);
+              setUsageSummary(null);
+              setReassignTargetId(undefined);
+            }}
+          />,
+          <Button
+            key="submit"
+            type="primary"
+            icon={<Check size={18} />}
+            title={editingCategory ? 'Cập nhật' : 'Thêm'}
+            aria-label={editingCategory ? 'Cập nhật' : 'Thêm'}
+            loading={createMutation.isPending || updateMutation.isPending}
+            onClick={() => form.submit()}
+          />,
+        ]}
       >
         <Form
           form={form}
@@ -271,22 +385,6 @@ export const CategoryList = () => {
             <Input placeholder="Ví dụ: Đầu tư, Ăn uống, Lương..." />
           </Form.Item>
           <Form.Item
-            name="type"
-            label="Loại chính"
-            rules={[{ required: true, message: 'Vui lòng chọn loại chính' }]}
-            initialValue="EXPENSE"
-          >
-            <Select
-              options={[
-                { value: 'ASSET', label: 'Tài sản' },
-                { value: 'LIABILITY', label: 'Nợ phải trả' },
-                { value: 'INCOME', label: 'Thu nhập' },
-                { value: 'EXPENSE', label: 'Chi phí' },
-              ]}
-              onChange={() => form.setFieldValue('parentId', undefined)}
-            />
-          </Form.Item>
-          <Form.Item
             name="parentId"
             label="Nhóm cha"
             extra={
@@ -303,6 +401,70 @@ export const CategoryList = () => {
             />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title="Chuyển dữ liệu rồi xóa danh mục"
+        open={reassignOpen}
+        onCancel={() => {
+          setReassignOpen(false);
+          setUsageSummary(null);
+          setReassignTargetId(undefined);
+        }}
+        footer={[
+          <Button
+            key="cancel"
+            type="text"
+            icon={<X size={18} />}
+            title="Hủy"
+            aria-label="Hủy"
+            onClick={() => {
+              setReassignOpen(false);
+              setUsageSummary(null);
+              setReassignTargetId(undefined);
+            }}
+          />,
+          <Button
+            key="ok"
+            type="primary"
+            danger
+            icon={<Check size={18} />}
+            title="Chuyển dữ liệu và xóa"
+            aria-label="Chuyển dữ liệu và xóa"
+            loading={deleteMutation.isPending}
+            onClick={() => void confirmDeleteWithReassign()}
+          />,
+        ]}
+        destroyOnClose
+      >
+        {usageSummary && editingCategory ? (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-700">
+              Danh mục <strong>{editingCategory.name}</strong> đang có{' '}
+              <strong>{usageSummary.assetCount}</strong> tài sản và{' '}
+              <strong>{usageSummary.expenseCount}</strong> giao dịch. Chọn danh mục lá khác để chuyển
+              toàn bộ sang, sau đó hệ thống sẽ xóa danh mục hiện tại.
+            </p>
+            {reassignLeafOptions.length === 0 ? (
+              <p className="text-sm text-amber-700">
+                Chưa có danh mục lá nào khác. Hãy tạo thêm ít nhất một danh mục lá rồi thử lại.
+              </p>
+            ) : (
+              <div>
+                <div className="mb-2 text-sm font-medium text-slate-800">Danh mục đích</div>
+                <Select
+                  className="w-full"
+                  placeholder="Chọn danh mục lá"
+                  options={reassignLeafOptions}
+                  value={reassignTargetId}
+                  onChange={(v) => setReassignTargetId(v)}
+                  showSearch
+                  optionFilterProp="label"
+                />
+              </div>
+            )}
+          </div>
+        ) : null}
       </Modal>
     </div>
   );

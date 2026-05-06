@@ -1,13 +1,6 @@
 import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 
-export enum CategoryType {
-  ASSET = 'ASSET',
-  LIABILITY = 'LIABILITY',
-  INCOME = 'INCOME',
-  EXPENSE = 'EXPENSE',
-}
-
 @Entity('categories')
 export class Category extends BaseEntity {
   @Column()
@@ -18,12 +11,6 @@ export class Category extends BaseEntity {
 
   @Column({ default: false })
   isDefault: boolean;
-
-  @Column({
-    type: 'enum',
-    enum: CategoryType,
-  })
-  type: CategoryType;
 
   @Column({ nullable: true })
   parentId: string | null;

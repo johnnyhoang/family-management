@@ -138,13 +138,15 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
             </nav>
 
             <button
+                type="button"
                 onClick={handleLogout}
-                className="mt-auto flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[#cf675f] hover:bg-white/85 w-full group transition-colors border border-transparent hover:border-[rgba(244,206,190,0.75)]"
+                title="Đăng xuất"
+                aria-label="Đăng xuất"
+                className="mt-auto flex items-center justify-center p-2.5 rounded-xl text-[#cf675f] hover:bg-white/85 w-full group transition-colors border border-transparent hover:border-[rgba(244,206,190,0.75)]"
             >
-                <span className="flex h-8.5 w-8.5 items-center justify-center rounded-xl bg-white/85 text-[#cf675f] shadow-sm">
-                    <LogOut size={18} className="group-hover:-translate-x-1 transition-transform" />
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/85 text-[#cf675f] shadow-sm">
+                    <LogOut size={20} className="group-hover:-translate-x-0.5 transition-transform" />
                 </span>
-                <span className="text-[14px]">Đăng xuất</span>
             </button>
         </aside>
     );

@@ -107,29 +107,15 @@ Actions:
 
 ## 7. Category system
 
-Hệ thống danh mục tài chính dùng 3 tầng:
+Danh mục **không còn trường “loại” (type)** trên DB hay API; chỉ còn cây **2 cấp**:
 
-- `type`
-- `group`
-- `category`
-
-Main types:
-
-- `ASSET`
-- `LIABILITY`
-- `INCOME`
-- `EXPENSE`
+- **Nhóm gốc** (`parentId = null`)
+- **Danh mục lá** (`parentId` trỏ tới một nhóm gốc)
 
 Ràng buộc:
 
-- `GROUP` nằm trực tiếp dưới `type`
-- `CATEGORY` phải có parent là một `GROUP`
-- Category con phải cùng `type` với parent
-
-Quy ước nghiệp vụ:
-
-- Đầu tư (`stock`, `crypto`, quỹ...) phải nằm dưới `ASSET > Investment`
-- Không xếp investment vào `EXPENSE`
+- Danh mục lá phải có `parentId` là id của một nhóm gốc (nhóm không có cha).
+- API/UI nơi cần chọn danh mục cho giao dịch hoặc tài sản: **load toàn bộ danh mục** của gia đình, lọc **danh mục lá** khi cần gán vào bản ghi.
 
 ## 8. Transaction model
 
@@ -148,7 +134,7 @@ Quy tắc:
 ## 9. Asset management
 
 - Asset luôn thuộc một `familyId`
-- Asset phải dùng category lá thuộc `ASSET`
+- Asset phải dùng **danh mục lá** (có nhóm cha), không dùng nhóm gốc làm `categoryId`
 - Hỗ trợ các trường giá mua, giá trị hiện tại, bảo hành, bảo trì, ảnh, tài liệu
 
 ## 10. Dashboard

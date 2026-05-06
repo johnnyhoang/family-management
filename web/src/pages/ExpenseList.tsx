@@ -1,7 +1,7 @@
-import { useState, useRef, useMemo, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Table, Button, Modal, Form, Input, Select, InputNumber, DatePicker, Tag, message, Switch, Row, Col, Divider, Radio, Space } from 'antd';
-import { Plus, Download, Trash2, Wallet, PlusCircle } from 'lucide-react';
+import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
+import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
+import { Table, Button, Modal, Form, Input, Select, InputNumber, DatePicker, Tag, message, Switch, Row, Col, Divider, Radio, Space, Spin } from 'antd';
+import { Plus, Download, Copy, Wallet, PlusCircle, X, Check, Trash2, FilterX } from 'lucide-react';
 import { expenseApi } from '../api/expense';
 import type { Expense } from '../api/expense';
 import { assetApi } from '../api/asset';
@@ -9,12 +9,11 @@ import {
   buildCategoryPathLabel,
   categoryApi,
   expenseEntryTypeLabels,
-  isAssetCategory,
-  isTransferCategory,
+  isLeafCategory,
   type ExpenseEntryType,
-  supportsExpenseEntryType,
 } from '../api/category';
 import { userApi } from '../api/user';
+import { asArray, asPaginatedList } from '../api/client';
 import dayjs from 'dayjs';
 import { renderDateBadge, renderMoneyBadge } from '../utils/display';
 import { formatVndAmount } from '../utils/currency';
@@ -25,9 +24,12 @@ import {
   getCategoryLabel,
 } from '../utils/duplicates';
 
+const EXPENSE_PAGE_SIZE = 20;
+
 export const ExpenseList = () => {
   const queryClient = useQueryClient();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [copyMode, setCopyMode] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [form] = Form.useForm();
   const [filters, setFilters] = useState<any>({});
@@ -37,14 +39,42 @@ export const ExpenseList = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const inputRef = useRef<any>(null);
 
-  const { data: expenses, isLoading, isError } = useQuery({
-    queryKey: ['expenses', filters],
-    queryFn: () => expenseApi.findAll(filters).then((res) => res.data),
+  const {
+    data: expenseInfinite,
+    isPending: expensesLoading,
+    isError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
+    queryKey: ['expenses', 'infinite', filters],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      expenseApi
+        .findAll({ ...filters, page: pageParam, pageSize: EXPENSE_PAGE_SIZE })
+        .then((res) => asPaginatedList(res.data)),
+    getNextPageParam: (last) => (last.hasMore ? last.page + 1 : undefined),
   });
+
+  const expenses = useMemo(
+    () => expenseInfinite?.pages.flatMap((p) => p.items) ?? [],
+    [expenseInfinite],
+  );
+
+  const onExpenseTableScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const el = e.currentTarget;
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+      if (nearBottom && hasNextPage && !isFetchingNextPage) {
+        fetchNextPage();
+      }
+    },
+    [fetchNextPage, hasNextPage, isFetchingNextPage],
+  );
 
   const { data: assets } = useQuery({
     queryKey: ['assets', 'brief'],
-    queryFn: () => assetApi.findAll().then((res) => res.data),
+    queryFn: () => assetApi.findAll().then((res) => asArray(res.data)),
   });
 
   const { data: categories } = useQuery({
@@ -54,15 +84,18 @@ export const ExpenseList = () => {
 
   const { data: users } = useQuery({
     queryKey: ['users'],
-    queryFn: () => userApi.findAll().then((res) => res.data),
+    queryFn: () => userApi.findAll().then((res) => asArray(res.data)),
   });
 
   const createMutation = useMutation({
     mutationFn: (data: Partial<Expense>) => expenseApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       message.success('Giao dịch đã được ghi nhận');
       setIsModalOpen(false);
+      setCopyMode(false);
       form.resetFields();
     },
   });
@@ -71,8 +104,11 @@ export const ExpenseList = () => {
     mutationFn: (data: Partial<Expense>) => expenseApi.update(editingExpense!.id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       message.success('Đã cập nhật giao dịch');
       setIsModalOpen(false);
+      setCopyMode(false);
       setEditingExpense(null);
       form.resetFields();
     },
@@ -81,7 +117,6 @@ export const ExpenseList = () => {
   const addCategoryMutation = useMutation({
     mutationFn: (name: string) => categoryApi.create({
       name,
-      type: isTransfer ? 'LIABILITY' : transactionType,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['categories'] });
@@ -94,6 +129,8 @@ export const ExpenseList = () => {
     mutationFn: (id: string) => expenseApi.delete(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['assets'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
       message.success('Đã xóa bản ghi');
     },
   });
@@ -128,31 +165,21 @@ export const ExpenseList = () => {
 
   const categorySelectOptions = useMemo(() => {
     return categories
-      ?.filter((category) => (isTransfer
-        ? isTransferCategory(category)
-        : supportsExpenseEntryType(category, transactionType) || isAssetCategory(category)))
+      ?.filter((category) => isLeafCategory(category))
       .map((category) => ({
         value: category.id,
         label: buildCategoryPathLabel(categories ?? [], category.id),
       }));
-  }, [categories, isTransfer, transactionType]);
+  }, [categories]);
 
   const categoryFilterOptions = useMemo(() => {
-    const direction = filters.direction as ExpenseEntryType | undefined;
-
     return categories
-      ?.filter((category) => {
-        if (!direction) {
-          return !!category.parentId && category.type !== 'ASSET';
-        }
-
-        return supportsExpenseEntryType(category, direction);
-      })
+      ?.filter((category) => isLeafCategory(category))
       .map((category) => ({
         value: category.id,
         label: buildCategoryPathLabel(categories ?? [], category.id),
       }));
-  }, [categories, filters.direction]);
+  }, [categories]);
 
   const recurringCycleLabels: Record<string, string> = {
     DAILY: 'Hằng ngày',
@@ -162,11 +189,41 @@ export const ExpenseList = () => {
   };
 
   useEffect(() => {
-    if (isModalOpen && !editingExpense) {
+    if (isModalOpen && !editingExpense && !copyMode) {
       form.setFieldValue('categoryId', undefined);
       form.setFieldValue('isTransfer', false);
     }
-  }, [isModalOpen, editingExpense, form]);
+  }, [isModalOpen, editingExpense, copyMode, form]);
+
+  const handleEdit = (expense: Expense) => {
+    setCopyMode(false);
+    setTransactionType(resolveTransactionType(expense));
+    setEditingExpense(expense);
+    form.setFieldsValue({
+      ...expense,
+      expenseDate: dayjs(expense.expenseDate),
+      isTransfer: Boolean(expense.isTransfer),
+    });
+    setIsModalOpen(true);
+  };
+
+  const openExpenseCopyModal = (record: Expense, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingExpense(null);
+    setCopyMode(true);
+    setTransactionType(resolveTransactionType(record));
+    form.setFieldsValue({
+      amount: record.amount,
+      categoryId: record.categoryId || record.category?.id,
+      assetId: record.assetId,
+      note: record.note,
+      isTransfer: Boolean(record.isTransfer),
+      isRecurring: Boolean(record.isRecurring),
+      recurringCycle: record.recurringCycle,
+      expenseDate: record.expenseDate ? dayjs(record.expenseDate) : dayjs(),
+    });
+    setIsModalOpen(true);
+  };
 
   const columns = [
     {
@@ -229,41 +286,35 @@ export const ExpenseList = () => {
       title: 'Thao tác',
       key: 'action',
       render: (_: unknown, record: Expense) => (
-        <Space>
+        <Space onClick={(e) => e.stopPropagation()}>
           <Button
             type="text"
-            icon={<Trash2 size={16} />}
-            danger
-            onClick={(e) => {
-              e.stopPropagation();
-              Modal.confirm({
-                title: 'Xác nhận xóa',
-                content: 'Bản ghi này sẽ bị xóa vĩnh viễn',
-                onOk: () => deleteMutation.mutate(record.id),
-              });
-            }}
+            icon={<Copy size={16} />}
+            title="Sao chép"
+            aria-label="Sao chép"
+            onClick={(e) => openExpenseCopyModal(record, e)}
           />
         </Space>
       ),
     },
   ];
 
-  const handleEdit = (expense: Expense) => {
-    setTransactionType(resolveTransactionType(expense));
-    setEditingExpense(expense);
-    form.setFieldsValue({
-      ...expense,
-      expenseDate: dayjs(expense.expenseDate),
-      isTransfer: Boolean(expense.isTransfer),
-    });
-    setIsModalOpen(true);
-  };
-
   const confirmDuplicateExpense = async (
     data: Partial<Expense> & { categoryId?: string },
     options?: { ignoreEditingExpense?: boolean },
   ) => {
-    const duplicate = findDuplicateExpense(expenses ?? [], {
+    const dayStr = dayjs(data.expenseDate).format('YYYY-MM-DD');
+    const dupRes = await expenseApi.findAll({
+      amount: data.amount,
+      categoryId: data.categoryId,
+      assetId: data.assetId || undefined,
+      startDate: dayStr,
+      endDate: dayStr,
+      page: 1,
+      pageSize: 200,
+    });
+    const candidates = asArray(dupRes.data);
+    const duplicate = findDuplicateExpense(candidates, {
       id: options?.ignoreEditingExpense ? undefined : editingExpense?.id,
       amount: data.amount,
       categoryId: data.categoryId,
@@ -293,19 +344,6 @@ export const ExpenseList = () => {
     isTransfer: Boolean(values.isTransfer),
   });
 
-  const handleCloneExpense = async () => {
-    try {
-      const values = await form.validateFields();
-      const data = buildExpensePayload(values);
-      const shouldContinue = await confirmDuplicateExpense(data, { ignoreEditingExpense: true });
-      if (!shouldContinue) return;
-
-      createMutation.mutate(data);
-    } catch {
-      // Ant Design form validation already handles field feedback.
-    }
-  };
-
   return (
     <div className="space-y-4 lg:space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
@@ -320,22 +358,23 @@ export const ExpenseList = () => {
             icon={<Download size={18} />}
             onClick={handleExport}
             className="flex-1 sm:flex-none"
-          >
-            Xuất CSV
-          </Button>
+            title="Xuất CSV"
+            aria-label="Xuất CSV"
+          />
           <Button
             type="primary"
             icon={<Plus size={18} />}
             onClick={() => {
               setEditingExpense(null);
+              setCopyMode(false);
               setTransactionType('EXPENSE');
               form.resetFields();
               setIsModalOpen(true);
             }}
             className="flex-1 sm:flex-none"
-          >
-            Ghi nhận
-          </Button>
+            title="Ghi nhận giao dịch"
+            aria-label="Ghi nhận giao dịch"
+          />
         </div>
       </div>
 
@@ -401,11 +440,12 @@ export const ExpenseList = () => {
             }}
           />
           <Button
+            icon={<FilterX size={18} />}
             onClick={() => setFilters({})}
             className="w-full sm:w-auto"
-          >
-            Xóa bộ lọc
-          </Button>
+            title="Xóa bộ lọc"
+            aria-label="Xóa bộ lọc"
+          />
         </div>
 
         {isError && <div className="mb-3 p-3 rounded-lg bg-red-50 text-red-600 text-sm">Không thể tải danh sách giao dịch. Vui lòng thử lại.</div>}
@@ -413,33 +453,42 @@ export const ExpenseList = () => {
           <Table
             columns={columns}
             dataSource={expenses}
-            loading={isLoading}
+            loading={expensesLoading}
             rowKey="id"
             onRow={(record) => ({
               onClick: () => handleEdit(record),
               className: 'cursor-pointer hover:bg-slate-50 transition-colors',
             })}
-            pagination={{
-              pageSize: 10,
-              size: 'small',
-              showSizeChanger: false,
-            }}
-            scroll={{ x: 800 }}
+            pagination={false}
+            onScroll={onExpenseTableScroll}
+            scroll={{ x: 800, y: 'calc(100vh - 280px)' }}
             size={window.innerWidth < 768 ? 'small' : 'middle'}
           />
+          {isFetchingNextPage ? (
+            <div className="flex justify-center py-2">
+              <Spin size="small" />
+            </div>
+          ) : null}
         </div>
       </div>
 
       <Modal
-        title={editingExpense ? 'Sửa giao dịch' : (transactionType === 'INCOME' ? 'Ghi nhận khoản thu' : transactionType === 'LIABILITY' ? 'Ghi nhận khoản nợ' : 'Ghi nhận chi phí')}
+        title={
+          editingExpense
+            ? 'Sửa giao dịch'
+            : copyMode
+              ? 'Sao chép giao dịch'
+              : (transactionType === 'INCOME' ? 'Ghi nhận khoản thu' : transactionType === 'LIABILITY' ? 'Ghi nhận khoản nợ' : 'Ghi nhận chi phí')
+        }
         open={isModalOpen}
+        forceRender
         onCancel={() => {
           setIsModalOpen(false);
+          setCopyMode(false);
           setEditingExpense(null);
           setTransactionType('EXPENSE');
           form.resetFields();
         }}
-        onOk={() => form.submit()}
         confirmLoading={createMutation.isPending || updateMutation.isPending}
         width={window.innerWidth < 480 ? '100%' : 500}
         style={window.innerWidth < 480 ? { top: 12 } : undefined}
@@ -456,19 +505,47 @@ export const ExpenseList = () => {
           </div>,
           editingExpense ? (
             <Button
-              key="clone"
-              onClick={handleCloneExpense}
-              loading={createMutation.isPending || updateMutation.isPending}
-            >
-              Nhân bản
-            </Button>
+              key="delete"
+              danger
+              icon={<Trash2 size={18} />}
+              title="Xóa giao dịch"
+              aria-label="Xóa giao dịch"
+              loading={deleteMutation.isPending}
+              onClick={() => {
+                Modal.confirm({
+                  title: 'Xác nhận xóa',
+                  content: 'Bản ghi này sẽ bị xóa vĩnh viễn',
+                  onOk: () => {
+                    deleteMutation.mutate(editingExpense.id, {
+                      onSuccess: () => {
+                        setIsModalOpen(false);
+                        setEditingExpense(null);
+                        setCopyMode(false);
+                        form.resetFields();
+                      },
+                    });
+                  },
+                });
+              }}
+            />
           ) : null,
-          <Button key="cancel" onClick={() => { setIsModalOpen(false); setEditingExpense(null); setTransactionType('EXPENSE'); form.resetFields(); }}>
-            Hủy
-          </Button>,
-          <Button key="submit" type="primary" onClick={() => form.submit()} loading={createMutation.isPending || updateMutation.isPending}>
-            {editingExpense ? 'Cập nhật' : 'Ghi nhận'}
-          </Button>,
+          <Button
+            key="cancel"
+            type="text"
+            icon={<X size={18} />}
+            title="Hủy"
+            aria-label="Hủy"
+            onClick={() => { setIsModalOpen(false); setCopyMode(false); setEditingExpense(null); setTransactionType('EXPENSE'); form.resetFields(); }}
+          />,
+          <Button
+            key="submit"
+            type="primary"
+            icon={<Check size={18} />}
+            title={editingExpense ? 'Cập nhật' : 'Ghi nhận'}
+            aria-label={editingExpense ? 'Cập nhật' : 'Ghi nhận'}
+            onClick={() => form.submit()}
+            loading={createMutation.isPending || updateMutation.isPending}
+          />,
         ]}
       >
         <Form
@@ -532,9 +609,14 @@ export const ExpenseList = () => {
                           onChange={onNameChange}
                           onKeyDown={(e) => e.stopPropagation()}
                         />
-                        <Button type="text" icon={<PlusCircle size={16} />} onClick={addItem} loading={addCategoryMutation.isPending}>
-                          Thêm
-                        </Button>
+                        <Button
+                          type="text"
+                          icon={<PlusCircle size={16} />}
+                          onClick={addItem}
+                          loading={addCategoryMutation.isPending}
+                          title="Thêm danh mục"
+                          aria-label="Thêm danh mục"
+                        />
                       </Space>
                     </>
                   )}

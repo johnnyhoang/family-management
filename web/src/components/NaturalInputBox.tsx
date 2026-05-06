@@ -247,13 +247,14 @@ export const NaturalInputBox: React.FC = () => {
                     </Space>
                     <Button
                         type="primary"
+                        shape="circle"
+                        size="large"
                         icon={<SendOutlined />}
                         loading={loading}
                         onClick={handleParse}
-                        style={{ borderRadius: 20, paddingLeft: 20, paddingRight: 20 }}
-                    >
-                        Gửi AI
-                    </Button>
+                        title="Gửi AI phân tích"
+                        aria-label="Gửi AI phân tích"
+                    />
                 </div>
             </div>
 

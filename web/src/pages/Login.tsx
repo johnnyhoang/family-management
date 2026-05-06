@@ -52,15 +52,17 @@ export const Login = () => {
                                 size="large"
                                 block
                                 onClick={handleGoogleLogin}
-                                className="h-14 rounded-2xl !bg-[linear-gradient(135deg,#ff9f90,#f97370)] text-white border-none hover:brightness-105 font-semibold text-lg flex items-center justify-center gap-3 transition-all active:scale-95 shadow-[0_14px_28px_rgba(249,115,112,0.24)]"
-                            >
-                                <img
-                                    src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-                                    alt="Đăng nhập với Google"
-                                    className="w-6 h-6 rounded-full bg-white p-0.5"
-                                />
-                                Tiếp tục với Google
-                            </Button>
+                                className="h-14 rounded-2xl !bg-[linear-gradient(135deg,#ff9f90,#f97370)] text-white border-none hover:brightness-105 flex items-center justify-center transition-all active:scale-95 shadow-[0_14px_28px_rgba(249,115,112,0.24)]"
+                                title="Đăng nhập với Google"
+                                aria-label="Đăng nhập với Google"
+                                icon={(
+                                    <img
+                                        src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                                        alt=""
+                                        className="w-7 h-7 rounded-full bg-white p-0.5"
+                                    />
+                                )}
+                            />
 
                             <div className="relative my-8">
                                 <div className="absolute inset-0 flex items-center">

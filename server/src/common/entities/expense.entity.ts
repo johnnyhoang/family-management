@@ -1,7 +1,7 @@
 import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { Asset } from './asset.entity';
-import { Category, CategoryType } from './category.entity';
+import { Category } from './category.entity';
 
 export enum RecurringCycle {
   DAILY = 'DAILY',
@@ -11,9 +11,9 @@ export enum RecurringCycle {
 }
 
 export enum ExpenseEntryType {
-  INCOME = CategoryType.INCOME,
-  EXPENSE = CategoryType.EXPENSE,
-  LIABILITY = CategoryType.LIABILITY,
+  INCOME = 'INCOME',
+  EXPENSE = 'EXPENSE',
+  LIABILITY = 'LIABILITY',
 }
 
 @Entity('expenses')

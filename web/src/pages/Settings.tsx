@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { Card, Form, Input, Button, Switch, Divider, message, Tabs } from 'antd';
-import { Building2, User, Bell, Shield, Palette, MoonStar, SunMedium, Sparkles } from 'lucide-react';
+import { Building2, User, Bell, Shield, Palette, MoonStar, SunMedium, Sparkles, Save, Lock } from 'lucide-react';
 import { useThemeMode } from '../components/theme/ThemeProvider';
 import { useSession } from '../components/auth/SessionProvider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -108,14 +108,21 @@ export const Settings = () => {
                             <p className="mt-1 font-semibold text-slate-800">{memberships.length}</p>
                         </div>
                     </div>
-                    <Button type="primary" htmlType="submit" loading={updateProfileMutation.isPending}>Lưu thay đổi</Button>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        icon={<Save size={18} />}
+                        title="Lưu thay đổi"
+                        aria-label="Lưu thay đổi"
+                        loading={updateProfileMutation.isPending}
+                    />
                 </Form>
             </Card>
 
             <Card title={<div className="flex items-center gap-2"><Shield size={18} /><span>Bảo mật</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
                 <div className="space-y-4">
                     <p className="text-sm text-slate-600 mb-4">Bạn đang sử dụng đăng nhập qua Google. Mọi thông tin bảo mật được quản lý bởi tài khoản Google của bạn.</p>
-                    <Button disabled>Thay đổi mật khẩu</Button>
+                    <Button disabled icon={<Lock size={18} />} title="Thay đổi mật khẩu (Google)" aria-label="Thay đổi mật khẩu" />
                 </div>
             </Card>
         </div>
@@ -151,7 +158,15 @@ export const Settings = () => {
                         <p className="mt-1 break-all font-semibold text-slate-800 text-xs">{family?.id || activeFamilyId}</p>
                     </div>
                 </div>
-                <Button type="primary" htmlType="submit" loading={updateFamilyMutation.isPending} disabled={!canUpdateFamily}>Lưu tên gia đình</Button>
+                <Button
+                    type="primary"
+                    htmlType="submit"
+                    icon={<Save size={18} />}
+                    title="Lưu tên gia đình"
+                    aria-label="Lưu tên gia đình"
+                    loading={updateFamilyMutation.isPending}
+                    disabled={!canUpdateFamily}
+                />
             </Form>
         </Card>
     ) : (

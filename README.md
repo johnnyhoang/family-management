@@ -14,7 +14,7 @@
 
 - Quản lý tài sản
 - Quản lý giao dịch thu nhập, chi phí, nợ
-- Danh mục tài chính theo 3 tầng: `type -> group -> category`
+- Danh mục tài chính 2 cấp (nhóm gốc + danh mục lá), không còn phân loại `type` trên danh mục
 - Chuyển nội bộ với `isTransfer` để không double count vào tổng thu chi
 - Lịch gia đình
 - AI nhập liệu tự nhiên bằng tiếng Việt
@@ -72,6 +72,7 @@ Các migration gần đây cần được áp dụng trước khi chạy product
 
 - `1775304000000-RefactorFinanceCategoryHierarchy`
 - `1775400000000-AddMultiFamilyRbac`
+- `1778000000000-RemoveCategoryTypeColumn` (bỏ cột `type` khỏi `categories`)
 
 ## Tài liệu
 

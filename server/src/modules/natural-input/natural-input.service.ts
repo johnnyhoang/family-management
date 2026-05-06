@@ -12,7 +12,7 @@ import { NaturalInputHistory } from './entities/natural-input-history.entity';
 
 interface ContextCacheEntry {
   data: {
-    categories: { id: string; name: string; type: string }[];
+    categories: { id: string; name: string; parentId: string | null }[];
     familyMembers: { id: string; name: string; aliases: string[]; email: string }[];
     assets: { id: string; name: string; category: string | undefined }[];
   };
@@ -83,14 +83,17 @@ export class NaturalInputService {
       };
     }
 
-    const [categories, users, assets] = await Promise.all([
+    const [categories, usersRaw, assetsRaw] = await Promise.all([
       this.categoryService.findAll(familyId),
       this.userService.findAll(familyId),
       this.assetService.findAll(familyId),
     ]);
 
+    const users = Array.isArray(usersRaw) ? usersRaw : usersRaw.items;
+    const assets = Array.isArray(assetsRaw) ? assetsRaw : assetsRaw.items;
+
     const data = {
-      categories: categories.map(c => ({ id: c.id, name: c.name, type: c.type })),
+      categories: categories.map((c) => ({ id: c.id, name: c.name, parentId: c.parentId ?? null })),
       familyMembers: users.map(u => ({ 
         id: u.id, 
         name: u.fullName, 

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { Modal, Button } from 'antd';
+import { X } from 'lucide-react';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 
 interface QRScannerModalProps {
@@ -61,9 +62,14 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({ visible, onCance
             open={visible}
             onCancel={onCancel}
             footer={[
-                <Button key="cancel" onClick={onCancel}>
-                    Hủy
-                </Button>
+                <Button
+                    key="cancel"
+                    type="text"
+                    icon={<X size={18} />}
+                    title="Đóng"
+                    aria-label="Đóng"
+                    onClick={onCancel}
+                />,
             ]}
             destroyOnClose
             width={450}
