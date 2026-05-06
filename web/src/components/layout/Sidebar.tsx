@@ -56,7 +56,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
             : 'Thành viên';
 
     return (
-        <aside className="w-64 h-screen flex flex-col p-3 relative bg-[linear-gradient(180deg,rgba(255,251,247,0.96),rgba(255,245,239,0.92))] border-r border-[rgba(242,214,197,0.75)] shadow-[18px_0_50px_rgba(227,188,165,0.12)] backdrop-blur-md">
+        <aside className="w-64 h-screen flex flex-col p-2 relative bg-[linear-gradient(180deg,rgba(255,251,247,0.96),rgba(255,245,239,0.92))] border-r border-[rgba(242,214,197,0.75)] shadow-[18px_0_50px_rgba(227,188,165,0.12)] backdrop-blur-md">
             <button
                 onClick={onClose}
                 className="absolute top-4 right-4 p-2 lg:hidden text-[#9f7d6e] hover:text-[#7e5f52] hover:bg-white rounded-xl transition-colors"
@@ -68,42 +68,29 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
             <Link
                 to="/"
                 onClick={() => onClose?.()}
-                className="mb-4 rounded-[18px] border border-white/80 bg-white/70 px-3 py-3 outline-offset-2 shadow-[0_12px_28px_rgba(237,200,183,0.18)] hover:opacity-95 transition-opacity"
+                className="mb-2 rounded-[18px] border border-white/80 bg-white/70 px-2.5 py-2 outline-offset-2 shadow-[0_12px_28px_rgba(237,200,183,0.18)] hover:opacity-95 transition-opacity"
             >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                     <img
                         src="/logo.svg"
                         alt=""
-                        width={40}
-                        height={40}
-                        className="w-10 h-10 rounded-2xl shadow-lg shadow-[#f7b5a3]/30 shrink-0"
+                        width={32}
+                        height={32}
+                        className="w-8 h-8 rounded-2xl shadow-lg shadow-[#f7b5a3]/30 shrink-0"
                     />
                     <div>
                         <h1 className="font-bold text-base text-[#4f3f37] tracking-tight">Tài sản Gia đình</h1>
-                        <p className="text-xs text-[#8c6d61]">Gọn gàng, ấm áp, dễ theo dõi</p>
                     </div>
                 </div>
-                <img
-                    src="/family-soft-illustration.svg"
-                    alt=""
-                    className="mt-2 h-20 w-full rounded-2xl object-cover"
-                />
             </Link>
 
-            <div className="mb-2 flex flex-wrap gap-1.5">
-                <span className="cute-chip">Nhẹ mắt</span>
-                <span className="cute-chip">Dễ dùng</span>
-                <span className="cute-chip">Gia đình</span>
-            </div>
-
-            <div className="mb-3 rounded-2xl border border-white/80 bg-white/70 p-3 shadow-[0_10px_24px_rgba(237,200,183,0.12)]">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#9f7d6e]">Phiên làm việc</p>
-                <p className="mt-1 text-sm font-semibold text-[#4f3f37]">{roleLabel}</p>
+            <div className="mb-2 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-[0_10px_24px_rgba(237,200,183,0.12)]">
+                <p className="text-sm font-semibold text-[#4f3f37]">{roleLabel}</p>
                 {memberships.length > 0 ? (
                     <Select
                         value={activeFamilyId ?? undefined}
                         size="small"
-                        className="mt-2 w-full"
+                        className="mt-1 w-full"
                         placeholder="Chọn gia đình"
                         loading={isSwitchingFamily}
                         onChange={(value) => switchFamily(value)}
@@ -113,18 +100,18 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                         }))}
                     />
                 ) : (
-                    <p className="mt-2 text-xs text-[#8c6d61]">{activeFamilyName || 'Chưa gắn gia đình hoạt động'}</p>
+                    <p className="mt-1 text-xs text-[#8c6d61]">{activeFamilyName || 'Chưa gắn gia đình hoạt động'}</p>
                 )}
             </div>
 
-            <nav className="flex-1 space-y-1.5">
+            <nav className="flex-1 space-y-1">
                 {visibleNavigation.map((item) => (
                     <NavLink
                         key={item.name}
                         to={item.href}
                         onClick={() => onClose?.()}
                         className={({ isActive }) => cn(
-                            "group flex items-center gap-2.5 px-3 py-2.5 rounded-xl transition-all text-[#6c5a51] hover:text-[#c85f58] hover:bg-white/80",
+                            "group flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all text-[#6c5a51] hover:text-[#c85f58] hover:bg-white/80",
                             isActive && "bg-white text-[#c85f58] font-semibold shadow-[0_10px_24px_rgba(235,189,168,0.18)] border border-[rgba(247,208,190,0.8)]"
                         )}
                     >
@@ -144,7 +131,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                 onClick={handleLogout}
                 title="Đăng xuất"
                 aria-label="Đăng xuất"
-                className="mt-auto flex items-center justify-center p-2.5 rounded-xl text-[#cf675f] hover:bg-white/85 w-full group transition-colors border border-transparent hover:border-[rgba(244,206,190,0.75)]"
+                className="mt-auto flex items-center justify-center p-2 rounded-xl text-[#cf675f] hover:bg-white/85 w-full group transition-colors border border-transparent hover:border-[rgba(244,206,190,0.75)]"
             >
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/85 text-[#cf675f] shadow-sm">
                     <LogOut size={20} className="group-hover:-translate-x-0.5 transition-transform" />

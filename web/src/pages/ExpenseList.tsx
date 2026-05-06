@@ -351,7 +351,6 @@ export const ExpenseList = () => {
           <h1 className="text-xl lg:text-2xl font-bold text-slate-900 font-display">
             Quản lý tài chính
           </h1>
-          <p className="text-sm text-slate-500">Theo dõi dòng tiền thu nhập, chi phí và công nợ trong gia đình</p>
         </div>
         <div className="flex flex-wrap gap-2 w-full sm:w-auto">
           <Button
@@ -655,10 +654,7 @@ export const ExpenseList = () => {
 
           <div className="bg-slate-50 p-3 rounded-xl mb-4">
             <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="text-sm font-medium text-slate-700">Chuyển khoản nội bộ</div>
-                <div className="text-xs text-slate-500">Không tính vào tổng thu nhập hoặc chi phí.</div>
-              </div>
+              <div className="text-sm font-medium text-slate-700">Chuyển khoản nội bộ</div>
               <Form.Item name="isTransfer" valuePropName="checked" className="mb-0">
                 <Switch size="small" onChange={() => form.setFieldValue('categoryId', undefined)} />
               </Form.Item>

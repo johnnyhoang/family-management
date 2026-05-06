@@ -237,9 +237,6 @@ export const MaintenanceList = () => {
             <Wrench className="text-amber-600" size={28} />
             Bảo trì tài sản
           </h1>
-          <p className="text-sm text-slate-500">
-            Lịch độc lập, đồng bộ lịch gia đình; hoàn thành sẽ ghi khoản chi và liên kết giao dịch
-          </p>
         </div>
         <Button
           type="primary"
@@ -309,7 +306,6 @@ export const MaintenanceList = () => {
           </Form.Item>
           <Form.Item label="Lặp theo chu kỳ">
             <Switch checked={useRepeat} onChange={setUseRepeat} />
-            <span className="ml-2 text-sm text-slate-500">Tạo nhiều bản ghi cùng lúc (không lưu tham số lặp)</span>
           </Form.Item>
           {useRepeat ? (
             <>

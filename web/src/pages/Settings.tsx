@@ -263,7 +263,6 @@ export const Settings = () => {
         <div className="space-y-4 max-w-5xl animate-in fade-in duration-500">
             <header>
                 <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight font-display">Thiết lập</h1>
-                <p className="text-slate-500 mt-1">Quản lý tài khoản, gia đình và tùy chỉnh ứng dụng</p>
             </header>
 
             <Tabs items={tabItems} className="settings-tabs" />
