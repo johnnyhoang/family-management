@@ -21,6 +21,7 @@ import { FileModule } from './modules/file/file.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { NaturalInputModule } from './modules/natural-input/natural-input.module';
+import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 
 @Module({
   imports: [
@@ -95,6 +96,7 @@ import { NaturalInputModule } from './modules/natural-input/natural-input.module
     FileModule,
     CalendarModule,
     NaturalInputModule,
+    MaintenanceModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

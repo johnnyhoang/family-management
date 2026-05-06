@@ -10,6 +10,9 @@ import './index.css';
 
 const Dashboard = lazy(() => import('./pages/Dashboard').then((module) => ({ default: module.Dashboard })));
 const AssetList = lazy(() => import('./pages/AssetList').then((module) => ({ default: module.AssetList })));
+const MaintenanceList = lazy(() =>
+  import('./pages/MaintenanceList').then((module) => ({ default: module.MaintenanceList })),
+);
 const ExpenseList = lazy(() => import('./pages/ExpenseList').then((module) => ({ default: module.ExpenseList })));
 const MemberList = lazy(() => import('./pages/MemberList').then((module) => ({ default: module.MemberList })));
 const CategoryList = lazy(() => import('./pages/CategoryList').then((module) => ({ default: module.CategoryList })));
@@ -82,6 +85,7 @@ function AppShell() {
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<HomePage />} />
                 <Route path="assets" element={<ProtectedPage moduleKey="ASSET"><AssetList /></ProtectedPage>} />
+                <Route path="maintenance" element={<ProtectedPage moduleKey="ASSET"><MaintenanceList /></ProtectedPage>} />
                 <Route path="expenses" element={<ProtectedPage moduleKey="TRANSACTION"><ExpenseList /></ProtectedPage>} />
                 <Route path="categories" element={<ProtectedPage moduleKey="CATEGORY"><CategoryList /></ProtectedPage>} />
                 <Route path="members" element={<ProtectedPage moduleKey="USER"><MemberList /></ProtectedPage>} />
