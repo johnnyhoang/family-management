@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppModule, Permission, PermissionAction } from '../../common/entities/permission.entity';
@@ -23,6 +23,10 @@ const APP_ADMIN_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction 
   { moduleKey: AppModule.PERMISSION, action: PermissionAction.CREATE },
   { moduleKey: AppModule.PERMISSION, action: PermissionAction.UPDATE },
   { moduleKey: AppModule.PERMISSION, action: PermissionAction.DELETE },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.VIEW },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.CREATE },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.UPDATE },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.DELETE },
 ];
 
 const FAMILY_ADMIN_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> = [
@@ -79,7 +83,7 @@ const MEMBER_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> 
 ];
 
 @Injectable()
-export class PermissionService {
+export class PermissionService implements OnModuleInit {
   constructor(
     @InjectRepository(Permission)
     private permissionRepository: Repository<Permission>,
@@ -88,6 +92,14 @@ export class PermissionService {
     @InjectRepository(RolePermission)
     private rolePermissionRepository: Repository<RolePermission>,
   ) {}
+
+  async onModuleInit() {
+    try {
+      await this.seedSystemPermissions();
+    } catch (err) {
+      // Ignore during initial migrations
+    }
+  }
 
   async seedSystemPermissions() {
     const allDefinitions = this.buildPermissionDefinitions();

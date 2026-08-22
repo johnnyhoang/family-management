@@ -17,6 +17,7 @@ const ROLE_PERMISSIONS: PermissionMatrix = {
     FAMILY: ['view', 'update'],
     USER: ['view', 'update'],
     PERMISSION: ['view', 'create', 'update', 'delete'],
+    GOUS: ['view', 'create', 'update', 'delete'],
   },
   FAMILY_ADMIN: {
     FAMILY: ['view', 'update'],
@@ -112,11 +113,20 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     systemRole,
     isLoading: sessionQuery.isLoading,
     canAccess: (moduleKey, action = 'view') => {
-      if (systemRole === 'APP_ADMIN' && SYSTEM_SCOPED_MODULES.has(moduleKey)) {
+      if (systemRole === 'APP_ADMIN') {
+        if (SYSTEM_SCOPED_MODULES.has(moduleKey) || moduleKey === 'GOUS') {
+          return ROLE_PERMISSIONS.APP_ADMIN[moduleKey]?.includes(action) ?? false;
+        }
+        if (role && ROLE_PERMISSIONS[role]?.[moduleKey]?.includes(action)) {
+          return true;
+        }
         return ROLE_PERMISSIONS.APP_ADMIN[moduleKey]?.includes(action) ?? false;
       }
 
       if (FAMILY_SCOPED_MODULES.has(moduleKey)) {
+        if (moduleKey === 'GOUS' && action === 'view') {
+          return true;
+        }
         if (!role || role === 'APP_ADMIN') {
           return false;
         }
@@ -124,6 +134,9 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       }
 
       if (!role) {
+        if (moduleKey === 'GOUS' && action === 'view') {
+          return true;
+        }
         return false;
       }
 

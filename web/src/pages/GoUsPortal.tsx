@@ -55,6 +55,8 @@ import {
   type CspaResult,
 } from '../api/gous';
 
+import { useSession } from '../components/auth/SessionProvider';
+
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -75,6 +77,7 @@ const STAGES: Array<{ key: GoUsStage; label: string; step: number; desc: string 
 
 export function GoUsPortal() {
   const queryClient = useQueryClient();
+  const { activeFamilyId, memberships, switchFamily } = useSession();
   const [activeTab, setActiveTab] = useState('overview');
 
   // Modals state
@@ -103,34 +106,40 @@ export function GoUsPortal() {
 
   // Queries
   const { data: caseData, isLoading: isCaseLoading } = useQuery({
-    queryKey: ['gous-case'],
+    queryKey: ['gous-case', activeFamilyId],
+    enabled: Boolean(activeFamilyId),
     queryFn: async () => (await gousApi.getCase()).data,
   });
 
   const { data: statsData, isLoading: isStatsLoading } = useQuery({
-    queryKey: ['gous-stats'],
+    queryKey: ['gous-stats', activeFamilyId],
+    enabled: Boolean(activeFamilyId),
     queryFn: async () => (await gousApi.getStats()).data,
   });
 
   const { data: members = [] } = useQuery({
-    queryKey: ['gous-members'],
+    queryKey: ['gous-members', activeFamilyId],
+    enabled: Boolean(activeFamilyId),
     queryFn: async () => (await gousApi.getMembers()).data,
   });
 
   const { data: documents = [] } = useQuery({
-    queryKey: ['gous-documents', docCategoryFilter],
+    queryKey: ['gous-documents', activeFamilyId, docCategoryFilter],
+    enabled: Boolean(activeFamilyId),
     queryFn: async () =>
       (await gousApi.getDocuments(docCategoryFilter !== 'ALL' ? (docCategoryFilter as DocumentCategory) : undefined)).data,
   });
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ['gous-tasks', taskStageFilter],
+    queryKey: ['gous-tasks', activeFamilyId, taskStageFilter],
+    enabled: Boolean(activeFamilyId),
     queryFn: async () =>
       (await gousApi.getTasks(taskStageFilter !== 'ALL' ? (taskStageFilter as GoUsStage) : undefined)).data,
   });
 
   const { data: expenses = [] } = useQuery({
-    queryKey: ['gous-expenses'],
+    queryKey: ['gous-expenses', activeFamilyId],
+    enabled: Boolean(activeFamilyId),
     queryFn: async () => (await gousApi.getExpenses()).data,
   });
 
@@ -416,7 +425,38 @@ export function GoUsPortal() {
     return STAGES.find((s) => s.key === caseData.currentStage) || STAGES[1];
   }, [caseData?.currentStage]);
 
-  if (isCaseLoading || isStatsLoading) {
+  if (!activeFamilyId) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md p-6 rounded-3xl bg-white border border-slate-200 shadow-md space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-3xl bg-rose-50 text-rose-600 flex items-center justify-center">
+            <PlaneTakeoff size={32} />
+          </div>
+          <h2 className="text-lg font-bold text-slate-800">Chọn Gia Đình Để Bắt Đầu</h2>
+          <p className="text-xs text-slate-500">
+            Hồ sơ định cư Hoa Kỳ diện F4 được quản lý theo từng gia đình. Vui lòng chọn gia đình đang hoạt động để mở hồ sơ.
+          </p>
+          {memberships.length > 0 && (
+            <div className="space-y-2 pt-2">
+              {memberships.map((m) => (
+                <Button
+                  key={m.familyId}
+                  block
+                  type="primary"
+                  className="!bg-rose-600"
+                  onClick={() => switchFamily(m.familyId)}
+                >
+                  Vào hồ sơ gia đình: {m.familyName}
+                </Button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (isCaseLoading || isStatsLoading || !caseData) {
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 text-slate-500">
         <PlaneTakeoff className="w-10 h-10 text-rose-400 animate-bounce" />

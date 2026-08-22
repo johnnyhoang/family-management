@@ -5,9 +5,11 @@ import {
     PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend,
     Bar, XAxis, YAxis, CartesianGrid, ComposedChart, Line,
 } from 'recharts';
+import { Link } from 'react-router-dom';
 import {
     Package, Receipt, AlertTriangle, Wallet, PiggyBank, Wrench,
     CalendarDays, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
+    PlaneTakeoff, ChevronRight,
 } from 'lucide-react';
 import api from '../api/client';
 import { cn } from '../utils/cn';
@@ -181,6 +183,39 @@ export const Dashboard = () => {
                     {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
             </header>
+
+            {/* Go US F4 Portal Banner */}
+            <Link
+                to="/gous"
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#1e293b] via-[#1e3a8a] to-[#2563eb] p-4 lg:p-5 text-white shadow-md hover:shadow-lg transition-all border border-blue-900/30 flex flex-col sm:flex-row sm:items-center justify-between gap-4 block"
+            >
+                <div className="flex items-center gap-3.5">
+                    <div className="w-11 h-11 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-amber-300 shrink-0 border border-white/15 group-hover:scale-105 transition-transform">
+                        <PlaneTakeoff size={22} />
+                    </div>
+                    <div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200 border border-rose-400/30">
+                                Định cư Mỹ F4
+                            </span>
+                            <span className="text-xs text-blue-200 hidden sm:inline">
+                                • Luật sư & Chuyên viên đồng hành
+                            </span>
+                        </div>
+                        <h2 className="text-base lg:text-lg font-bold text-white mt-0.5 tracking-tight">
+                            Cổng Quản Lý Định Cư Hoa Kỳ (/gous)
+                        </h2>
+                        <p className="text-xs text-slate-300 mt-0.5 line-clamp-1">
+                            Kiểm soát tiến trình 11 bước NVC, giấy tờ, tính tuổi CSPA cho con, lịch phỏng vấn & dự toán chi phí.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs font-bold text-amber-300 group-hover:text-amber-200 shrink-0 bg-white/10 px-3.5 py-2 rounded-xl border border-white/15 backdrop-blur-sm self-start sm:self-auto">
+                    <span>Vào Cổng Định Cư Mỹ</span>
+                    <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+            </Link>
 
             <NaturalInputBox />
 
