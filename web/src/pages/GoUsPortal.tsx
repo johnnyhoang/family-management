@@ -105,13 +105,25 @@ export function GoUsPortal() {
   const [cspaForm] = Form.useForm();
 
   // Queries
-  const { data: caseData, isLoading: isCaseLoading } = useQuery({
+  const {
+    data: caseData,
+    isLoading: isCaseLoading,
+    isError: isCaseError,
+    error: caseError,
+    refetch: refetchCase,
+  } = useQuery({
     queryKey: ['gous-case', activeFamilyId],
     enabled: Boolean(activeFamilyId),
     queryFn: async () => (await gousApi.getCase()).data,
   });
 
-  const { data: statsData, isLoading: isStatsLoading } = useQuery({
+  const {
+    data: statsData,
+    isLoading: isStatsLoading,
+    isError: isStatsError,
+    error: statsError,
+    refetch: refetchStats,
+  } = useQuery({
     queryKey: ['gous-stats', activeFamilyId],
     enabled: Boolean(activeFamilyId),
     queryFn: async () => (await gousApi.getStats()).data,
@@ -452,6 +464,32 @@ export function GoUsPortal() {
             </div>
           )}
         </div>
+      </div>
+    );
+  }
+
+  if (isCaseError || isStatsError) {
+    const message =
+      (caseError as any)?.response?.data?.message ||
+      (statsError as any)?.response?.data?.message ||
+      'Vui lòng thử lại hoặc liên hệ quản trị viên nếu lỗi vẫn tiếp diễn.';
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 p-6 text-center">
+        <div className="w-16 h-16 rounded-3xl bg-rose-50 text-rose-600 flex items-center justify-center">
+          <AlertTriangle size={32} />
+        </div>
+        <p className="text-base font-semibold text-slate-800">Không thể tải hồ sơ định cư Mỹ diện F4</p>
+        <p className="max-w-md text-xs text-slate-500">{message}</p>
+        <Button
+          type="primary"
+          className="!bg-rose-600"
+          onClick={() => {
+            refetchCase();
+            refetchStats();
+          }}
+        >
+          Thử lại
+        </Button>
       </div>
     );
   }

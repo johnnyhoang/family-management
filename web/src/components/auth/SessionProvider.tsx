@@ -124,9 +124,6 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       }
 
       if (FAMILY_SCOPED_MODULES.has(moduleKey)) {
-        if (moduleKey === 'GOUS' && action === 'view') {
-          return true;
-        }
         if (!role || role === 'APP_ADMIN') {
           return false;
         }
@@ -134,9 +131,6 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       }
 
       if (!role) {
-        if (moduleKey === 'GOUS' && action === 'view') {
-          return true;
-        }
         return false;
       }
 
