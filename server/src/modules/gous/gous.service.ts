@@ -627,7 +627,7 @@ export class GoUsService {
         stage: GoUsStage.INTERVIEW_PREP,
         title: 'Đăng ký địa chỉ nhận Visa trên hệ thống uvisitdas.com',
         description: 'Tạo tài khoản và chọn bưu cục giao hộ chiếu tận nhà.',
-        priority: TaskPriority.HIGH,
+        priority: TaskPriority.URGENT,
         isSystemSuggested: true,
         expertTips: 'In tờ giấy xác nhận đăng ký địa chỉ bưu điện (Address Registration Confirmation) kẹp vào hồ sơ.',
       },

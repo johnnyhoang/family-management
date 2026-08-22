@@ -3,17 +3,19 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class CreateGoUsTablesAndAddEnum1780000000000 implements MigrationInterface {
   name = 'CreateGoUsTablesAndAddEnum1780000000000';
 
+  // Postgres refuses to run `ALTER TYPE ... ADD VALUE` inside a DO block or an
+  // explicit transaction (it must be a plain top-level statement), so this
+  // migration must not be wrapped in the shared migration transaction. Requires
+  // `migrationsTransactionMode: 'each'` on the DataSource (see app.module.ts).
+  public transaction = false;
+
   public async up(queryRunner: QueryRunner): Promise<void> {
-    // 1. Add GOUS to permissions_modulekey_enum
-    await queryRunner.query(`
-      DO $$
-      BEGIN
-        IF EXISTS (SELECT 1 FROM pg_type WHERE typname = 'permissions_modulekey_enum') THEN
-          ALTER TYPE "public"."permissions_modulekey_enum" ADD VALUE IF NOT EXISTS 'GOUS';
-        END IF;
-      END
-      $$;
-    `);
+    // 1. Add GOUS to permissions_modulekey_enum. Must be a plain top-level
+    // statement (not inside DO $$ ... $$, which always fails with "ALTER TYPE
+    // ... ADD VALUE cannot run inside a transaction block"). The enum type is
+    // created unconditionally by an earlier migration (AddMultiFamilyRbac), so
+    // no existence guard is needed here.
+    await queryRunner.query(`ALTER TYPE "public"."permissions_modulekey_enum" ADD VALUE IF NOT EXISTS 'GOUS';`);
 
     // 2. Create Enums for GoUS module
     await queryRunner.query(`
@@ -118,6 +120,8 @@ export class CreateGoUsTablesAndAddEnum1780000000000 implements MigrationInterfa
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedBy" character varying,
+        "deletedAt" TIMESTAMP,
         "familyId" uuid NOT NULL,
         "visaCategory" character varying NOT NULL DEFAULT 'F4 - Anh/Chị/Em công dân Mỹ',
         "caseNumber" character varying,
@@ -149,6 +153,8 @@ export class CreateGoUsTablesAndAddEnum1780000000000 implements MigrationInterfa
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedBy" character varying,
+        "deletedAt" TIMESTAMP,
         "caseId" uuid NOT NULL,
         "fullName" character varying NOT NULL,
         "roleInCase" "public"."gous_members_roleincase_enum" NOT NULL DEFAULT 'CHILD',
@@ -177,6 +183,8 @@ export class CreateGoUsTablesAndAddEnum1780000000000 implements MigrationInterfa
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedBy" character varying,
+        "deletedAt" TIMESTAMP,
         "caseId" uuid NOT NULL,
         "memberId" uuid,
         "category" "public"."gous_documents_category_enum" NOT NULL DEFAULT 'CIVIL_IDENTITY',
@@ -200,6 +208,8 @@ export class CreateGoUsTablesAndAddEnum1780000000000 implements MigrationInterfa
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedBy" character varying,
+        "deletedAt" TIMESTAMP,
         "caseId" uuid NOT NULL,
         "stage" "public"."gous_tasks_stage_enum" NOT NULL DEFAULT 'NVC_CASE_CREATION',
         "title" character varying NOT NULL,
@@ -221,6 +231,8 @@ export class CreateGoUsTablesAndAddEnum1780000000000 implements MigrationInterfa
         "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
         "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
         "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+        "updatedBy" character varying,
+        "deletedAt" TIMESTAMP,
         "caseId" uuid NOT NULL,
         "category" "public"."gous_expenses_category_enum" NOT NULL DEFAULT 'NVC_GOVERNMENT_FEE',
         "title" character varying NOT NULL,

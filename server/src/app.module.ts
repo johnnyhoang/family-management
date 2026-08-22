@@ -47,6 +47,11 @@ import { GoUsModule } from './modules/gous/gous.module';
           autoLoadEntities: true,
           synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
           migrationsRun: true,
+          // 'each' (not the default 'all') so an individual migration can opt out of
+          // its own transaction via `public transaction = false` — needed by migrations
+          // that run `ALTER TYPE ... ADD VALUE`, which Postgres refuses to run inside a
+          // transaction block or DO block.
+          migrationsTransactionMode: 'each',
           migrations: [
             path.join(process.cwd(), 'dist/migrations/*.js'),
             path.join(process.cwd(), 'dist/src/migrations/*.js'),

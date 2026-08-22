@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 import { MemberRoleInCase, ProcessStatus } from '../../../common/enums/gous.enums';
 
 export class CreateMemberDto {
@@ -53,14 +53,6 @@ export class CreateMemberDto {
   @IsOptional()
   @IsBoolean()
   uscisFeePaid?: boolean;
-
-  @IsOptional()
-  @IsNumber()
-  cspaAge?: number;
-
-  @IsOptional()
-  @IsString()
-  cspaStatus?: string;
 
   @IsOptional()
   @IsString()
