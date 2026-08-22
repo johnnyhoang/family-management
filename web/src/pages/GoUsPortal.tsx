@@ -18,6 +18,7 @@ import {
   Badge,
   Descriptions,
   Divider,
+  Upload,
 } from 'antd';
 import {
   PlaneTakeoff,
@@ -40,6 +41,8 @@ import {
   Sparkles,
   User,
   HeartHandshake,
+  UploadCloud,
+  Paperclip,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import {
@@ -54,8 +57,52 @@ import {
   type TaskStatus,
   type CspaResult,
 } from '../api/gous';
+import { filesApi } from '../api/files';
 
 import { useSession } from '../components/auth/SessionProvider';
+
+// ================= SHARED: DOCUMENT FILE UPLOADER =================
+// Dùng chung giữa Modal Thêm/Sửa Giấy tờ và mục Giấy tờ trong Modal Thành viên
+function DocumentFileUploader({ value, onChange }: { value?: string; onChange?: (url?: string) => void }) {
+  const [uploading, setUploading] = useState(false);
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const res = await filesApi.upload(file, 'gous-documents');
+      onChange?.(res.data.url);
+      message.success('Tải file lên thành công');
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || 'Không thể tải file lên, vui lòng thử lại');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      {value && (
+        <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs">
+          <a href={value} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-blue-600 font-medium truncate">
+            <Paperclip size={13} className="shrink-0" />
+            Xem file đã tải lên
+          </a>
+          <Button type="text" size="small" danger icon={<Trash2 size={13} />} onClick={() => onChange?.(undefined)} />
+        </div>
+      )}
+      <Upload
+        accept="image/*,application/pdf"
+        maxCount={1}
+        showUploadList={false}
+        beforeUpload={(file) => { handleUpload(file); return false; }}
+      >
+        <Button icon={<UploadCloud size={14} />} loading={uploading}>
+          {value ? 'Thay file khác' : 'Tải ảnh hoặc PDF lên'}
+        </Button>
+      </Upload>
+    </div>
+  );
+}
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -293,19 +340,23 @@ export function GoUsPortal() {
         visaCategory: caseData.visaCategory,
         caseNumber: caseData.caseNumber,
         invoiceId: caseData.invoiceId,
+        receiptNumber: caseData.receiptNumber,
         priorityDate: caseData.priorityDate ? dayjs(caseData.priorityDate) : null,
         approvalDate: caseData.approvalDate ? dayjs(caseData.approvalDate) : null,
         currentStage: caseData.currentStage,
         petitionerName: caseData.petitionerName,
+        petitionerRelationship: caseData.petitionerRelationship || 'Anh/Chị/Em ruột',
         petitionerAddress: caseData.petitionerAddress,
         petitionerPhone: caseData.petitionerPhone,
         petitionerEmail: caseData.petitionerEmail,
         principalApplicantName: caseData.principalApplicantName,
         jointSponsorInfo: caseData.jointSponsorInfo,
         interviewDate: caseData.interviewDate ? dayjs(caseData.interviewDate) : null,
+        interviewLocation: caseData.interviewLocation || 'Tổng Lãnh sự quán Hoa Kỳ tại TP.HCM (4 Lê Duẩn, Q.1)',
         medicalExamDate: caseData.medicalExamDate ? dayjs(caseData.medicalExamDate) : null,
         vaccinationDate: caseData.vaccinationDate ? dayjs(caseData.vaccinationDate) : null,
         intendedDepartureDate: caseData.intendedDepartureDate ? dayjs(caseData.intendedDepartureDate) : null,
+        portOfEntry: caseData.portOfEntry,
         destinationAddress: caseData.destinationAddress,
         notes: caseData.notes,
       });
@@ -346,7 +397,7 @@ export function GoUsPortal() {
     setIsMemberModalOpen(true);
   };
 
-  const openDocModal = (doc?: GoUsDocument) => {
+  const openDocModal = (doc?: GoUsDocument, presetMemberId?: string) => {
     setEditingDoc(doc || null);
     if (doc) {
       docForm.setFieldsValue({
@@ -358,6 +409,7 @@ export function GoUsPortal() {
         status: doc.status,
         issueDate: doc.issueDate ? dayjs(doc.issueDate) : null,
         expiryDate: doc.expiryDate ? dayjs(doc.expiryDate) : null,
+        fileUrl: doc.fileUrl,
         expertNotes: doc.expertNotes,
       });
     } else {
@@ -366,6 +418,7 @@ export function GoUsPortal() {
         category: 'CIVIL_IDENTITY',
         isRequired: true,
         status: 'NOT_PREPARED',
+        memberId: presetMemberId,
       });
     }
     setIsDocModalOpen(true);
@@ -445,7 +498,7 @@ export function GoUsPortal() {
             <PlaneTakeoff size={32} />
           </div>
           <h2 className="text-lg font-bold text-slate-800">Chọn Gia Đình Để Bắt Đầu</h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-700">
             Hồ sơ định cư Hoa Kỳ diện F4 được quản lý theo từng gia đình. Vui lòng chọn gia đình đang hoạt động để mở hồ sơ.
           </p>
           {memberships.length > 0 && (
@@ -479,7 +532,7 @@ export function GoUsPortal() {
           <AlertTriangle size={32} />
         </div>
         <p className="text-base font-semibold text-slate-800">Không thể tải hồ sơ định cư Mỹ diện F4</p>
-        <p className="max-w-md text-xs text-slate-500">{message}</p>
+        <p className="max-w-md text-xs text-slate-700">{message}</p>
         <Button
           type="primary"
           className="!bg-rose-600"
@@ -496,7 +549,7 @@ export function GoUsPortal() {
 
   if (isCaseLoading || isStatsLoading || !caseData) {
     return (
-      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 text-slate-500">
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-3 text-slate-700">
         <PlaneTakeoff className="w-10 h-10 text-rose-400 animate-bounce" />
         <p className="text-base font-medium">Đang tải hồ sơ định cư Mỹ diện F4...</p>
       </div>
@@ -520,7 +573,7 @@ export function GoUsPortal() {
             <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight flex items-center gap-2">
               Cổng Quản Lý Định Cư Hoa Kỳ
             </h1>
-            <p className="text-slate-300 text-sm max-w-2xl">
+            <p className="text-slate-600 text-sm max-w-2xl">
               Hệ thống đồng hành chuyên sâu cùng gia đình: kiểm soát hồ sơ NVC, lịch trình phỏng vấn, theo dõi giấy tờ,
               tính toán tuổi CSPA cho con và dự toán chi phí từ A-Z.
             </p>
@@ -548,23 +601,23 @@ export function GoUsPortal() {
         {/* Quick Highlights Strip */}
         <div className="mt-6 pt-6 border-t border-slate-700/60 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
           <div className="bg-white/5 rounded-2xl p-3 border border-white/5 backdrop-blur-sm">
-            <p className="text-slate-400 font-medium">Mã Hồ Sơ NVC</p>
+            <p className="text-slate-600 font-medium">Mã Hồ Sơ NVC</p>
             <p className="text-sm font-bold text-white mt-0.5">{caseData?.caseNumber || 'Chưa cập nhật'}</p>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/5 backdrop-blur-sm">
-            <p className="text-slate-400 font-medium">Ngày Ưu Tiên (PD)</p>
+            <p className="text-slate-600 font-medium">Ngày Ưu Tiên (PD)</p>
             <p className="text-sm font-bold text-amber-300 mt-0.5">
               {caseData?.priorityDate ? dayjs(caseData.priorityDate).format('DD/MM/YYYY') : 'Chưa cập nhật'}
             </p>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/5 backdrop-blur-sm">
-            <p className="text-slate-400 font-medium">Ngày Chấp Thuận (I-797)</p>
+            <p className="text-slate-600 font-medium">Ngày Chấp Thuận (I-797)</p>
             <p className="text-sm font-bold text-emerald-300 mt-0.5">
               {caseData?.approvalDate ? dayjs(caseData.approvalDate).format('DD/MM/YYYY') : 'Chưa cập nhật'}
             </p>
           </div>
           <div className="bg-white/5 rounded-2xl p-3 border border-white/5 backdrop-blur-sm">
-            <p className="text-slate-400 font-medium">Đương Đơn Chính</p>
+            <p className="text-slate-600 font-medium">Đương Đơn Chính</p>
             <p className="text-sm font-bold text-white mt-0.5">{caseData?.principalApplicantName || 'Chủ gia đình'}</p>
           </div>
         </div>
@@ -608,6 +661,8 @@ export function GoUsPortal() {
             children: (
               <MembersTab
                 members={members}
+                caseData={caseData!}
+                onOpenEditCase={openEditCaseModal}
                 onAddMember={() => openMemberModal()}
                 onEditMember={(m) => openMemberModal(m)}
                 onDeleteMember={(id) => deleteMemberMutation.mutate(id)}
@@ -689,11 +744,16 @@ export function GoUsPortal() {
 
       {/* MODAL 1: EDIT CASE DETAILS */}
       <Modal
-        title={<span className="text-lg font-bold text-slate-800">Cập nhật Thông tin Hồ sơ Định cư F4</span>}
+        title={
+          <div>
+            <span className="text-lg font-bold text-slate-800 block">Thông Tin Hồ Sơ Chung Của Toàn Bộ Gia Đình</span>
+            <span className="text-xs text-slate-500 font-normal">Các thông tin này áp dụng chung cho tất cả thành viên trong gia đình và tự động đồng bộ trên toàn hệ thống</span>
+          </div>
+        }
         open={isCaseModalOpen}
         onCancel={() => setIsCaseModalOpen(false)}
         footer={null}
-        width={750}
+        width={780}
         destroyOnClose
       >
         <Form form={caseForm} layout="vertical" onFinish={(vals) => updateCaseMutation.mutate({
@@ -705,6 +765,7 @@ export function GoUsPortal() {
           vaccinationDate: vals.vaccinationDate ? dayjs(vals.vaccinationDate).format('YYYY-MM-DD') : null,
           intendedDepartureDate: vals.intendedDepartureDate ? dayjs(vals.intendedDepartureDate).format('YYYY-MM-DD') : null,
         })} className="pt-2">
+          <Divider className="my-2"><span className="text-xs text-rose-600 font-bold uppercase">1. Căn Cước Hồ Sơ & Cơ Quan Di Trú (USCIS & NVC)</span></Divider>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Form.Item name="caseNumber" label="Mã hồ sơ NVC (Case Number)">
               <Input placeholder="Ví dụ: HCM2010123456" />
@@ -712,13 +773,27 @@ export function GoUsPortal() {
             <Form.Item name="invoiceId" label="Mã hóa đơn NVC (Invoice Identification Number)">
               <Input placeholder="Ví dụ: IIN12345678" />
             </Form.Item>
+            <Form.Item name="receiptNumber" label="Số biên nhận Sở Di Trú (USCIS Receipt #)">
+              <Input placeholder="Ví dụ: WAC2090123456 hoặc IOE..." />
+            </Form.Item>
+            <Form.Item name="visaCategory" label="Diện thị thực bảo lãnh">
+              <Select>
+                <Option value="F4 - Anh/Chị/Em công dân Mỹ">F4 - Anh/Chị/Em công dân Mỹ</Option>
+                <Option value="F3 - Con đã có gia đình của công dân Mỹ">F3 - Con đã có gia đình của công dân Mỹ</Option>
+                <Option value="F1 - Con độc thân trên 21 tuổi của CD Mỹ">F1 - Con độc thân trên 21 tuổi của CD Mỹ</Option>
+                <Option value="F2A - Vợ/Chồng & Con độc thân dưới 21 của Thường trú nhân">F2A - Vợ/Chồng & Con dưới 21 của Thường trú nhân</Option>
+                <Option value="F2B - Con độc thân trên 21 tuổi của Thường trú nhân">F2B - Con độc thân trên 21 của Thường trú nhân</Option>
+                <Option value="CR1/IR1 - Vợ/Chồng công dân Mỹ">CR1/IR1 - Vợ/Chồng công dân Mỹ</Option>
+                <Option value="IR5 - Cha/Mẹ của công dân Mỹ">IR5 - Cha/Mẹ của công dân Mỹ</Option>
+              </Select>
+            </Form.Item>
             <Form.Item name="priorityDate" label="Ngày ưu tiên (Priority Date - PD)">
               <DatePicker className="w-full" format="DD/MM/YYYY" placeholder="Chọn ngày ưu tiên" />
             </Form.Item>
             <Form.Item name="approvalDate" label="Ngày chấp thuận I-797 (Notice of Action)">
               <DatePicker className="w-full" format="DD/MM/YYYY" placeholder="Chọn ngày chấp thuận" />
             </Form.Item>
-            <Form.Item name="currentStage" label="Giai đoạn hiện tại của hồ sơ" className="md:col-span-2">
+            <Form.Item name="currentStage" label="Giai đoạn tiến trình hiện tại" className="md:col-span-2">
               <Select>
                 {STAGES.map((s) => (
                   <Option key={s.key} value={s.key}>
@@ -729,55 +804,68 @@ export function GoUsPortal() {
             </Form.Item>
           </div>
 
-          <Divider className="my-3"><span className="text-xs text-slate-400 font-semibold uppercase">Thông tin Đương đơn & Người bảo lãnh</span></Divider>
+          <Divider className="my-3"><span className="text-xs text-rose-600 font-bold uppercase">2. Đương Đơn Chính, Người Bảo Lãnh & Đồng Bảo Trợ</span></Divider>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Form.Item name="principalApplicantName" label="Họ tên Đương đơn chính (Chủ gia đình)">
-              <Input placeholder="Nhập họ tên như trong hộ chiếu" />
+            <Form.Item name="principalApplicantName" label="Họ tên Đương đơn chính (Chủ hộ)">
+              <Input placeholder="Nhập họ tên đầy đủ như trong hộ chiếu" />
             </Form.Item>
-            <Form.Item name="petitionerName" label="Họ tên Người bảo lãnh tại Mỹ (Anh/Chị/Em ruột)">
-              <Input placeholder="Họ tên người bảo lãnh bên Mỹ" />
+            <Form.Item name="petitionerName" label="Họ tên Người bảo lãnh tại Mỹ">
+              <Input placeholder="Họ tên người thân bảo lãnh bên Mỹ" />
+            </Form.Item>
+            <Form.Item name="petitionerRelationship" label="Quan hệ với đương đơn chính">
+              <Input placeholder="Ví dụ: Anh/Chị/Em ruột, Cha mẹ, Vợ chồng..." />
             </Form.Item>
             <Form.Item name="petitionerPhone" label="Số điện thoại người bảo lãnh">
               <Input placeholder="Ví dụ: +1 (714) 555-0199" />
             </Form.Item>
-            <Form.Item name="petitionerEmail" label="Email người bảo lãnh">
-              <Input placeholder="Email nhận thông báo NVC" />
+            <Form.Item name="petitionerEmail" label="Email người bảo lãnh (Nhận NVC)">
+              <Input placeholder="Email để nhận thông báo hồ sơ" />
             </Form.Item>
-            <Form.Item name="petitionerAddress" label="Địa chỉ người bảo lãnh tại Mỹ" className="md:col-span-2">
-              <Input placeholder="Street, City, State, Zip code" />
+            <Form.Item name="petitionerAddress" label="Địa chỉ người bảo lãnh tại Mỹ">
+              <Input placeholder="Street, City, State, ZIP code" />
             </Form.Item>
-            <Form.Item name="jointSponsorInfo" label="Thông tin Người đồng bảo trợ (Joint Sponsor - Nếu có)" className="md:col-span-2">
-              <Input placeholder="Họ tên, quan hệ, mức thu nhập của người đồng bảo trợ..." />
+            <Form.Item name="jointSponsorInfo" label="Thông tin Người đồng bảo trợ tài chính (Joint Sponsor - Nếu có)" className="md:col-span-2">
+              <Input placeholder="Họ tên, quan hệ, địa chỉ, tình trạng thu nhập..." />
             </Form.Item>
           </div>
 
-          <Divider className="my-3"><span className="text-xs text-slate-400 font-semibold uppercase">Lịch hẹn & Dự kiến bay</span></Divider>
+          <Divider className="my-3"><span className="text-xs text-rose-600 font-bold uppercase">3. Lịch Trình Chung Gia Đình & Nhập Cảnh Mỹ</span></Divider>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Form.Item name="interviewDate" label="Ngày & Giờ Phỏng Vấn">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Form.Item name="interviewDate" label="Ngày & Giờ Phỏng Vấn Tại LSQ">
               <DatePicker showTime className="w-full" format="DD/MM/YYYY HH:mm" placeholder="Chọn ngày giờ PV" />
             </Form.Item>
-            <Form.Item name="medicalExamDate" label="Ngày Khám Sức Khỏe">
+            <Form.Item name="interviewLocation" label="Địa điểm phỏng vấn">
+              <Input placeholder="Mặc định: Tổng Lãnh sự quán Hoa Kỳ tại TP.HCM" />
+            </Form.Item>
+            <Form.Item name="medicalExamDate" label="Ngày Khám Sức Khỏe Chung">
               <DatePicker className="w-full" format="DD/MM/YYYY" placeholder="Chọn ngày khám" />
             </Form.Item>
-            <Form.Item name="intendedDepartureDate" label="Ngày Dự Kiến Bay">
+            <Form.Item name="vaccinationDate" label="Ngày Tiêm Chủng Chung">
+              <DatePicker className="w-full" format="DD/MM/YYYY" placeholder="Chọn ngày tiêm" />
+            </Form.Item>
+            <Form.Item name="intendedDepartureDate" label="Ngày Dự Kiến Bay Sang Mỹ">
               <DatePicker className="w-full" format="DD/MM/YYYY" placeholder="Chọn ngày bay" />
+            </Form.Item>
+            <Form.Item name="portOfEntry" label="Cảng nhập cảnh dự kiến (Port of Entry - POE)">
+              <Input placeholder="Ví dụ: Los Angeles (LAX), San Francisco (SFO), New York (JFK)..." />
+            </Form.Item>
+            <Form.Item name="destinationAddress" label="Địa chỉ đăng ký nhận Thẻ Xanh & Cư trú tại Mỹ" className="md:col-span-2">
+              <Input placeholder="Địa chỉ sẽ khai trên DS-260 để USCIS gửi Thẻ Xanh và thẻ SSN" />
             </Form.Item>
           </div>
 
-          <Form.Item name="destinationAddress" label="Địa chỉ dự kiến cư trú khi sang Mỹ">
-            <Input placeholder="Địa chỉ sẽ đăng ký nhận Thẻ Xanh và Thẻ An sinh xã hội (SSN)" />
-          </Form.Item>
+          <Divider className="my-3"><span className="text-xs text-rose-600 font-bold uppercase">4. Ghi Chú Chung Hồ Sơ</span></Divider>
 
-          <Form.Item name="notes" label="Ghi chú tổng quan hồ sơ">
-            <TextArea rows={3} placeholder="Ghi chú thêm về tình trạng hồ sơ, lưu ý của gia đình..." />
+          <Form.Item name="notes" label="Ghi chú tổng quan hồ sơ gia đình">
+            <TextArea rows={3} placeholder="Ghi chú thêm về diễn biến hồ sơ, tình trạng bảo lãnh, lưu ý của gia đình..." />
           </Form.Item>
 
           <div className="flex justify-end gap-2 mt-4">
             <Button onClick={() => setIsCaseModalOpen(false)}>Hủy</Button>
-            <Button type="primary" htmlType="submit" loading={updateCaseMutation.isPending}>
-              Lưu Thay Đổi
+            <Button type="primary" htmlType="submit" loading={updateCaseMutation.isPending} className="!bg-rose-600">
+              Lưu Thông Tin Chung
             </Button>
           </div>
         </Form>
@@ -798,6 +886,42 @@ export function GoUsPortal() {
           passportExpiry: vals.passportExpiry ? dayjs(vals.passportExpiry).format('YYYY-MM-DD') : null,
           policeCertIssueDate: vals.policeCertIssueDate ? dayjs(vals.policeCertIssueDate).format('YYYY-MM-DD') : null,
         })} className="pt-2">
+          {/* Shared Family Case Summary Card inside Member Modal */}
+          <div className="mb-4 p-3 rounded-2xl bg-gradient-to-br from-rose-50/70 to-slate-50 border border-rose-100 shadow-sm">
+            <div className="flex items-center justify-between pb-2 mb-2 border-b border-rose-200/60 text-xs">
+              <span className="font-bold text-rose-900 flex items-center gap-1.5">
+                <ShieldAlert size={14} className="text-rose-600" />
+                Thông Tin Kế Thừa Từ Hồ Sơ Chung Của Gia Đình
+              </span>
+              <span className="text-[11px] text-slate-500 font-medium">Tự động kế thừa không cần nhập lại</span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs">
+              <div className="bg-white/80 p-2 rounded-xl border border-slate-100">
+                <span className="text-slate-500 block text-[11px]">Mã hồ sơ NVC:</span>
+                <span className="font-bold text-slate-800">{caseData?.caseNumber || 'Chưa cập nhật'}</span>
+              </div>
+              <div className="bg-white/80 p-2 rounded-xl border border-slate-100">
+                <span className="text-slate-500 block text-[11px]">Mã biên nhận USCIS:</span>
+                <span className="font-bold text-slate-800">{caseData?.receiptNumber || 'Chưa cập nhật'}</span>
+              </div>
+              <div className="bg-white/80 p-2 rounded-xl border border-slate-100">
+                <span className="text-slate-500 block text-[11px]">Ngày Ưu Tiên (PD):</span>
+                <span className="font-bold text-amber-700">{caseData?.priorityDate ? dayjs(caseData.priorityDate).format('DD/MM/YYYY') : 'Chưa cập nhật'}</span>
+              </div>
+              <div className="bg-white/80 p-2 rounded-xl border border-slate-100">
+                <span className="text-slate-500 block text-[11px]">Ngày Chấp Thuận I-797:</span>
+                <span className="font-bold text-emerald-700">{caseData?.approvalDate ? dayjs(caseData.approvalDate).format('DD/MM/YYYY') : 'Chưa cập nhật'}</span>
+              </div>
+              <div className="bg-white/80 p-2 rounded-xl border border-slate-100">
+                <span className="text-slate-500 block text-[11px]">Người bảo lãnh tại Mỹ:</span>
+                <span className="font-bold text-slate-800 truncate block">{caseData?.petitionerName || 'Chưa cập nhật'}</span>
+              </div>
+              <div className="bg-white/80 p-2 rounded-xl border border-slate-100">
+                <span className="text-slate-500 block text-[11px]">Lịch phỏng vấn LSQ:</span>
+                <span className="font-bold text-rose-600 truncate block">{caseData?.interviewDate ? dayjs(caseData.interviewDate).format('DD/MM/YYYY HH:mm') : 'Chưa có'}</span>
+              </div>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Form.Item name="fullName" label="Họ và tên đầy đủ" rules={[{ required: true, message: 'Vui lòng nhập họ tên' }]}>
               <Input placeholder="NGUYEN VAN A (như hộ chiếu)" />
@@ -826,7 +950,7 @@ export function GoUsPortal() {
             </Form.Item>
           </div>
 
-          <Divider className="my-3"><span className="text-xs text-slate-400 font-semibold uppercase">Tiến trình Thủ tục Cá nhân</span></Divider>
+          <Divider className="my-3"><span className="text-xs text-slate-600 font-semibold uppercase">Tiến trình Thủ tục Cá nhân</span></Divider>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Form.Item name="ds260Status" label="Tình trạng Đơn DS-260">
@@ -870,6 +994,46 @@ export function GoUsPortal() {
           <Form.Item name="notes" label="Ghi chú thành viên">
             <TextArea rows={2} placeholder="Ghi chú về tiền sử bệnh, tiêm ngừa, học bạ..." />
           </Form.Item>
+
+          <Divider className="my-3"><span className="text-xs text-slate-600 font-semibold uppercase">Giấy tờ của thành viên</span></Divider>
+
+          {editingMember ? (
+            <div className="space-y-2 mb-3">
+              {documents.filter((d) => d.memberId === editingMember.id).map((doc) => (
+                <div key={doc.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="font-medium text-slate-800 truncate">{doc.title}</span>
+                    {doc.fileUrl ? (
+                      <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 shrink-0">
+                        <Paperclip size={12} /> Xem file
+                      </a>
+                    ) : (
+                      <Tag color="warning" className="m-0 text-[12px] shrink-0">Chưa có file</Tag>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button type="text" size="small" icon={<Edit2 size={14} />} onClick={() => openDocModal(doc)} />
+                    <Popconfirm title="Xác nhận xóa giấy tờ này?" onConfirm={() => deleteDocMutation.mutate(doc.id)} okText="Xóa" cancelText="Hủy">
+                      <Button type="text" size="small" danger icon={<Trash2 size={14} />} />
+                    </Popconfirm>
+                  </div>
+                </div>
+              ))}
+              {documents.filter((d) => d.memberId === editingMember.id).length === 0 && (
+                <p className="text-xs text-slate-500 italic">Chưa có giấy tờ nào được gắn cho thành viên này.</p>
+              )}
+              <Button size="small" icon={<Plus size={14} />} onClick={() => openDocModal(undefined, editingMember.id)}>
+                Thêm Giấy Tờ cho Thành Viên Này
+              </Button>
+            </div>
+          ) : (
+            <Alert
+              className="mb-3"
+              type="info"
+              showIcon
+              message="Lưu thành viên trước, sau đó mở lại để thêm giấy tờ đính kèm."
+            />
+          )}
 
           <div className="flex justify-end gap-2 mt-4">
             <Button onClick={() => { setIsMemberModalOpen(false); setEditingMember(null); }}>Hủy</Button>
@@ -933,6 +1097,10 @@ export function GoUsPortal() {
 
           <Form.Item name="description" label="Hướng dẫn quy cách & Yêu cầu">
             <TextArea rows={2} placeholder="Yêu cầu bản gốc, số lượng bản sao, dịch thuật tiếng Anh..." />
+          </Form.Item>
+
+          <Form.Item name="fileUrl" label="File đính kèm (Ảnh chụp / Scan hoặc PDF)">
+            <DocumentFileUploader />
           </Form.Item>
 
           <Form.Item name="expertNotes" label="Lưu ý quan trọng từ Luật sư / Chuyên viên">
@@ -1158,15 +1326,15 @@ export function GoUsPortal() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                 <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                  <p className="text-xs text-slate-400">Tuổi Thực Tế</p>
+                  <p className="text-xs text-slate-600">Tuổi Thực Tế</p>
                   <p className="text-base font-bold text-slate-800 mt-1">{cspaResult.actualAgeAtVisaAvailability} tuổi</p>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                  <p className="text-xs text-slate-400">Ngày Chờ I-130</p>
+                  <p className="text-xs text-slate-600">Ngày Chờ I-130</p>
                   <p className="text-base font-bold text-blue-600 mt-1">{cspaResult.i130PendingDays} ngày</p>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
-                  <p className="text-xs text-slate-400">Năm Được Trừ</p>
+                  <p className="text-xs text-slate-600">Năm Được Trừ</p>
                   <p className="text-base font-bold text-emerald-600 mt-1">− {cspaResult.i130PendingYears} năm</p>
                 </div>
                 <div className="bg-white p-3 rounded-xl border border-rose-100 shadow-sm">
@@ -1221,9 +1389,9 @@ function OverviewTab({
         <Card className="rounded-2xl border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-slate-500">Tiến Độ Giấy Tờ</p>
+              <p className="text-xs font-medium text-slate-700">Tiến Độ Giấy Tờ</p>
               <p className="text-2xl font-bold text-slate-800 mt-1">{stats?.docProgress?.percentage || 0}%</p>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 mt-0.5">
                 {stats?.docProgress?.ready || 0} / {stats?.docProgress?.total || 0} mục sẵn sàng
               </p>
             </div>
@@ -1237,9 +1405,9 @@ function OverviewTab({
         <Card className="rounded-2xl border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-slate-500">Nhiệm Vụ Đã Làm</p>
+              <p className="text-xs font-medium text-slate-700">Nhiệm Vụ Đã Làm</p>
               <p className="text-2xl font-bold text-slate-800 mt-1">{stats?.taskProgress?.percentage || 0}%</p>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 mt-0.5">
                 {stats?.taskProgress?.done || 0} / {stats?.taskProgress?.total || 0} đầu việc
               </p>
             </div>
@@ -1253,11 +1421,11 @@ function OverviewTab({
         <Card className="rounded-2xl border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-slate-500">Cảnh Báo Tuổi CSPA</p>
+              <p className="text-xs font-medium text-slate-700">Cảnh Báo Tuổi CSPA</p>
               <p className="text-2xl font-bold text-amber-600 mt-1">
-                {stats?.warningCspaCount || 0} <span className="text-xs font-normal text-slate-500">nguy cơ</span>
+                {stats?.warningCspaCount || 0} <span className="text-xs font-normal text-slate-700">nguy cơ</span>
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">{stats?.totalMembers || 0} thành viên trong hồ sơ</p>
+              <p className="text-xs text-slate-600 mt-0.5">{stats?.totalMembers || 0} thành viên trong hồ sơ</p>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
               <Users size={24} />
@@ -1271,11 +1439,11 @@ function OverviewTab({
         <Card className="rounded-2xl border-slate-200 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium text-slate-500">Dự Toán Chi Phí</p>
+              <p className="text-xs font-medium text-slate-700">Dự Toán Chi Phí</p>
               <p className="text-xl font-bold text-slate-800 mt-1">
                 ${(stats?.financialSummary?.totalEstimatedUsd || 0).toLocaleString()}
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">
+              <p className="text-xs text-slate-600 mt-0.5">
                 + {(stats?.financialSummary?.totalEstimatedVnd || 0).toLocaleString()} VNĐ
               </p>
             </div>
@@ -1336,10 +1504,10 @@ function OverviewTab({
                         <p className={`text-sm font-bold truncate ${isCurrent ? 'text-rose-900' : 'text-slate-800'}`}>
                           {st.label}
                         </p>
-                        {isCurrent && <Tag color="error" className="text-[10px] uppercase font-bold m-0">Hiện tại</Tag>}
-                        {isPassed && <Tag color="success" className="text-[10px] uppercase font-bold m-0">Đã qua</Tag>}
+                        {isCurrent && <Tag color="error" className="text-[12px] uppercase font-bold m-0">Hiện tại</Tag>}
+                        {isPassed && <Tag color="success" className="text-[12px] uppercase font-bold m-0">Đã qua</Tag>}
                       </div>
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">{st.desc}</p>
+                      <p className="text-xs text-slate-700 mt-1 line-clamp-2">{st.desc}</p>
                     </div>
                   </div>
                 </div>
@@ -1364,8 +1532,34 @@ function OverviewTab({
             className="rounded-2xl border-slate-200 shadow-sm"
           >
             <Descriptions column={{ xs: 1, sm: 2 }} size="small" bordered className="rounded-xl overflow-hidden">
+              <Descriptions.Item label="Mã hồ sơ NVC">
+                <span className="font-bold text-slate-800">{caseData.caseNumber || 'Chưa cập nhật'}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Mã biên nhận Sở Di Trú (USCIS)">
+                <span className="font-bold text-slate-800">{caseData.receiptNumber || 'Chưa cập nhật'}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Mã hóa đơn NVC (Invoice ID)">
+                {caseData.invoiceId || 'Chưa cập nhật'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Diện bảo lãnh thị thực">
+                <span className="font-medium text-blue-700">{caseData.visaCategory || 'F4'}</span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày ưu tiên (PD)">
+                <span className="font-bold text-amber-700">
+                  {caseData.priorityDate ? dayjs(caseData.priorityDate).format('DD/MM/YYYY') : 'Chưa cập nhật'}
+                </span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày chấp thuận I-797">
+                <span className="font-bold text-emerald-700">
+                  {caseData.approvalDate ? dayjs(caseData.approvalDate).format('DD/MM/YYYY') : 'Chưa cập nhật'}
+                </span>
+              </Descriptions.Item>
+              <Descriptions.Item label="Đương đơn chính (Chủ hộ)">
+                <span className="font-bold text-slate-800">{caseData.principalApplicantName || 'Chủ gia đình'}</span>
+              </Descriptions.Item>
               <Descriptions.Item label="Người bảo lãnh (Mỹ)">
                 <span className="font-bold text-slate-800">{caseData.petitionerName || 'Chưa cập nhật'}</span>
+                {caseData.petitionerRelationship && <span className="text-slate-500 text-xs ml-1">({caseData.petitionerRelationship})</span>}
               </Descriptions.Item>
               <Descriptions.Item label="Điện thoại bảo lãnh">
                 {caseData.petitionerPhone || 'Chưa cập nhật'}
@@ -1373,22 +1567,34 @@ function OverviewTab({
               <Descriptions.Item label="Email bảo lãnh">
                 {caseData.petitionerEmail || 'Chưa cập nhật'}
               </Descriptions.Item>
-              <Descriptions.Item label="Địa chỉ cư trú tại Mỹ">
+              <Descriptions.Item label="Địa chỉ người bảo lãnh tại Mỹ" span={2}>
                 {caseData.petitionerAddress || 'Chưa cập nhật'}
               </Descriptions.Item>
-              <Descriptions.Item label="Đồng bảo trợ (Joint Sponsor)">
+              <Descriptions.Item label="Đồng bảo trợ (Joint Sponsor)" span={2}>
                 {caseData.jointSponsorInfo || 'Không có (Người bảo lãnh đủ thu nhập)'}
               </Descriptions.Item>
-              <Descriptions.Item label="Địa chỉ nhận Thẻ Xanh">
-                {caseData.destinationAddress || 'Chưa cập nhật'}
+              <Descriptions.Item label="Địa chỉ nhận Thẻ Xanh tại Mỹ" span={2}>
+                <span className="font-medium text-slate-800">{caseData.destinationAddress || 'Chưa cập nhật'}</span>
               </Descriptions.Item>
               <Descriptions.Item label="Ngày & Giờ Phỏng Vấn">
                 <span className="font-bold text-rose-600">
                   {caseData.interviewDate ? dayjs(caseData.interviewDate).format('DD/MM/YYYY HH:mm') : 'Chưa có lịch hẹn'}
                 </span>
               </Descriptions.Item>
+              <Descriptions.Item label="Địa điểm phỏng vấn">
+                {caseData.interviewLocation || 'Tổng Lãnh sự quán Hoa Kỳ tại TP.HCM (4 Lê Duẩn, Q.1)'}
+              </Descriptions.Item>
               <Descriptions.Item label="Ngày Khám Sức Khỏe">
                 {caseData.medicalExamDate ? dayjs(caseData.medicalExamDate).format('DD/MM/YYYY') : 'Chưa đặt hẹn'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày Tiêm Chủng">
+                {caseData.vaccinationDate ? dayjs(caseData.vaccinationDate).format('DD/MM/YYYY') : 'Chưa đặt hẹn'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Ngày Dự Kiến Bay">
+                {caseData.intendedDepartureDate ? dayjs(caseData.intendedDepartureDate).format('DD/MM/YYYY') : 'Chưa có lịch bay'}
+              </Descriptions.Item>
+              <Descriptions.Item label="Cảng Nhập Cảnh (POE)">
+                {caseData.portOfEntry || 'Chưa chọn'}
               </Descriptions.Item>
             </Descriptions>
 
@@ -1430,10 +1636,10 @@ function OverviewTab({
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-semibold text-slate-800 line-clamp-1">{task.title}</p>
                     <div className="flex items-center gap-2 mt-1">
-                      {task.priority === 'URGENT' && <Tag color="error" className="text-[10px] m-0">Khẩn cấp</Tag>}
-                      {task.priority === 'HIGH' && <Tag color="warning" className="text-[10px] m-0">Ưu tiên</Tag>}
+                      {task.priority === 'URGENT' && <Tag color="error" className="text-[12px] m-0">Khẩn cấp</Tag>}
+                      {task.priority === 'HIGH' && <Tag color="warning" className="text-[12px] m-0">Ưu tiên</Tag>}
                       {task.dueDate && (
-                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                        <span className="text-[12px] text-slate-600 flex items-center gap-1">
                           <Clock size={10} /> Hạn: {dayjs(task.dueDate).format('DD/MM')}
                         </span>
                       )}
@@ -1443,7 +1649,7 @@ function OverviewTab({
               ))}
 
               {(!caseData.tasks || caseData.tasks.filter((t) => t.status !== 'DONE').length === 0) && (
-                <p className="text-xs text-slate-400 text-center py-4">Tất cả nhiệm vụ đã được hoàn thành!</p>
+                <p className="text-xs text-slate-600 text-center py-4">Tất cả nhiệm vụ đã được hoàn thành!</p>
               )}
             </div>
           </Card>
@@ -1456,12 +1662,16 @@ function OverviewTab({
 // ================= TAB 2: MEMBERS & CSPA =================
 function MembersTab({
   members,
+  caseData,
+  onOpenEditCase,
   onAddMember,
   onEditMember,
   onDeleteMember,
   onOpenCspa,
 }: {
   members: GoUsMember[];
+  caseData: GoUsCase;
+  onOpenEditCase: () => void;
   onAddMember: () => void;
   onEditMember: (m: GoUsMember) => void;
   onDeleteMember: (id: string) => void;
@@ -1469,10 +1679,91 @@ function MembersTab({
 }) {
   return (
     <div className="space-y-4">
+      {/* SHARED CASE PROFILE BANNER - APPLIES TO ALL MEMBERS */}
+      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-4 sm:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-rose-500/30 text-rose-300 border border-rose-500/40">
+                  <ShieldAlert size={12} /> Hồ Sơ Chung Của Cả Gia Đình
+                </span>
+                <span className="text-xs text-slate-400">Dùng chung cho tất cả thành viên</span>
+              </div>
+              <h3 className="text-base sm:text-lg font-bold text-white mt-1">
+                Thông Tin Căn Cứ Bảo Lãnh Gia Đình
+              </h3>
+            </div>
+            <Button
+              size="small"
+              icon={<Edit2 size={13} />}
+              onClick={onOpenEditCase}
+              className="!bg-white/10 !border-white/20 !text-white hover:!bg-white/20 shrink-0 self-start sm:self-auto"
+            >
+              Chỉnh sửa thông tin chung
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-slate-700/60 text-xs">
+            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
+              <span className="text-slate-400 block text-[11px]">Mã Hồ Sơ NVC</span>
+              <span className="font-bold text-white mt-0.5 block">{caseData.caseNumber || 'Chưa cập nhật'}</span>
+            </div>
+            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
+              <span className="text-slate-400 block text-[11px]">Số Biên Nhận USCIS</span>
+              <span className="font-bold text-slate-200 mt-0.5 block">{caseData.receiptNumber || 'Chưa cập nhật'}</span>
+            </div>
+            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
+              <span className="text-slate-400 block text-[11px]">Ngày Ưu Tiên (PD)</span>
+              <span className="font-bold text-amber-300 mt-0.5 block">
+                {caseData.priorityDate ? dayjs(caseData.priorityDate).format('DD/MM/YYYY') : 'Chưa cập nhật'}
+              </span>
+            </div>
+            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
+              <span className="text-slate-400 block text-[11px]">Ngày Chấp Thuận I-797</span>
+              <span className="font-bold text-emerald-300 mt-0.5 block">
+                {caseData.approvalDate ? dayjs(caseData.approvalDate).format('DD/MM/YYYY') : 'Chưa cập nhật'}
+              </span>
+            </div>
+            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
+              <span className="text-slate-400 block text-[11px]">Người Bảo Lãnh Tại Mỹ</span>
+              <span className="font-semibold text-white mt-0.5 block truncate">
+                {caseData.petitionerName || 'Chưa cập nhật'}
+                {caseData.petitionerRelationship ? ` (${caseData.petitionerRelationship})` : ''}
+              </span>
+            </div>
+            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5">
+              <span className="text-slate-400 block text-[11px]">Lịch Phỏng Vấn LSQ</span>
+              <span className="font-semibold text-rose-300 mt-0.5 block truncate">
+                {caseData.interviewDate ? dayjs(caseData.interviewDate).format('DD/MM/YYYY HH:mm') : 'Chưa có'}
+              </span>
+            </div>
+            <div className="bg-white/5 rounded-xl p-2.5 border border-white/5 sm:col-span-2">
+              <span className="text-slate-400 block text-[11px]">Địa Chỉ Nhận Thẻ Xanh Tại Mỹ</span>
+              <span className="font-semibold text-slate-200 mt-0.5 block truncate" title={caseData.destinationAddress}>
+                {caseData.destinationAddress || 'Chưa cập nhật'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 py-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs text-slate-600">
+          <span className="flex items-center gap-1.5 text-[12px]">
+            <CheckCircle2 size={13} className="text-emerald-600 shrink-0" />
+            Tất cả các thành viên bên dưới tự động sử dụng chung các thông số hồ sơ này.
+          </span>
+          {caseData.priorityDate && caseData.approvalDate && (
+            <Tag color="success" className="m-0 text-[11px]">
+              Đã kích hoạt tự động tính CSPA
+            </Tag>
+          )}
+        </div>
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
         <div>
-          <h2 className="text-base font-bold text-slate-800">Danh Sách Thành Viên Thụ Hưởng Hồ Sơ F4</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h2 className="text-base font-bold text-slate-800">Danh Sách Thành Viên Thụ Hưởng ({members.length} người)</h2>
+          <p className="text-xs text-slate-700 mt-0.5">
             Quản lý giấy tờ tùy thân, hộ chiếu, đơn DS-260, LLTP số 2 và theo dõi tuổi CSPA chống quá tuổi cho con cái.
           </p>
         </div>
@@ -1507,7 +1798,7 @@ function MembersTab({
                     </div>
                     <div>
                       <p className="text-sm font-bold text-slate-800 leading-tight">{member.fullName}</p>
-                      <Tag color={isPrincipal ? 'magenta' : member.roleInCase === 'SPOUSE' ? 'blue' : 'cyan'} className="text-[10px] mt-0.5">
+                      <Tag color={isPrincipal ? 'magenta' : member.roleInCase === 'SPOUSE' ? 'blue' : 'cyan'} className="text-[12px] mt-0.5">
                         {isPrincipal ? 'Đương đơn chính' : member.roleInCase === 'SPOUSE' ? 'Vợ / Chồng' : 'Con cái'}
                       </Tag>
                     </div>
@@ -1523,41 +1814,41 @@ function MembersTab({
             >
               <div className="space-y-2.5 text-xs">
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-400">Ngày sinh:</span>
+                  <span className="text-slate-600">Ngày sinh:</span>
                   <span className="font-semibold text-slate-700">
                     {member.dob ? dayjs(member.dob).format('DD/MM/YYYY') : 'Chưa nhập'}
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-400">Hộ chiếu:</span>
+                  <span className="text-slate-600">Hộ chiếu:</span>
                   <span className="font-semibold text-slate-700">
                     {member.passportNumber || 'Chưa nhập'}
                     {member.passportExpiry && ` (Hạn: ${dayjs(member.passportExpiry).format('MM/YYYY')})`}
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-400">Đơn DS-260:</span>
+                  <span className="text-slate-600">Đơn DS-260:</span>
                   <span>
                     {member.ds260Status === 'COMPLETED' ? (
-                      <Tag color="success" className="m-0 text-[10px]">Đã nộp ({member.ds260ConfirmationNumber || 'Đã có mã'})</Tag>
+                      <Tag color="success" className="m-0 text-[12px]">Đã nộp ({member.ds260ConfirmationNumber || 'Đã có mã'})</Tag>
                     ) : member.ds260Status === 'IN_PROGRESS' ? (
-                      <Tag color="processing" className="m-0 text-[10px]">Đang khai</Tag>
+                      <Tag color="processing" className="m-0 text-[12px]">Đang khai</Tag>
                     ) : (
-                      <Tag color="default" className="m-0 text-[10px]">Chưa khai</Tag>
+                      <Tag color="default" className="m-0 text-[12px]">Chưa khai</Tag>
                     )}
                   </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-400">Lý lịch tư pháp số 2:</span>
+                  <span className="text-slate-600">Lý lịch tư pháp số 2:</span>
                   <span>
                     {member.policeCertStatus === 'COMPLETED' ? (
-                      <Tag color="success" className="m-0 text-[10px]">Đã có</Tag>
+                      <Tag color="success" className="m-0 text-[12px]">Đã có</Tag>
                     ) : member.policeCertStatus === 'EXPIRED' ? (
-                      <Tag color="error" className="m-0 text-[10px]">Đã hết hạn</Tag>
+                      <Tag color="error" className="m-0 text-[12px]">Đã hết hạn</Tag>
                     ) : member.policeCertStatus === 'NOT_APPLICABLE' ? (
-                      <Tag color="default" className="m-0 text-[10px]">Dưới 16 tuổi</Tag>
+                      <Tag color="default" className="m-0 text-[12px]">Dưới 16 tuổi</Tag>
                     ) : (
-                      <Tag color="warning" className="m-0 text-[10px]">Chưa làm</Tag>
+                      <Tag color="warning" className="m-0 text-[12px]">Chưa làm</Tag>
                     )}
                   </span>
                 </div>
@@ -1569,19 +1860,19 @@ function MembersTab({
                       {member.cspaAge ? (
                         <span className="font-extrabold text-sm text-amber-900">{member.cspaAge} tuổi</span>
                       ) : (
-                        <Button type="link" size="small" onClick={() => onOpenCspa(member.dob)} className="!p-0 !text-[11px]">
+                        <Button type="link" size="small" onClick={() => onOpenCspa(member.dob)} className="!p-0 !text-[13px]">
                           Tính ngay →
                         </Button>
                       )}
                     </div>
                     {member.cspaStatus === 'SAFE' && (
-                      <p className="text-[11px] text-emerald-700 font-semibold mt-1">✓ Đủ điều kiện đi cùng cha mẹ</p>
+                      <p className="text-[13px] text-emerald-700 font-semibold mt-1">✓ Đủ điều kiện đi cùng cha mẹ</p>
                     )}
                     {member.cspaStatus === 'WARNING' && (
-                      <p className="text-[11px] text-amber-700 font-semibold mt-1">⚠ Sát 21 tuổi - Cần nộp DS-260 gấp!</p>
+                      <p className="text-[13px] text-amber-700 font-semibold mt-1">⚠ Sát 21 tuổi - Cần nộp DS-260 gấp!</p>
                     )}
                     {member.cspaStatus === 'AGED_OUT' && (
-                      <p className="text-[11px] text-red-700 font-semibold mt-1">✕ Nguy cơ quá tuổi (Cần chuẩn bị F2B)</p>
+                      <p className="text-[13px] text-red-700 font-semibold mt-1">✕ Nguy cơ quá tuổi (Cần chuẩn bị F2B)</p>
                     )}
                   </div>
                 )}
@@ -1659,11 +1950,15 @@ function DocumentsTab({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="font-bold text-sm text-slate-800">{doc.title}</span>
-                    {doc.isRequired && <Tag color="red" className="text-[10px] m-0">Bắt buộc</Tag>}
+                    {doc.isRequired && <Tag color="red" className="text-[12px] m-0">Bắt buộc</Tag>}
                   </div>
-                  {doc.member && (
-                    <Tag color="purple" className="text-[10px]">
+                  {doc.member ? (
+                    <Tag color="purple" className="text-[12px]">
                       Thành viên: {doc.member.fullName}
+                    </Tag>
+                  ) : (
+                    <Tag color="cyan" className="text-[12px]">
+                      Hồ sơ chung của gia đình
                     </Tag>
                   )}
                 </div>
@@ -1675,11 +1970,11 @@ function DocumentsTab({
                 </div>
               </div>
 
-              {doc.description && <p className="text-xs text-slate-500">{doc.description}</p>}
+              {doc.description && <p className="text-xs text-slate-700">{doc.description}</p>}
 
               <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="text-slate-400">Trạng thái:</span>
+                  <span className="text-slate-600">Trạng thái:</span>
                   {doc.status === 'READY_FOR_INTERVIEW' && <Tag color="success" className="m-0">Sẵn sàng phỏng vấn</Tag>}
                   {doc.status === 'SUBMITTED_NVC' && <Tag color="blue" className="m-0">Đã nộp NVC</Tag>}
                   {doc.status === 'TRANSLATED_NOTARIZED' && <Tag color="cyan" className="m-0">Đã dịch thuật công chứng</Tag>}
@@ -1689,14 +1984,25 @@ function DocumentsTab({
                 </div>
 
                 {doc.expiryDate && (
-                  <span className="text-slate-500 font-medium">
+                  <span className="text-slate-700 font-medium">
                     Hạn: {dayjs(doc.expiryDate).format('DD/MM/YYYY')}
                   </span>
                 )}
               </div>
 
+              {doc.fileUrl && (
+                <a
+                  href={doc.fileUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-1.5 text-xs text-blue-600 font-medium hover:underline"
+                >
+                  <Paperclip size={13} /> Xem file đính kèm
+                </a>
+              )}
+
               {doc.expertNotes && (
-                <div className="p-2 rounded-xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900">
+                <div className="p-2 rounded-xl bg-amber-50/80 border border-amber-200 text-[13px] text-amber-900">
                   <span className="font-bold">Lưu ý luật sư: </span>
                   {doc.expertNotes}
                 </div>
@@ -1731,7 +2037,7 @@ function TasksTab({
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500">Lọc theo giai đoạn:</span>
+          <span className="text-xs font-semibold text-slate-700">Lọc theo giai đoạn:</span>
           <Select value={stageFilter} onChange={onStageChange} className="w-56" size="small">
             <Option value="ALL">Tất cả giai đoạn</Option>
             {STAGES.map((s) => (
@@ -1768,13 +2074,13 @@ function TasksTab({
                 />
                 <div className="min-w-0 flex-1 space-y-1">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className={`text-sm font-bold ${isDone ? 'line-through text-slate-400' : 'text-slate-800'}`}>
+                    <span className={`text-sm font-bold ${isDone ? 'line-through text-slate-600' : 'text-slate-800'}`}>
                       {task.title}
                     </span>
                     <div className="flex items-center gap-1.5">
-                      {task.priority === 'URGENT' && <Tag color="error" className="m-0 text-[10px]">Khẩn cấp</Tag>}
-                      {task.priority === 'HIGH' && <Tag color="warning" className="m-0 text-[10px]">Ưu tiên cao</Tag>}
-                      {task.priority === 'MEDIUM' && <Tag color="default" className="m-0 text-[10px]">Trung bình</Tag>}
+                      {task.priority === 'URGENT' && <Tag color="error" className="m-0 text-[12px]">Khẩn cấp</Tag>}
+                      {task.priority === 'HIGH' && <Tag color="warning" className="m-0 text-[12px]">Ưu tiên cao</Tag>}
+                      {task.priority === 'MEDIUM' && <Tag color="default" className="m-0 text-[12px]">Trung bình</Tag>}
                       <Button type="text" size="small" icon={<Edit2 size={14} />} onClick={() => onEditTask(task)} />
                       <Popconfirm title="Xác nhận xóa nhiệm vụ này?" onConfirm={() => onDeleteTask(task.id)} okText="Xóa" cancelText="Hủy">
                         <Button type="text" size="small" danger icon={<Trash2 size={14} />} />
@@ -1784,7 +2090,7 @@ function TasksTab({
 
                   {task.description && <p className="text-xs text-slate-600">{task.description}</p>}
 
-                  <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-slate-400">
+                  <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-slate-600">
                     {task.dueDate && (
                       <span className="flex items-center gap-1 font-medium text-slate-600">
                         <Calendar size={12} /> Hạn chót: {dayjs(task.dueDate).format('DD/MM/YYYY')}
@@ -1835,37 +2141,37 @@ function ExpensesTab({
       {/* Financial Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Card className="rounded-2xl border-slate-200 shadow-sm bg-gradient-to-r from-blue-50/50 to-white">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Chi Phí Đô La Mỹ (USD)</p>
+          <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Chi Phí Đô La Mỹ (USD)</p>
           <div className="flex items-baseline justify-between mt-2">
             <div>
               <p className="text-2xl font-black text-slate-800">
                 ${(stats?.financialSummary?.totalEstimatedUsd || 0).toLocaleString()}
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">Tổng dự toán toàn bộ hồ sơ</p>
+              <p className="text-xs text-slate-600 mt-0.5">Tổng dự toán toàn bộ hồ sơ</p>
             </div>
             <div className="text-right">
               <p className="text-lg font-bold text-emerald-600">
                 ${(stats?.financialSummary?.totalPaidUsd || 0).toLocaleString()}
               </p>
-              <p className="text-xs text-slate-400">Đã thanh toán</p>
+              <p className="text-xs text-slate-600">Đã thanh toán</p>
             </div>
           </div>
         </Card>
 
         <Card className="rounded-2xl border-slate-200 shadow-sm bg-gradient-to-r from-emerald-50/50 to-white">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Chi Phí Tiền Việt (VNĐ)</p>
+          <p className="text-xs font-semibold text-slate-700 uppercase tracking-wide">Chi Phí Tiền Việt (VNĐ)</p>
           <div className="flex items-baseline justify-between mt-2">
             <div>
               <p className="text-2xl font-black text-slate-800">
                 {(stats?.financialSummary?.totalEstimatedVnd || 0).toLocaleString()} <span className="text-sm font-normal">VNĐ</span>
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">Khám SK, tiêm chủng, LLTP, dịch thuật</p>
+              <p className="text-xs text-slate-600 mt-0.5">Khám SK, tiêm chủng, LLTP, dịch thuật</p>
             </div>
             <div className="text-right">
               <p className="text-lg font-bold text-emerald-600">
                 {(stats?.financialSummary?.totalPaidVnd || 0).toLocaleString()} VNĐ
               </p>
-              <p className="text-xs text-slate-400">Đã chi</p>
+              <p className="text-xs text-slate-600">Đã chi</p>
             </div>
           </div>
         </Card>
@@ -1887,7 +2193,7 @@ function ExpensesTab({
             <div className="flex items-start justify-between gap-2">
               <div>
                 <p className="font-bold text-sm text-slate-800">{exp.title}</p>
-                <p className="text-xs text-slate-400 mt-0.5">Người chi trả: {exp.payer || 'Gia đình'}</p>
+                <p className="text-xs text-slate-600 mt-0.5">Người chi trả: {exp.payer || 'Gia đình'}</p>
               </div>
               <div className="flex items-center gap-1 shrink-0">
                 <Button type="text" size="small" icon={<Edit2 size={14} />} onClick={() => onEditExpense(exp)} />
@@ -1899,7 +2205,7 @@ function ExpensesTab({
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100">
               <div>
-                <span className="text-xs text-slate-400">Dự toán: </span>
+                <span className="text-xs text-slate-600">Dự toán: </span>
                 <span className="font-bold text-sm text-slate-800">
                   {exp.currency === 'USD' ? `$${Number(exp.estimatedAmount).toLocaleString()}` : `${Number(exp.estimatedAmount).toLocaleString()} VNĐ`}
                 </span>
@@ -1915,7 +2221,7 @@ function ExpensesTab({
               </div>
             </div>
 
-            {exp.notes && <p className="text-xs text-slate-500 bg-slate-50 p-2 rounded-xl">{exp.notes}</p>}
+            {exp.notes && <p className="text-xs text-slate-700 bg-slate-50 p-2 rounded-xl">{exp.notes}</p>}
           </div>
         ))}
       </div>
@@ -2030,7 +2336,7 @@ function ExpertGuidelinesTab() {
               <p>3. <em>Lần gần nhất người bảo lãnh về Việt Nam là khi nào?</em></p>
               <p>4. <em>Gia đình bạn qua Mỹ dự định sẽ sống ở đâu và làm công việc gì?</em></p>
             </div>
-            <p className="text-slate-500 italic">
+            <p className="text-slate-700 italic">
               * Nguyên tắc: Trả lời ngắn gọn, trung thực, khớp với thông tin đã khai trong đơn DS-260 và hồ sơ bảo trợ.
             </p>
           </div>

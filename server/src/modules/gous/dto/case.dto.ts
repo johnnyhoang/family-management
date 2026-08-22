@@ -28,7 +28,15 @@ export class CreateGoUsCaseDto {
 
   @IsOptional()
   @IsString()
+  receiptNumber?: string;
+
+  @IsOptional()
+  @IsString()
   petitionerName?: string;
+
+  @IsOptional()
+  @IsString()
+  petitionerRelationship?: string;
 
   @IsOptional()
   @IsString()
@@ -55,6 +63,10 @@ export class CreateGoUsCaseDto {
   interviewDate?: string;
 
   @IsOptional()
+  @IsString()
+  interviewLocation?: string;
+
+  @IsOptional()
   @IsDateString()
   medicalExamDate?: string;
 
@@ -65,6 +77,10 @@ export class CreateGoUsCaseDto {
   @IsOptional()
   @IsDateString()
   intendedDepartureDate?: string;
+
+  @IsOptional()
+  @IsString()
+  portOfEntry?: string;
 
   @IsOptional()
   @IsString()

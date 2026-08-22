@@ -42,7 +42,13 @@ export class GoUsCase extends BaseEntity {
   currentStage: GoUsStage;
 
   @Column({ nullable: true })
+  receiptNumber: string; // Mã số biên nhận Sở Di Trú USCIS (WAC/EAC/LIN/IOE...)
+
+  @Column({ nullable: true })
   petitionerName: string; // Tên người bảo lãnh tại Mỹ
+
+  @Column({ nullable: true })
+  petitionerRelationship: string; // Quan hệ với đương đơn chính (Anh/chị/em, Cha/mẹ, Vợ/chồng...)
 
   @Column({ nullable: true })
   petitionerAddress: string;
@@ -62,6 +68,9 @@ export class GoUsCase extends BaseEntity {
   @Column({ type: 'timestamp', nullable: true })
   interviewDate: Date; // Ngày & giờ phỏng vấn tại LSQ
 
+  @Column({ nullable: true, default: 'Tổng Lãnh sự quán Hoa Kỳ tại TP.HCM (4 Lê Duẩn, Q.1)' })
+  interviewLocation: string; // Địa điểm phỏng vấn
+
   @Column({ type: 'date', nullable: true })
   medicalExamDate: string; // Ngày khám sức khỏe
 
@@ -72,7 +81,10 @@ export class GoUsCase extends BaseEntity {
   intendedDepartureDate: string; // Ngày dự kiến bay
 
   @Column({ nullable: true })
-  destinationAddress: string; // Địa chỉ cư trú tại Mỹ
+  portOfEntry: string; // Cảng nhập cảnh dự kiến tại Mỹ (SFO, LAX, JFK...)
+
+  @Column({ nullable: true })
+  destinationAddress: string; // Địa chỉ cư trú tại Mỹ (Nhận Thẻ Xanh & SSN)
 
   @Column({ type: 'text', nullable: true })
   notes: string;
