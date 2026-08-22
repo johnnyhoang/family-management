@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ConfigProvider, theme as antTheme } from 'antd';
 import { MainLayout } from './components/layout/MainLayout';
+import { GoUsLayout } from './components/layout/GoUsLayout';
 import { AuthGuard } from './components/auth/AuthGuard';
 import { SessionProvider, useSession } from './components/auth/SessionProvider';
 import { ThemeProvider, useThemeMode } from './components/theme/ThemeProvider';
@@ -83,9 +84,12 @@ function AppShell() {
             <Route path="/login-success" element={<LoginSuccess />} />
 
             <Route element={<AuthGuard />}>
+              <Route path="/gous" element={<GoUsLayout />}>
+                <Route index element={<ProtectedPage moduleKey="GOUS"><GoUsPortal /></ProtectedPage>} />
+              </Route>
+
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<HomePage />} />
-                <Route path="gous" element={<ProtectedPage moduleKey="GOUS"><GoUsPortal /></ProtectedPage>} />
                 <Route path="assets" element={<ProtectedPage moduleKey="ASSET"><AssetList /></ProtectedPage>} />
                 <Route path="maintenance" element={<ProtectedPage moduleKey="ASSET"><MaintenanceList /></ProtectedPage>} />
                 <Route path="expenses" element={<ProtectedPage moduleKey="TRANSACTION"><ExpenseList /></ProtectedPage>} />
