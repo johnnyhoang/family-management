@@ -47,7 +47,7 @@ export const AdminPanel = () => {
   });
 
   const createFamilyMutation = useMutation({
-    mutationFn: (data: { name: string; adminUserId?: string }) => adminApi.createFamily(data),
+    mutationFn: (data: { name: string; adminUserId: string }) => adminApi.createFamily(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-families'] });
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
@@ -511,7 +511,7 @@ export const AdminPanel = () => {
         destroyOnClose
       >
         <p className="text-xs text-slate-500 mb-4">
-          Tạo một gia đình mới trong hệ thống và tùy chọn chỉ định một người dùng làm Chủ hộ / Quản trị gia đình (FAMILY_ADMIN).
+          Tạo một gia đình mới trong hệ thống và chỉ định một người dùng làm Chủ hộ / Quản trị gia đình (FAMILY_ADMIN). Bắt buộc phải có người quản lý để gia đình không bị bỏ trống không ai kiểm soát.
         </p>
         <Form
           form={createFamilyForm}
@@ -527,8 +527,9 @@ export const AdminPanel = () => {
           </Form.Item>
           <Form.Item
             name="adminUserId"
-            label="Chỉ định Chủ hộ / Quản trị viên (Tùy chọn)"
+            label="Chỉ định Chủ hộ / Quản trị viên"
             tooltip="Người dùng được chọn sẽ có quyền Quản trị viên (FAMILY_ADMIN) của gia đình này"
+            rules={[{ required: true, message: 'Bắt buộc chỉ định một Chủ hộ / Quản trị viên' }]}
           >
             <Select
               placeholder="Chọn người dùng làm Quản trị gia đình"

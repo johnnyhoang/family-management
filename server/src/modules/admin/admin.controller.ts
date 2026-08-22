@@ -30,9 +30,9 @@ export class AdminController {
   }
 
   @Post('families')
-  @ApiOperation({ summary: 'Create a new family and optionally assign an admin user (APP_ADMIN only)' })
+  @ApiOperation({ summary: 'Create a new family and assign its admin user (APP_ADMIN only)' })
   @CheckPermission('Admin', 'update')
-  async createFamily(@Req() req, @Body() data: { name: string; adminUserId?: string }) {
+  async createFamily(@Req() req, @Body() data: { name: string; adminUserId: string }) {
     this.assertAppAdmin(req.user.systemRole);
     return this.adminService.createFamilyByAdmin(data.name, data.adminUserId);
   }

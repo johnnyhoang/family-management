@@ -8,12 +8,14 @@ import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { PermissionModule } from '../permission/permission.module';
 import { CategoryModule } from '../category/category.module';
+import { FamilyModule } from '../family/family.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Family, FamilyUser, Role]),
     PermissionModule,
     CategoryModule,
+    FamilyModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

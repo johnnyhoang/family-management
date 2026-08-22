@@ -6,6 +6,7 @@ export type FamilyRole = 'APP_ADMIN' | 'FAMILY_ADMIN' | 'MEMBER' | null;
 export interface SessionMembership {
   familyId: string;
   familyName: string;
+  familyStatus?: 'ACTIVE' | 'INACTIVE';
   role: Exclude<FamilyRole, null>;
 }
 

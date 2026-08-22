@@ -8,11 +8,13 @@ import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { PermissionModule } from '../permission/permission.module';
 import { AuthModule } from '../auth/auth.module';
+import { FamilyModule } from '../family/family.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, FamilyUser, Role, Invite]),
     PermissionModule,
+    FamilyModule,
     forwardRef(() => AuthModule),
   ],
   controllers: [UserController],

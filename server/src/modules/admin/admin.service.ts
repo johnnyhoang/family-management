@@ -6,6 +6,7 @@ import { SystemRole, User, UserRole } from '../../common/entities/user.entity';
 import { FamilyUser, FamilyUserStatus } from '../../common/entities/family-user.entity';
 import { Role } from '../../common/entities/role.entity';
 import { CategoryService } from '../category/category.service';
+import { FamilyService } from '../family/family.service';
 
 @Injectable()
 export class AdminService {
@@ -19,6 +20,7 @@ export class AdminService {
     @InjectRepository(Role)
     private roleRepository: Repository<Role>,
     private categoryService: CategoryService,
+    private familyService: FamilyService,
   ) {}
 
   async findAllFamilies() {
@@ -110,7 +112,7 @@ export class AdminService {
     }
 
     if (membership.role?.code === UserRole.FAMILY_ADMIN && roleCode !== UserRole.FAMILY_ADMIN) {
-      await this.ensureFamilyKeepsAdmin(familyId);
+      await this.familyService.ensureFamilyKeepsAdmin(familyId);
     }
 
     const role = await this.roleRepository.findOne({
@@ -180,7 +182,23 @@ export class AdminService {
     };
   }
 
-  async createFamilyByAdmin(name: string, adminUserId?: string) {
+  async createFamilyByAdmin(name: string, adminUserId: string) {
+    if (!adminUserId) {
+      throw new BadRequestException('Phải chỉ định một Chủ hộ / Quản trị viên khi tạo gia đình mới, để gia đình không bị bỏ trống không ai quản lý.');
+    }
+
+    const user = await this.userRepository.findOne({ where: { id: adminUserId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const familyAdminRole = await this.roleRepository.findOne({
+      where: { code: UserRole.FAMILY_ADMIN },
+    });
+    if (!familyAdminRole) {
+      throw new NotFoundException('FAMILY_ADMIN role template not found');
+    }
+
     const family = await this.familyRepository.save(
       this.familyRepository.create({
         name: name.trim(),
@@ -190,29 +208,18 @@ export class AdminService {
 
     await this.categoryService.ensureDefaultIncomeCategories(family.id);
 
-    if (adminUserId) {
-      const user = await this.userRepository.findOne({ where: { id: adminUserId } });
-      if (user) {
-        const familyAdminRole = await this.roleRepository.findOne({
-          where: { code: UserRole.FAMILY_ADMIN },
-        });
+    await this.familyUserRepository.save(
+      this.familyUserRepository.create({
+        familyId: family.id,
+        userId: user.id,
+        roleId: familyAdminRole.id,
+        status: FamilyUserStatus.ACTIVE,
+      }),
+    );
 
-        if (familyAdminRole) {
-          await this.familyUserRepository.save(
-            this.familyUserRepository.create({
-              familyId: family.id,
-              userId: user.id,
-              roleId: familyAdminRole.id,
-              status: FamilyUserStatus.ACTIVE,
-            }),
-          );
-
-          if (!user.lastActiveFamilyId) {
-            user.lastActiveFamilyId = family.id;
-            await this.userRepository.save(user);
-          }
-        }
-      }
+    if (!user.lastActiveFamilyId) {
+      user.lastActiveFamilyId = family.id;
+      await this.userRepository.save(user);
     }
 
     return this.findAllFamilies();
@@ -315,25 +322,4 @@ export class AdminService {
     return this.findAllFamilies();
   }
 
-  private async ensureFamilyKeepsAdmin(familyId: string) {
-    const familyAdminRole = await this.roleRepository.findOne({
-      where: { code: UserRole.FAMILY_ADMIN },
-    });
-
-    if (!familyAdminRole) {
-      throw new NotFoundException('FAMILY_ADMIN role template not found');
-    }
-
-    const adminCount = await this.familyUserRepository.count({
-      where: {
-        familyId,
-        roleId: familyAdminRole.id,
-        status: FamilyUserStatus.ACTIVE,
-      },
-    });
-
-    if (adminCount <= 1) {
-      throw new ForbiddenException('Family must always keep at least one FAMILY_ADMIN');
-    }
-  }
 }

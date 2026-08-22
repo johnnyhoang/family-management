@@ -40,4 +40,21 @@ export class FamilyController {
     }
     return this.familyService.deleteFamily(req.user.familyId, req.user.id);
   }
+
+  @Patch('deactivate')
+  @ApiOperation({ summary: 'Temporarily deactivate the current family (Family admin only) -- requires an APP_ADMIN to reactivate' })
+  @CheckPermission('Family', 'update')
+  async deactivate(@Request() req) {
+    if (req.user.role !== UserRole.FAMILY_ADMIN) {
+      throw new ForbiddenException('Only family admins can deactivate family');
+    }
+    return this.familyService.deactivateFamily(req.user.familyId);
+  }
+
+  @Delete('membership')
+  @ApiOperation({ summary: 'Leave the current family' })
+  @CheckPermission('Family', 'view')
+  async leave(@Request() req) {
+    return this.familyService.leaveFamily(req.user.familyId, req.user.id);
+  }
 }

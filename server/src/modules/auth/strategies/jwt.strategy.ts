@@ -63,7 +63,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
 
     if (membership.family?.status !== FamilyStatus.ACTIVE) {
-      throw new UnauthorizedException('Selected family is inactive');
+      // Don't hard-fail the whole session over one deactivated family --
+      // that would 401 every request (including /auth/me and switch-family)
+      // and strand the user with no way to recover. Fall through with no
+      // active family/role instead; family-scoped endpoints will then give a
+      // clear "no active family" error via PermissionGuard, and the user can
+      // still list/switch to another family they belong to.
+      return {
+        ...user,
+        familyId: null,
+        family: null,
+        role: null,
+      };
     }
 
     return {

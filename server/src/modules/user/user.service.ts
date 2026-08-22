@@ -7,6 +7,7 @@ import { FamilyUser, FamilyUserStatus } from '../../common/entities/family-user.
 import { Role } from '../../common/entities/role.entity';
 import { Invite, InviteStatus } from '../../common/entities/invite.entity';
 import { AuthService } from '../auth/auth.service';
+import { FamilyService } from '../family/family.service';
 
 @Injectable()
 export class UserService {
@@ -20,6 +21,7 @@ export class UserService {
     @InjectRepository(Invite)
     private inviteRepository: Repository<Invite>,
     private authService: AuthService,
+    private familyService: FamilyService,
   ) {}
 
   async findAll(familyId: string, query: Record<string, unknown> = {}) {
@@ -149,7 +151,7 @@ export class UserService {
     }
 
     if (membership.role?.code === UserRole.FAMILY_ADMIN && newRole !== UserRole.FAMILY_ADMIN) {
-      await this.ensureFamilyKeepsAdmin(familyId);
+      await this.familyService.ensureFamilyKeepsAdmin(familyId);
     }
 
     membership.roleId = role.id;
@@ -184,31 +186,9 @@ export class UserService {
       throw new NotFoundException('Membership not found');
     }
     if (membership.role?.code === UserRole.FAMILY_ADMIN) {
-      await this.ensureFamilyKeepsAdmin(familyId);
+      await this.familyService.ensureFamilyKeepsAdmin(familyId);
     }
     membership.status = FamilyUserStatus.REMOVED;
     return this.familyUserRepository.save(membership);
-  }
-
-  private async ensureFamilyKeepsAdmin(familyId: string) {
-    const adminRole = await this.roleRepository.findOne({
-      where: { code: UserRole.FAMILY_ADMIN },
-    });
-
-    if (!adminRole) {
-      throw new ForbiddenException('Family admin role template is missing');
-    }
-
-    const remainingAdmins = await this.familyUserRepository.count({
-      where: {
-        familyId,
-        roleId: adminRole.id,
-        status: FamilyUserStatus.ACTIVE,
-      },
-    });
-
-    if (remainingAdmins <= 1) {
-      throw new ForbiddenException('Family must always keep at least one FAMILY_ADMIN');
-    }
   }
 }

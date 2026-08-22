@@ -47,7 +47,7 @@ export const adminApi = {
   getFamilies: () => api.get<AdminFamily[]>('/admin/families'),
   getUsers: () => api.get<AdminUser[]>('/admin/users'),
   getStats: () => api.get<AdminStats>('/admin/stats'),
-  createFamily: (data: { name: string; adminUserId?: string }) =>
+  createFamily: (data: { name: string; adminUserId: string }) =>
     api.post<AdminFamily[]>('/admin/families', data),
   addFamilyMember: (familyId: string, data: { userId: string; role: 'FAMILY_ADMIN' | 'MEMBER' }) =>
     api.post<AdminFamily[]>(`/admin/families/${familyId}/members`, data),

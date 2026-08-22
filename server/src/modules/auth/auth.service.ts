@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { User, SystemRole, UserRole } from '../../common/entities/user.entity';
-import { Family } from '../../common/entities/family.entity';
+import { Family, FamilyStatus } from '../../common/entities/family.entity';
 import { FamilyUser, FamilyUserStatus } from '../../common/entities/family-user.entity';
 import { Invite, InviteStatus } from '../../common/entities/invite.entity';
 import { PermissionService } from '../permission/permission.service';
@@ -82,9 +82,7 @@ export class AuthService {
       });
     }
 
-    const activeFamilyId = user.lastActiveFamilyId && memberships.some((membership) => membership.familyId === user.lastActiveFamilyId)
-        ? user.lastActiveFamilyId
-        : memberships[0]?.familyId ?? null;
+    const activeFamilyId = this.pickActiveFamilyId(memberships, user.lastActiveFamilyId);
 
     if (activeFamilyId !== user.lastActiveFamilyId) {
       user.lastActiveFamilyId = activeFamilyId;
@@ -106,11 +104,7 @@ export class AuthService {
       order: { createdAt: 'ASC' },
     });
 
-    const nextFamilyId = activeFamilyId && memberships.some((membership) => membership.familyId === activeFamilyId)
-        ? activeFamilyId
-        : user.lastActiveFamilyId && memberships.some((membership) => membership.familyId === user.lastActiveFamilyId)
-          ? user.lastActiveFamilyId
-          : memberships[0]?.familyId ?? null;
+    const nextFamilyId = this.pickActiveFamilyId(memberships, activeFamilyId, user.lastActiveFamilyId);
 
     if (nextFamilyId !== user.lastActiveFamilyId) {
       user.lastActiveFamilyId = nextFamilyId;
@@ -121,11 +115,20 @@ export class AuthService {
   }
 
   async switchActiveFamily(userId: string, familyId: string) {
-    const session = await this.getSessionProfile(userId, familyId);
-    if (session.user.familyId !== familyId) {
+    const membership = await this.familyUserRepository.findOne({
+      where: { userId, familyId, status: FamilyUserStatus.ACTIVE },
+      relations: ['family'],
+    });
+
+    if (!membership) {
       throw new UnauthorizedException('User is not a member of the selected family');
     }
-    return session;
+
+    if (membership.family?.status !== FamilyStatus.ACTIVE) {
+      throw new UnauthorizedException('Gia đình này đang tạm ngưng hoạt động. Vui lòng liên hệ quản trị viên hệ thống để mở lại.');
+    }
+
+    return this.getSessionProfile(userId, familyId);
   }
 
   async acceptInvite(userId: string, token: string) {
@@ -205,7 +208,7 @@ export class AuthService {
     const familyAdminRole = await this.permissionService.getRoleByCode(UserRole.FAMILY_ADMIN);
 
     const family = await this.familyRepository.save(this.familyRepository.create({
-      name: user.fullName ? `${user.fullName}'s Family` : 'My Family',
+      name: user.fullName ? `Gia đình của ${user.fullName}` : 'Gia đình của tôi',
     }));
 
     await this.familyUserRepository.save(this.familyUserRepository.create({
@@ -219,6 +222,20 @@ export class AuthService {
     await this.userRepository.save(user);
 
     await this.categoryService.ensureDefaultIncomeCategories(family.id);
+  }
+
+  // Picks the active family from a preference list, skipping any membership
+  // whose family has been deactivated -- so a user whose current family goes
+  // INACTIVE automatically falls back to another family they belong to
+  // (or null) instead of getting stuck locked out of the whole app.
+  private pickActiveFamilyId(memberships: FamilyUser[], ...preferredFamilyIds: Array<string | null | undefined>): string | null {
+    const activeMemberships = memberships.filter((membership) => membership.family?.status === FamilyStatus.ACTIVE);
+    for (const preferred of preferredFamilyIds) {
+      if (preferred && activeMemberships.some((membership) => membership.familyId === preferred)) {
+        return preferred;
+      }
+    }
+    return activeMemberships[0]?.familyId ?? null;
   }
 
   private generateToken(user: User, memberships: FamilyUser[], activeFamilyId: string | null) {
@@ -247,6 +264,7 @@ export class AuthService {
         memberships: memberships.map((membership) => ({
           familyId: membership.familyId,
           familyName: membership.family?.name,
+          familyStatus: membership.family?.status,
           role: membership.role?.code,
         })),
       },
@@ -267,7 +285,7 @@ export class AuthService {
     if (!user) throw new UnauthorizedException();
 
     const familyAdminRole = await this.permissionService.getRoleByCode(UserRole.FAMILY_ADMIN);
-    const familyName = name?.trim() || (user.fullName ? `${user.fullName}'s Family` : 'My Family');
+    const familyName = name?.trim() || (user.fullName ? `Gia đình của ${user.fullName}` : 'Gia đình của tôi');
 
     const family = await this.familyRepository.save(
       this.familyRepository.create({

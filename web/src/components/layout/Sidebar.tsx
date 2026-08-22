@@ -118,10 +118,14 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                         placeholder="Chọn gia đình"
                         loading={isSwitchingFamily}
                         onChange={(value) => switchFamily(value)}
-                        options={memberships.map((membership) => ({
-                            value: membership.familyId,
-                            label: `${membership.familyName} · ${membership.role === 'FAMILY_ADMIN' ? 'Quản trị' : 'Thành viên'}`,
-                        }))}
+                        options={memberships.map((membership) => {
+                            const isInactive = membership.familyStatus === 'INACTIVE';
+                            return {
+                                value: membership.familyId,
+                                disabled: isInactive,
+                                label: `${membership.familyName} · ${membership.role === 'FAMILY_ADMIN' ? 'Quản trị' : 'Thành viên'}${isInactive ? ' · Tạm ngưng' : ''}`,
+                            };
+                        })}
                     />
                 ) : (
                     <div className="mt-1">

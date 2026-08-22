@@ -85,6 +85,31 @@ export const Settings = () => {
         },
     });
 
+    const deactivateFamilyMutation = useMutation({
+        mutationFn: () => familyApi.deactivate(),
+        onSuccess: async (res) => {
+            queryClient.invalidateQueries({ queryKey: ['family-profile'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-families'] });
+            await refreshSession();
+            message.success(res.data.message);
+        },
+        onError: (error: any) => {
+            message.error(error?.response?.data?.message || 'Không thể tạm ngưng gia đình');
+        },
+    });
+
+    const leaveFamilyMutation = useMutation({
+        mutationFn: () => familyApi.leave(),
+        onSuccess: async () => {
+            queryClient.invalidateQueries({ queryKey: ['family-profile'] });
+            await refreshSession();
+            message.success('Bạn đã rời khỏi gia đình');
+        },
+        onError: (error: any) => {
+            message.error(error?.response?.data?.message || 'Không thể rời khỏi gia đình');
+        },
+    });
+
     const profileTab = (
         <div className="space-y-6">
             <Card title={<div className="flex items-center gap-2"><User size={18} /><span>Hồ sơ cá nhân</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
@@ -173,6 +198,37 @@ export const Settings = () => {
                 </Form>
             </Card>
 
+            {(role === 'FAMILY_ADMIN' || systemRole === 'APP_ADMIN') && family?.status !== 'INACTIVE' && (
+                <Card
+                    title={<div className="flex items-center gap-2 text-amber-600 font-semibold"><span>Tạm ngưng hoạt động gia đình</span></div>}
+                    className="shadow-sm border-amber-100 bg-amber-50/20 rounded-2xl overflow-hidden"
+                >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <p className="font-semibold text-slate-800">Tạm ngưng thay vì xóa hẳn</p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Mọi thành viên (kể cả bạn) sẽ không truy cập được gia đình này cho đến khi quản trị viên hệ thống mở lại. Dữ liệu vẫn được giữ nguyên, không mất gì.
+                            </p>
+                        </div>
+                        <Button
+                            className="!border-amber-500 !text-amber-600"
+                            loading={deactivateFamilyMutation.isPending}
+                            onClick={() => {
+                                Modal.confirm({
+                                    title: `Tạm ngưng hoạt động gia đình "${family?.name || activeFamilyName}"?`,
+                                    content: 'Không ai (kể cả bạn) truy cập được gia đình này cho đến khi quản trị viên hệ thống mở lại. Bạn có thể liên hệ quản trị viên bất cứ lúc nào để mở lại.',
+                                    okText: 'Tạm ngưng',
+                                    cancelText: 'Hủy',
+                                    onOk: () => deactivateFamilyMutation.mutate(),
+                                });
+                            }}
+                        >
+                            Tạm ngưng gia đình
+                        </Button>
+                    </div>
+                </Card>
+            )}
+
             {(role === 'FAMILY_ADMIN' || systemRole === 'APP_ADMIN') && (
                 <Card
                     title={<div className="flex items-center gap-2 text-rose-600 font-semibold"><span>Vùng nguy hiểm: Xóa không gian gia đình</span></div>}
@@ -208,6 +264,36 @@ export const Settings = () => {
                     </div>
                 </Card>
             )}
+
+            <Card
+                title={<div className="flex items-center gap-2 text-slate-600 font-semibold"><span>Rời khỏi gia đình</span></div>}
+                className="shadow-sm border-slate-100 rounded-2xl overflow-hidden"
+            >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <p className="font-semibold text-slate-800">Rời khỏi gia đình này</p>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                            Bạn sẽ mất quyền truy cập vào dữ liệu của gia đình này. Nếu bạn là Quản trị viên duy nhất, hãy chuyển quyền cho người khác trước.
+                        </p>
+                    </div>
+                    <Button
+                        danger
+                        loading={leaveFamilyMutation.isPending}
+                        onClick={() => {
+                            Modal.confirm({
+                                title: `Rời khỏi gia đình "${family?.name || activeFamilyName}"?`,
+                                content: 'Bạn có thể được mời lại sau nếu cần.',
+                                okText: 'Rời khỏi',
+                                okType: 'danger',
+                                cancelText: 'Hủy',
+                                onOk: () => leaveFamilyMutation.mutate(),
+                            });
+                        }}
+                    >
+                        Rời khỏi gia đình
+                    </Button>
+                </div>
+            </Card>
         </div>
     ) : (
         <p className="text-sm text-slate-400 p-4">Bạn chưa tham gia gia đình nào.</p>
