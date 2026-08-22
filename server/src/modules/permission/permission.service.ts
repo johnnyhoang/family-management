@@ -123,54 +123,99 @@ export class PermissionService implements OnModuleInit {
       return;
     }
 
+    const key = (moduleKey: string, action: string) => `${moduleKey}:${action}`;
+
+    // Bulk-load what already exists (a handful of rows) instead of one
+    // findOne() round trip per definition/link -- ~100+ sequential queries
+    // used to run on every cold start (and, before seedingComplete existed,
+    // on every login), which is exactly the kind of per-request latency that
+    // gets crippling once Vercel and the DB aren't in the same region.
     const allDefinitions = this.buildPermissionDefinitions();
+    const existingPermissions = await this.permissionRepository.find();
+    const existingPermissionKeys = new Set(existingPermissions.map((p) => key(p.moduleKey, p.action)));
+    const missingDefinitions = allDefinitions.filter((d) => !existingPermissionKeys.has(key(d.moduleKey, d.action)));
 
-    for (const definition of allDefinitions) {
+    let allPermissions = existingPermissions;
+    if (missingDefinitions.length > 0) {
       try {
-        const existing = await this.permissionRepository.findOne({
-          where: {
-            moduleKey: definition.moduleKey,
-            action: definition.action,
-          },
-        });
-
-        if (!existing) {
-          await this.permissionRepository.save(this.permissionRepository.create(definition));
-        }
+        const saved = await this.permissionRepository.save(missingDefinitions.map((d) => this.permissionRepository.create(d)));
+        allPermissions = existingPermissions.concat(saved);
       } catch (err) {
-        // Don't let one bad definition (e.g. a moduleKey the DB enum doesn't
-        // know about yet) block seeding/linking for every other module.
-        this.logger.error(`Failed to seed permission ${definition.moduleKey}.${definition.action}`, err instanceof Error ? err.stack : err);
+        // Fall back to one-by-one so a single bad definition (e.g. a
+        // moduleKey the DB enum doesn't know about yet) doesn't block
+        // seeding for every other module.
+        this.logger.error('Bulk permission seed failed, falling back to per-item seeding', err instanceof Error ? err.stack : err);
+        const savedFallback: Permission[] = [];
+        for (const definition of missingDefinitions) {
+          try {
+            savedFallback.push(await this.permissionRepository.save(this.permissionRepository.create(definition)));
+          } catch (itemErr) {
+            this.logger.error(`Failed to seed permission ${definition.moduleKey}.${definition.action}`, itemErr instanceof Error ? itemErr.stack : itemErr);
+          }
+        }
+        allPermissions = existingPermissions.concat(savedFallback);
       }
     }
 
-    for (const template of this.getRoleTemplates()) {
+    const permissionIdByKey = new Map<string, string>();
+    for (const p of allPermissions) {
+      permissionIdByKey.set(key(p.moduleKey, p.action), p.id);
+    }
+
+    const roleTemplates = this.getRoleTemplates();
+    const existingRoles = await this.roleRepository.find({
+      where: roleTemplates.map((t) => ({ code: t.role })),
+    });
+    const roleByCode = new Map(existingRoles.map((r) => [r.code, r]));
+    const missingRoles = roleTemplates.filter((t) => !roleByCode.has(t.role));
+
+    if (missingRoles.length > 0) {
+      const created = await this.roleRepository.save(missingRoles.map((t) =>
+        this.roleRepository.create({ code: t.role, name: t.role, scope: t.scope, isTemplate: true }),
+      ));
+      for (const role of created) {
+        roleByCode.set(role.code, role);
+      }
+    }
+
+    const roleIds = roleTemplates.map((t) => roleByCode.get(t.role)?.id).filter((id): id is string => !!id);
+    const existingLinks = roleIds.length > 0
+      ? await this.rolePermissionRepository.find({ where: roleIds.map((roleId) => ({ roleId })) })
+      : [];
+    const existingLinkKeys = new Set(existingLinks.map((l) => `${l.roleId}:${l.permissionId}`));
+
+    const missingLinks: Array<{ roleId: string; permissionId: string }> = [];
+    for (const template of roleTemplates) {
+      const role = roleByCode.get(template.role);
+      if (!role) {
+        this.logger.error(`Failed to link permissions for role ${template.role}: role not found/created`);
+        continue;
+      }
+      for (const permission of template.permissions) {
+        const permissionId = permissionIdByKey.get(key(permission.moduleKey, permission.action));
+        if (!permissionId) {
+          continue;
+        }
+        const linkKey = `${role.id}:${permissionId}`;
+        if (!existingLinkKeys.has(linkKey)) {
+          existingLinkKeys.add(linkKey);
+          missingLinks.push({ roleId: role.id, permissionId });
+        }
+      }
+    }
+
+    if (missingLinks.length > 0) {
       try {
-        const role = await this.ensureRole(template.role, template.scope);
-        const permissions = await this.permissionRepository.find({
-          where: template.permissions.map((permission) => ({
-            moduleKey: permission.moduleKey,
-            action: permission.action,
-          })),
-        });
-
-        for (const permission of permissions) {
-          const exists = await this.rolePermissionRepository.findOne({
-            where: {
-              roleId: role.id,
-              permissionId: permission.id,
-            },
-          });
-
-          if (!exists) {
-            await this.rolePermissionRepository.save(this.rolePermissionRepository.create({
-              roleId: role.id,
-              permissionId: permission.id,
-            }));
+        await this.rolePermissionRepository.save(missingLinks.map((l) => this.rolePermissionRepository.create(l)));
+      } catch (err) {
+        this.logger.error('Bulk role-permission link seed failed, falling back to per-item seeding', err instanceof Error ? err.stack : err);
+        for (const link of missingLinks) {
+          try {
+            await this.rolePermissionRepository.save(this.rolePermissionRepository.create(link));
+          } catch (itemErr) {
+            this.logger.error(`Failed to link permission ${link.permissionId} to role ${link.roleId}`, itemErr instanceof Error ? itemErr.stack : itemErr);
           }
         }
-      } catch (err) {
-        this.logger.error(`Failed to link permissions for role ${template.role}`, err instanceof Error ? err.stack : err);
       }
     }
 
@@ -322,22 +367,5 @@ export class PermissionService implements OnModuleInit {
       { role: UserRole.FAMILY_ADMIN, scope: RoleScope.FAMILY, permissions: FAMILY_ADMIN_ALLOWED },
       { role: UserRole.MEMBER, scope: RoleScope.FAMILY, permissions: MEMBER_ALLOWED },
     ];
-  }
-
-  private async ensureRole(roleCode: UserRole, scope: RoleScope): Promise<Role> {
-    const existing = await this.roleRepository.findOne({
-      where: { code: roleCode },
-    });
-
-    if (existing) {
-      return existing;
-    }
-
-    return this.roleRepository.save(this.roleRepository.create({
-      code: roleCode,
-      name: roleCode,
-      scope,
-      isTemplate: true,
-    }));
   }
 }

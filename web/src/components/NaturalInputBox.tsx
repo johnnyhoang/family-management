@@ -1,12 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Input, Button, Card, Typography, Space, message, Tag, Popover, List, Tooltip } from 'antd';
 import { SendOutlined, AudioOutlined, MutedOutlined, HistoryOutlined, RedoOutlined, QrcodeOutlined } from '@ant-design/icons';
 import api from '../api/client';
 import { naturalInputApi } from '../api/natural-input';
 import type { NaturalInputHistory } from '../api/natural-input';
 import { ParsedPreviewModal } from './ParsedPreviewModal';
-import { QRScannerModal } from './QRScannerModal';
 import dayjs from 'dayjs';
+
+// QRScannerModal pulls in html5-qrcode (a full QR/barcode decoding engine,
+// ~250KB+ on its own) which used to be a static import here -- since
+// NaturalInputBox sits directly on the Dashboard, that shipped the entire
+// QR scanner to every dashboard visit even though almost nobody opens it.
+// Deferring the import until the user actually clicks the scan button keeps
+// it out of the Dashboard chunk entirely.
+const QRScannerModal = lazy(() => import('./QRScannerModal').then((m) => ({ default: m.QRScannerModal })));
 
 const { TextArea } = Input;
 const { Title } = Typography;
@@ -20,6 +27,7 @@ export const NaturalInputBox: React.FC = () => {
     const [history, setHistory] = useState<NaturalInputHistory[]>([]);
     const [showHistory, setShowHistory] = useState(false);
     const [showQRScanner, setShowQRScanner] = useState(false);
+    const [hasOpenedScanner, setHasOpenedScanner] = useState(false);
 
     // Web Speech API
     const [recognition, setRecognition] = useState<any>(null);
@@ -227,7 +235,7 @@ export const NaturalInputBox: React.FC = () => {
                         <Button
                             shape="circle"
                             icon={<QrcodeOutlined />}
-                            onClick={() => setShowQRScanner(true)}
+                            onClick={() => { setHasOpenedScanner(true); setShowQRScanner(true); }}
                             title="Quét mã QR"
                         />
                         <Popover
@@ -265,11 +273,15 @@ export const NaturalInputBox: React.FC = () => {
                 parsedData={parsedResult}
                 loading={loading}
             />
-            <QRScannerModal
-                visible={showQRScanner}
-                onCancel={() => setShowQRScanner(false)}
-                onResult={handleQRResult}
-            />
+            {hasOpenedScanner && (
+                <Suspense fallback={null}>
+                    <QRScannerModal
+                        visible={showQRScanner}
+                        onCancel={() => setShowQRScanner(false)}
+                        onResult={handleQRResult}
+                    />
+                </Suspense>
+            )}
         </Card>
     );
 };

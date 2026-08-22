@@ -41,9 +41,12 @@ export class MaintenanceService {
 
     const scheduledDates = this.buildScheduledDateStrings(dto);
     const reminder = dto.reminderDaysBefore ?? null;
-    const created: AssetMaintenance[] = [];
 
-    for (const scheduledDate of scheduledDates) {
+    // Each scheduled date is an independent maintenance row + calendar event
+    // (they only read the already-fetched `asset`, never each other) -- a
+    // recurring schedule could mean dozens of dates, and running them one at
+    // a time via sequential `await` used to pay 3 round trips per date.
+    const created = await Promise.all(scheduledDates.map(async (scheduledDate) => {
       let row = this.maintenanceRepository.create({
         familyId,
         createdBy: userId,
@@ -67,9 +70,8 @@ export class MaintenanceService {
       });
 
       row.calendarEventId = event.id;
-      await this.maintenanceRepository.save(row);
-      created.push(row);
-    }
+      return this.maintenanceRepository.save(row);
+    }));
 
     return this.attachAssets(
       created.map((r) => r.id),

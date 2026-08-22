@@ -170,11 +170,11 @@ export class AdminService {
   }
 
   async getSystemStats() {
-    const totalFamilies = await this.familyRepository.count();
-    const totalUsers = await this.userRepository.count();
-    const totalMemberships = await this.familyUserRepository.count({
-      where: { status: FamilyUserStatus.ACTIVE },
-    });
+    const [totalFamilies, totalUsers, totalMemberships] = await Promise.all([
+      this.familyRepository.count(),
+      this.userRepository.count(),
+      this.familyUserRepository.count({ where: { status: FamilyUserStatus.ACTIVE } }),
+    ]);
     return {
       totalFamilies,
       totalUsers,

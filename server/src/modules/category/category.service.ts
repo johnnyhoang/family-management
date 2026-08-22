@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { Category } from '../../common/entities/category.entity';
 import { Asset } from '../../common/entities/asset.entity';
 import { Expense } from '../../common/entities/expense.entity';
@@ -43,21 +43,25 @@ export class CategoryService {
   }
 
   async ensureDefaultIncomeCategories(familyId: string): Promise<void> {
-    for (const groupDef of DEFAULT_CATEGORY_GROUPS) {
+    // Every group/category name here is a distinct hardcoded literal, so
+    // running them concurrently can't race on the same (familyId, name,
+    // parentId) lookup -- this turns ~21 sequential round trips (run on
+    // every signup/invite-accept/family-creation) into 2 parallel waves.
+    await Promise.all(DEFAULT_CATEGORY_GROUPS.map(async (groupDef) => {
       const group = await this.findOrCreateCategory(familyId, {
         name: groupDef.name,
         parentId: null,
         isDefault: true,
       });
 
-      for (const categoryName of groupDef.categories) {
-        await this.findOrCreateCategory(familyId, {
+      await Promise.all(groupDef.categories.map((categoryName) =>
+        this.findOrCreateCategory(familyId, {
           name: categoryName,
           parentId: group.id,
           isDefault: true,
-        });
-      }
-    }
+        }),
+      ));
+    }));
   }
 
   async create(familyId: string, data: Partial<Category>) {
@@ -129,15 +133,11 @@ export class CategoryService {
     if (!category) {
       throw new NotFoundException('Không tìm thấy danh mục');
     }
-    const childCategoryCount = await this.categoryRepository.count({
-      where: { parentId: id, familyId },
-    });
-    const assetCount = await this.assetRepository.count({
-      where: { categoryId: id, familyId },
-    });
-    const expenseCount = await this.expenseRepository.count({
-      where: { categoryId: id, familyId },
-    });
+    const [childCategoryCount, assetCount, expenseCount] = await Promise.all([
+      this.categoryRepository.count({ where: { parentId: id, familyId } }),
+      this.assetRepository.count({ where: { categoryId: id, familyId } }),
+      this.expenseRepository.count({ where: { categoryId: id, familyId } }),
+    ]);
     return { assetCount, expenseCount, childCategoryCount };
   }
 
@@ -160,12 +160,10 @@ export class CategoryService {
       );
     }
 
-    const assetCount = await this.assetRepository.count({
-      where: { categoryId: id, familyId },
-    });
-    const expenseCount = await this.expenseRepository.count({
-      where: { categoryId: id, familyId },
-    });
+    const [assetCount, expenseCount] = await Promise.all([
+      this.assetRepository.count({ where: { categoryId: id, familyId } }),
+      this.expenseRepository.count({ where: { categoryId: id, familyId } }),
+    ]);
 
     if (assetCount === 0 && expenseCount === 0) {
       return this.categoryRepository.softRemove(category);
@@ -272,17 +270,21 @@ export class CategoryService {
 
     const defaultGroup = await this.ensureDefaultQuickGroup(familyId);
 
-    for (const category of categories) {
-      if (category.parentId === null) continue;
+    const idsToFix = categories
+      .filter((category) => {
+        if (category.parentId === null || category.parentId === defaultGroup.id) return false;
+        const parent = category.parent;
+        return !parent || parent.parentId !== null;
+      })
+      .map((category) => category.id);
 
-      const parent = category.parent;
-      const invalid = !parent || parent.parentId !== null;
-
-      if (!invalid) continue;
-
-      if (category.parentId === defaultGroup.id) continue;
-
-      await this.categoryRepository.update({ id: category.id, familyId }, { parentId: defaultGroup.id });
+    if (idsToFix.length === 0) {
+      return;
     }
+
+    // findAll() runs this on every category list load; a single batched
+    // UPDATE keeps that hot path to one round trip no matter how many rows
+    // drifted, instead of one UPDATE per invalid row.
+    await this.categoryRepository.update({ id: In(idsToFix), familyId }, { parentId: defaultGroup.id });
   }
 }

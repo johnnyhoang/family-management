@@ -340,27 +340,30 @@ export class GoUsService {
   private async recalculateAllMembersCspa(gCase: GoUsCase): Promise<void> {
     if (!gCase.priorityDate || !gCase.approvalDate) return;
     const members = await this.memberRepo.find({ where: { caseId: gCase.id } });
-    for (const member of members) {
-      if (member.roleInCase === MemberRoleInCase.CHILD && member.dob) {
-        const cspa = this.calculateCspa({
-          dob: member.dob,
-          priorityDate: gCase.priorityDate,
-          approvalDate: gCase.approvalDate,
-        });
-        member.cspaAge = cspa.cspaAge;
-        member.cspaStatus = cspa.cspaStatus;
-        await this.memberRepo.save(member);
-      }
+    const toUpdate = members.filter((m) => m.roleInCase === MemberRoleInCase.CHILD && m.dob);
+    for (const member of toUpdate) {
+      const cspa = this.calculateCspa({
+        dob: member.dob,
+        priorityDate: gCase.priorityDate,
+        approvalDate: gCase.approvalDate,
+      });
+      member.cspaAge = cspa.cspaAge;
+      member.cspaStatus = cspa.cspaStatus;
+    }
+    if (toUpdate.length > 0) {
+      await this.memberRepo.save(toUpdate);
     }
   }
 
   // ================= OVERVIEW STATS =================
   async getOverviewStats(familyId: string) {
     const gCase = await this.getOrCreateCase(familyId);
-    const members = await this.memberRepo.find({ where: { caseId: gCase.id } });
-    const documents = await this.docRepo.find({ where: { caseId: gCase.id } });
-    const tasks = await this.taskRepo.find({ where: { caseId: gCase.id } });
-    const expenses = await this.expenseRepo.find({ where: { caseId: gCase.id } });
+    const [members, documents, tasks, expenses] = await Promise.all([
+      this.memberRepo.find({ where: { caseId: gCase.id } }),
+      this.docRepo.find({ where: { caseId: gCase.id } }),
+      this.taskRepo.find({ where: { caseId: gCase.id } }),
+      this.expenseRepo.find({ where: { caseId: gCase.id } }),
+    ]);
 
     const totalDocs = documents.length;
     const readyDocs = documents.filter((d) =>
@@ -526,9 +529,7 @@ export class GoUsService {
       },
     ];
 
-    for (const doc of defaultDocs) {
-      await this.docRepo.save(this.docRepo.create(doc));
-    }
+    const docsSaved = this.docRepo.save(defaultDocs.map((doc) => this.docRepo.create(doc)));
 
     // 2. Gợi ý danh mục công việc & nhắc nhở theo từng giai đoạn
     const defaultTasks: Array<Partial<GoUsTask>> = [
@@ -669,9 +670,7 @@ export class GoUsService {
       },
     ];
 
-    for (const task of defaultTasks) {
-      await this.taskRepo.save(this.taskRepo.create(task));
-    }
+    const tasksSaved = this.taskRepo.save(defaultTasks.map((task) => this.taskRepo.create(task)));
 
     // 3. Gợi ý bảng dự toán chi phí chuẩn diện F4
     const defaultExpenses: Array<Partial<GoUsExpense>> = [
@@ -757,8 +756,11 @@ export class GoUsService {
       },
     ];
 
-    for (const exp of defaultExpenses) {
-      await this.expenseRepo.save(this.expenseRepo.create(exp));
-    }
+    const expensesSaved = this.expenseRepo.save(defaultExpenses.map((exp) => this.expenseRepo.create(exp)));
+
+    // The three tables are independent -- one batched INSERT each, run
+    // concurrently, replaces what used to be ~37 sequential single-row
+    // round trips blocking the first GoUS page load for a family.
+    await Promise.all([docsSaved, tasksSaved, expensesSaved]);
   }
 }

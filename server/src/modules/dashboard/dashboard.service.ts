@@ -38,20 +38,6 @@ export class DashboardService {
     const next30Days = new Date(today);
     next30Days.setDate(next30Days.getDate() + 30);
 
-    // ===== Asset / wealth summary (currentValue tính động theo giao dịch gắn tài sản) =====
-    const activeAssetsRaw = await this.assetService.findAll(familyId, {
-      status: AssetStatus.ACTIVE,
-    });
-    const activeAssets = Array.isArray(activeAssetsRaw) ? activeAssetsRaw : activeAssetsRaw.items;
-    const totalAssetValue = activeAssets.reduce(
-      (sum, a) => sum + Number(a.currentValue || 0),
-      0,
-    );
-    const totalAssetCount = activeAssets.length;
-
-    const totalLiabilities = 0;
-    const netWorth = totalAssetValue;
-
     // ===== Monthly summaries =====
     const sumExpensesInRange = async (
       start: Date,
@@ -72,49 +58,174 @@ export class DashboardService {
       return Number(result?.total || 0);
     };
 
-    const monthlyIncome = await sumExpensesInRange(
-      startOfMonth,
-      endOfMonth,
-      ExpenseEntryType.INCOME,
+    // ===== Upcoming warranty expirations (next 30 days) =====
+    const loadExpiringAssets = async () => {
+      const rows = await this.assetRepository
+        .createQueryBuilder('asset')
+        .where('asset.familyId = :familyId', { familyId })
+        .andWhere('asset.status = :status', { status: AssetStatus.ACTIVE })
+        .andWhere('asset.warrantyExpiredAt BETWEEN :now AND :next30Days', {
+          now: today,
+          next30Days,
+        })
+        .orderBy('asset.warrantyExpiredAt', 'ASC')
+        .limit(10)
+        .getMany();
+      await this.assetService.applyComputedCurrentValue(familyId, rows);
+      return rows;
+    };
+
+    // ===== Upcoming maintenance (next 30 days) =====
+    const loadUpcomingMaintenance = async () => {
+      const rows = await this.assetRepository
+        .createQueryBuilder('asset')
+        .where('asset.familyId = :familyId', { familyId })
+        .andWhere('asset.status = :status', { status: AssetStatus.ACTIVE })
+        .andWhere('asset.nextMaintenanceDate BETWEEN :now AND :next30Days', {
+          now: today,
+          next30Days,
+        })
+        .orderBy('asset.nextMaintenanceDate', 'ASC')
+        .limit(10)
+        .getMany();
+      await this.assetService.applyComputedCurrentValue(familyId, rows);
+      return rows;
+    };
+
+    const breakdownStartDate = filters.startDate || fmtDate(startOfMonth);
+    const breakdownEndDate = filters.endDate || fmtDate(endOfMonth);
+
+    const expensesByCategoryQuery = this.expenseRepository
+      .createQueryBuilder('expense')
+      .leftJoin('expense.category', 'category')
+      .where('expense.familyId = :familyId', { familyId })
+      .andWhere('expense.isTransfer = false')
+      .andWhere('expense.entryType = :entryType', {
+        entryType: ExpenseEntryType.EXPENSE,
+      })
+      .andWhere('expense.expenseDate >= :startDate', {
+        startDate: filters.startDate || fmtDate(startOfMonth),
+      });
+
+    if (filters.endDate) {
+      expensesByCategoryQuery.andWhere('expense.expenseDate <= :endDate', {
+        endDate: filters.endDate,
+      });
+    }
+    if (filters.categoryId) {
+      expensesByCategoryQuery.andWhere('expense.categoryId = :categoryId', {
+        categoryId: filters.categoryId,
+      });
+    }
+
+    // All of the below are independent reads (only depend on familyId/date
+    // filters computed above, not on each other) — running them one at a
+    // time via sequential `await` pays a full network round trip per query
+    // for no reason. Since Vercel↔Supabase is cross-region, each round trip
+    // can cost 100s of ms, so this alone used to dominate the endpoint's
+    // latency regardless of how little data the family actually has.
+    const [
+      activeAssetsRaw,
+      monthlyIncome,
+      monthlyExpenses,
+      prevMonthIncome,
+      prevMonthExpenses,
+      trendRows,
+      rawExpensesByCategory,
+      categoryBreakdownRaw,
+      topExpenses,
+      expiringAssets,
+      upcomingMaintenance,
+      upcomingEvents,
+    ] = await Promise.all([
+      this.assetService.findAll(familyId, { status: AssetStatus.ACTIVE }),
+      sumExpensesInRange(startOfMonth, endOfMonth, ExpenseEntryType.INCOME),
+      sumExpensesInRange(startOfMonth, endOfMonth, ExpenseEntryType.EXPENSE),
+      sumExpensesInRange(startOfPrevMonth, endOfPrevMonth, ExpenseEntryType.INCOME),
+      sumExpensesInRange(startOfPrevMonth, endOfPrevMonth, ExpenseEntryType.EXPENSE),
+      this.expenseRepository
+        .createQueryBuilder('expense')
+        .where('expense.familyId = :familyId', { familyId })
+        .andWhere('expense.isTransfer = false')
+        .andWhere('expense.expenseDate >= :start', {
+          start: fmtDate(startOf6MonthsAgo),
+        })
+        .andWhere('expense.entryType IN (:...types)', {
+          types: [ExpenseEntryType.INCOME, ExpenseEntryType.EXPENSE],
+        })
+        .select(`TO_CHAR(expense."expenseDate", 'YYYY-MM')`, 'month')
+        .addSelect('expense.entryType', 'type')
+        .addSelect('SUM(expense.amount)', 'amount')
+        .groupBy(`TO_CHAR(expense."expenseDate", 'YYYY-MM')`)
+        .addGroupBy('expense.entryType')
+        .orderBy(`TO_CHAR(expense."expenseDate", 'YYYY-MM')`, 'ASC')
+        .getRawMany(),
+      expensesByCategoryQuery
+        .select('category.name', 'category')
+        .addSelect('SUM(expense.amount)', 'amount')
+        .groupBy('category.name')
+        .getRawMany(),
+      this.expenseRepository
+        .createQueryBuilder('expense')
+        .leftJoin('expense.category', 'category')
+        .leftJoin('category.parent', 'parent')
+        .where('expense.familyId = :familyId', { familyId })
+        .andWhere('expense.isTransfer = false')
+        .andWhere('expense.expenseDate BETWEEN :start AND :end', {
+          start: breakdownStartDate,
+          end: breakdownEndDate,
+        })
+        .select('category.id', 'categoryId')
+        .addSelect('category.name', 'categoryName')
+        .addSelect('parent.name', 'parentName')
+        .addSelect('expense.entryType', 'entryType')
+        .addSelect('SUM(expense.amount)', 'amount')
+        .addSelect('COUNT(expense.id)', 'count')
+        .groupBy('category.id')
+        .addGroupBy('category.name')
+        .addGroupBy('parent.name')
+        .addGroupBy('expense.entryType')
+        .getRawMany(),
+      this.expenseRepository
+        .createQueryBuilder('expense')
+        .leftJoinAndSelect('expense.category', 'category')
+        .where('expense.familyId = :familyId', { familyId })
+        .andWhere('expense.isTransfer = false')
+        .andWhere('expense.entryType = :entryType', {
+          entryType: ExpenseEntryType.EXPENSE,
+        })
+        .andWhere('expense.expenseDate BETWEEN :start AND :end', {
+          start: fmtDate(startOfMonth),
+          end: fmtDate(endOfMonth),
+        })
+        .orderBy('expense.amount', 'DESC')
+        .limit(5)
+        .getMany(),
+      loadExpiringAssets(),
+      loadUpcomingMaintenance(),
+      this.calendarRepository.find({
+        where: {
+          familyId,
+          startDate: Between(today, next7Days),
+        },
+        order: { startDate: 'ASC' },
+        take: 10,
+      }),
+    ]);
+
+    const activeAssets = Array.isArray(activeAssetsRaw) ? activeAssetsRaw : activeAssetsRaw.items;
+    const totalAssetValue = activeAssets.reduce(
+      (sum, a) => sum + Number(a.currentValue || 0),
+      0,
     );
-    const monthlyExpenses = await sumExpensesInRange(
-      startOfMonth,
-      endOfMonth,
-      ExpenseEntryType.EXPENSE,
-    );
+    const totalAssetCount = activeAssets.length;
+
+    const totalLiabilities = 0;
+    const netWorth = totalAssetValue;
+
     const monthlyNet = monthlyIncome - monthlyExpenses;
     const savingsRate =
       monthlyIncome > 0 ? Math.round((monthlyNet / monthlyIncome) * 100) : 0;
-
-    const prevMonthIncome = await sumExpensesInRange(
-      startOfPrevMonth,
-      endOfPrevMonth,
-      ExpenseEntryType.INCOME,
-    );
-    const prevMonthExpenses = await sumExpensesInRange(
-      startOfPrevMonth,
-      endOfPrevMonth,
-      ExpenseEntryType.EXPENSE,
-    );
-
-    // ===== 6-month trend =====
-    const trendRows = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .where('expense.familyId = :familyId', { familyId })
-      .andWhere('expense.isTransfer = false')
-      .andWhere('expense.expenseDate >= :start', {
-        start: fmtDate(startOf6MonthsAgo),
-      })
-      .andWhere('expense.entryType IN (:...types)', {
-        types: [ExpenseEntryType.INCOME, ExpenseEntryType.EXPENSE],
-      })
-      .select(`TO_CHAR(expense."expenseDate", 'YYYY-MM')`, 'month')
-      .addSelect('expense.entryType', 'type')
-      .addSelect('SUM(expense.amount)', 'amount')
-      .groupBy(`TO_CHAR(expense."expenseDate", 'YYYY-MM')`)
-      .addGroupBy('expense.entryType')
-      .orderBy(`TO_CHAR(expense."expenseDate", 'YYYY-MM')`, 'ASC')
-      .getRawMany();
 
     const monthlyTrendMap = new Map<
       string,
@@ -142,35 +253,6 @@ export class DashboardService {
     );
 
     // ===== Expenses by category (filterable range) =====
-    const expensesByCategoryQuery = this.expenseRepository
-      .createQueryBuilder('expense')
-      .leftJoin('expense.category', 'category')
-      .where('expense.familyId = :familyId', { familyId })
-      .andWhere('expense.isTransfer = false')
-      .andWhere('expense.entryType = :entryType', {
-        entryType: ExpenseEntryType.EXPENSE,
-      })
-      .andWhere('expense.expenseDate >= :startDate', {
-        startDate: filters.startDate || fmtDate(startOfMonth),
-      });
-
-    if (filters.endDate) {
-      expensesByCategoryQuery.andWhere('expense.expenseDate <= :endDate', {
-        endDate: filters.endDate,
-      });
-    }
-    if (filters.categoryId) {
-      expensesByCategoryQuery.andWhere('expense.categoryId = :categoryId', {
-        categoryId: filters.categoryId,
-      });
-    }
-
-    const rawExpensesByCategory = await expensesByCategoryQuery
-      .select('category.name', 'category')
-      .addSelect('SUM(expense.amount)', 'amount')
-      .groupBy('category.name')
-      .getRawMany();
-
     const expensesByCategory = rawExpensesByCategory
       .filter((row) => !!row.category)
       .map((row) => ({
@@ -195,31 +277,6 @@ export class DashboardService {
       .sort((a, b) => b.value - a.value);
 
     // ===== Category breakdown by entryType (for filterable date range) =====
-    const breakdownStartDate = filters.startDate || fmtDate(startOfMonth);
-    const breakdownEndDate = filters.endDate || fmtDate(endOfMonth);
-
-    const categoryBreakdownRaw = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .leftJoin('expense.category', 'category')
-      .leftJoin('category.parent', 'parent')
-      .where('expense.familyId = :familyId', { familyId })
-      .andWhere('expense.isTransfer = false')
-      .andWhere('expense.expenseDate BETWEEN :start AND :end', {
-        start: breakdownStartDate,
-        end: breakdownEndDate,
-      })
-      .select('category.id', 'categoryId')
-      .addSelect('category.name', 'categoryName')
-      .addSelect('parent.name', 'parentName')
-      .addSelect('expense.entryType', 'entryType')
-      .addSelect('SUM(expense.amount)', 'amount')
-      .addSelect('COUNT(expense.id)', 'count')
-      .groupBy('category.id')
-      .addGroupBy('category.name')
-      .addGroupBy('parent.name')
-      .addGroupBy('expense.entryType')
-      .getRawMany();
-
     const categoryBreakdown = categoryBreakdownRaw
       .filter((row) => !!row.categoryId)
       .map((row) => ({
@@ -232,61 +289,6 @@ export class DashboardService {
       }))
       .filter((row) => row.amount > 0)
       .sort((a, b) => b.amount - a.amount);
-
-    // ===== Top 5 expenses this month =====
-    const topExpenses = await this.expenseRepository
-      .createQueryBuilder('expense')
-      .leftJoinAndSelect('expense.category', 'category')
-      .where('expense.familyId = :familyId', { familyId })
-      .andWhere('expense.isTransfer = false')
-      .andWhere('expense.entryType = :entryType', {
-        entryType: ExpenseEntryType.EXPENSE,
-      })
-      .andWhere('expense.expenseDate BETWEEN :start AND :end', {
-        start: fmtDate(startOfMonth),
-        end: fmtDate(endOfMonth),
-      })
-      .orderBy('expense.amount', 'DESC')
-      .limit(5)
-      .getMany();
-
-    // ===== Upcoming warranty expirations (next 30 days) =====
-    const expiringAssets = await this.assetRepository
-      .createQueryBuilder('asset')
-      .where('asset.familyId = :familyId', { familyId })
-      .andWhere('asset.status = :status', { status: AssetStatus.ACTIVE })
-      .andWhere('asset.warrantyExpiredAt BETWEEN :now AND :next30Days', {
-        now: today,
-        next30Days,
-      })
-      .orderBy('asset.warrantyExpiredAt', 'ASC')
-      .limit(10)
-      .getMany();
-    await this.assetService.applyComputedCurrentValue(familyId, expiringAssets);
-
-    // ===== Upcoming maintenance (next 30 days) =====
-    const upcomingMaintenance = await this.assetRepository
-      .createQueryBuilder('asset')
-      .where('asset.familyId = :familyId', { familyId })
-      .andWhere('asset.status = :status', { status: AssetStatus.ACTIVE })
-      .andWhere('asset.nextMaintenanceDate BETWEEN :now AND :next30Days', {
-        now: today,
-        next30Days,
-      })
-      .orderBy('asset.nextMaintenanceDate', 'ASC')
-      .limit(10)
-      .getMany();
-    await this.assetService.applyComputedCurrentValue(familyId, upcomingMaintenance);
-
-    // ===== Upcoming calendar events (next 7 days) =====
-    const upcomingEvents = await this.calendarRepository.find({
-      where: {
-        familyId,
-        startDate: Between(today, next7Days),
-      },
-      order: { startDate: 'ASC' },
-      take: 10,
-    });
 
     return {
       // Asset / wealth

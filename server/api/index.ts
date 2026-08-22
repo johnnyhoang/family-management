@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from '../src/app.module';
 import { INestApplication } from '@nestjs/common';
+import compression from 'compression';
 
 let cachedApp: INestApplication;
 
@@ -11,6 +12,11 @@ async function getApp(): Promise<INestApplication> {
     cachedApp = await NestFactory.create(AppModule, {
       logger: ['error', 'warn', 'log'],
     });
+
+    // Dashboard/list payloads are JSON and compress well; gzip cuts the
+    // bytes the client has to download over what's often already a
+    // higher-latency mobile connection.
+    cachedApp.use(compression());
 
     cachedApp.useGlobalPipes(new ValidationPipe({
       whitelist: true,

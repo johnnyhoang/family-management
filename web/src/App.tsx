@@ -30,6 +30,11 @@ const queryClient = new QueryClient({
     queries: {
       retry: 1,
       refetchOnWindowFocus: false,
+      // Default staleTime is 0, so every remount (switching tabs/pages) was
+      // refetching data that's almost always still fresh a few seconds
+      // later -- each of those is a full network round trip on top of
+      // whatever the page's own queries already cost.
+      staleTime: 30_000,
     },
   },
 });

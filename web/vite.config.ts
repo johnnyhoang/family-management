@@ -14,6 +14,27 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    build: {
+      rollupOptions: {
+        output: {
+          // Vite's default heuristics were dumping React, antd, framer-motion,
+          // axios, dayjs etc. into a single ~1.2MB chunk loaded on every page
+          // (including /login). Splitting rarely-changing vendor code out
+          // means a redeploy only invalidates the browser cache for the
+          // (much smaller) app-code chunk, not this whole bundle.
+          manualChunks: {
+            // antd/@ant-design/icons are deliberately left out: Rollup's
+            // default per-route/per-icon splitting already keeps most icons
+            // out of the eager path, and forcing the whole package into one
+            // static chunk pulled icons used only by lazy routes into the
+            // eager bundle too, making the initial load bigger, not smaller.
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-query': ['@tanstack/react-query'],
+            'vendor-motion': ['framer-motion'],
+          },
+        },
+      },
+    },
     server: {
       // Cho phép truy cập từ điện thoại / máy khác cùng WiFi (mặc định chỉ localhost)
       host: true,
