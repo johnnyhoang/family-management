@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 import { MemberRoleInCase, ProcessStatus } from '../../../common/enums/gous.enums';
 
 export class CreateMemberDto {
@@ -11,6 +11,7 @@ export class CreateMemberDto {
   roleInCase?: MemberRoleInCase;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   dob?: string;
 
@@ -23,6 +24,7 @@ export class CreateMemberDto {
   passportNumber?: string;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   passportExpiry?: string;
 
@@ -39,6 +41,7 @@ export class CreateMemberDto {
   policeCertStatus?: ProcessStatus;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   policeCertIssueDate?: string;
 

@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 import { DocumentCategory, DocumentStatus } from '../../../common/enums/gous.enums';
 
 export class CreateDocumentDto {
@@ -27,10 +27,12 @@ export class CreateDocumentDto {
   status?: DocumentStatus;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   issueDate?: string;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   expiryDate?: string;
 

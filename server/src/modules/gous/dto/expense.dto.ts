@@ -1,4 +1,4 @@
-import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
+import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateIf } from 'class-validator';
 import { ExpenseCategory, ExpensePaymentStatus } from '../../../common/enums/gous.enums';
 
 export class CreateGoUsExpenseDto {
@@ -27,6 +27,7 @@ export class CreateGoUsExpenseDto {
   status?: ExpensePaymentStatus;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   paymentDate?: string;
 

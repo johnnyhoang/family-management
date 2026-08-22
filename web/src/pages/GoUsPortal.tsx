@@ -316,7 +316,10 @@ export function GoUsPortal() {
       setIsMemberModalOpen(false);
       setEditingMember(null);
     },
-    onError: () => message.error('Có lỗi xảy ra khi lưu thông tin thành viên'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Có lỗi xảy ra khi lưu thông tin thành viên'));
+    },
   });
 
   const deleteMemberMutation = useMutation({
@@ -325,6 +328,10 @@ export function GoUsPortal() {
       message.success('Đã xóa thành viên khỏi hồ sơ');
       queryClient.invalidateQueries({ queryKey: ['gous-members'] });
       queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Không thể xóa thành viên'));
     },
   });
 
@@ -338,7 +345,10 @@ export function GoUsPortal() {
       setIsDocModalOpen(false);
       setEditingDoc(null);
     },
-    onError: () => message.error('Có lỗi khi lưu giấy tờ'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Có lỗi khi lưu giấy tờ'));
+    },
   });
 
   const deleteDocMutation = useMutation({
@@ -347,6 +357,10 @@ export function GoUsPortal() {
       message.success('Đã xóa giấy tờ');
       queryClient.invalidateQueries({ queryKey: ['gous-documents'] });
       queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Không thể xóa giấy tờ'));
     },
   });
 
@@ -360,7 +374,10 @@ export function GoUsPortal() {
       setIsTaskModalOpen(false);
       setEditingTask(null);
     },
-    onError: () => message.error('Có lỗi khi lưu nhiệm vụ'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Có lỗi khi lưu nhiệm vụ'));
+    },
   });
 
   const deleteTaskMutation = useMutation({
@@ -370,6 +387,10 @@ export function GoUsPortal() {
       queryClient.invalidateQueries({ queryKey: ['gous-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
     },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Không thể xóa nhiệm vụ'));
+    },
   });
 
   const toggleTaskStatusMutation = useMutation({
@@ -378,6 +399,10 @@ export function GoUsPortal() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['gous-tasks'] });
       queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Không thể cập nhật trạng thái'));
     },
   });
 
@@ -391,7 +416,10 @@ export function GoUsPortal() {
       setIsExpenseModalOpen(false);
       setEditingExpense(null);
     },
-    onError: () => message.error('Có lỗi khi lưu chi phí'),
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Có lỗi khi lưu chi phí'));
+    },
   });
 
   const deleteExpenseMutation = useMutation({
@@ -400,6 +428,10 @@ export function GoUsPortal() {
       message.success('Đã xóa khoản chi');
       queryClient.invalidateQueries({ queryKey: ['gous-expenses'] });
       queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.message;
+      message.error(Array.isArray(msg) ? msg.join(', ') : (msg || 'Không thể xóa khoản chi'));
     },
   });
 
@@ -1162,11 +1194,26 @@ export function GoUsPortal() {
         width={650}
         destroyOnClose
       >
-        <Form form={docForm} layout="vertical" onFinish={(vals) => saveDocMutation.mutate({
-          ...vals,
-          issueDate: vals.issueDate ? dayjs(vals.issueDate).format('YYYY-MM-DD') : null,
-          expiryDate: vals.expiryDate ? dayjs(vals.expiryDate).format('YYYY-MM-DD') : null,
-        })} className="pt-2">
+        <Form
+          form={docForm}
+          layout="vertical"
+          onFinish={(vals) => {
+            const payload: any = {
+              title: vals.title?.trim(),
+              category: vals.category,
+              isRequired: vals.isRequired,
+              status: vals.status,
+            };
+            if (vals.memberId) payload.memberId = vals.memberId;
+            if (vals.issueDate) payload.issueDate = dayjs(vals.issueDate).format('YYYY-MM-DD');
+            if (vals.expiryDate) payload.expiryDate = dayjs(vals.expiryDate).format('YYYY-MM-DD');
+            if (vals.description?.trim()) payload.description = vals.description.trim();
+            if (vals.fileUrl?.trim()) payload.fileUrl = vals.fileUrl.trim();
+            if (vals.expertNotes?.trim()) payload.expertNotes = vals.expertNotes.trim();
+            saveDocMutation.mutate(payload);
+          }}
+          className="pt-2"
+        >
           <Form.Item name="title" label="Tên Giấy tờ / Hồ sơ" rules={[{ required: true, message: 'Vui lòng nhập tên giấy tờ' }]}>
             <Input placeholder="Ví dụ: Giấy khai sinh trích lục, Tax Transcripts 3 năm gần nhất..." />
           </Form.Item>
@@ -1234,10 +1281,32 @@ export function GoUsPortal() {
         width={650}
         destroyOnClose
       >
-        <Form form={taskForm} layout="vertical" onFinish={(vals) => saveTaskMutation.mutate({
-          ...vals,
-          dueDate: vals.dueDate ? dayjs(vals.dueDate).format('YYYY-MM-DD') : null,
-        })} className="pt-2">
+        <Form
+          form={taskForm}
+          layout="vertical"
+          onFinish={(vals) => {
+            const payload: any = {
+              title: vals.title?.trim(),
+              stage: vals.stage,
+              priority: vals.priority,
+              status: vals.status,
+            };
+            if (vals.dueDate) {
+              payload.dueDate = dayjs(vals.dueDate).format('YYYY-MM-DD');
+            }
+            if (vals.assignedTo?.trim()) {
+              payload.assignedTo = vals.assignedTo.trim();
+            }
+            if (vals.description?.trim()) {
+              payload.description = vals.description.trim();
+            }
+            if (vals.expertTips?.trim()) {
+              payload.expertTips = vals.expertTips.trim();
+            }
+            saveTaskMutation.mutate(payload);
+          }}
+          className="pt-2"
+        >
           <Form.Item name="title" label="Nhiệm vụ cần làm" rules={[{ required: true, message: 'Vui lòng nhập tên công việc' }]}>
             <Input placeholder="Ví dụ: Đặt lịch khám sức khỏe tại BV Chợ Rẫy..." />
           </Form.Item>
@@ -1303,10 +1372,29 @@ export function GoUsPortal() {
         width={650}
         destroyOnClose
       >
-        <Form form={expenseForm} layout="vertical" onFinish={(vals) => saveExpenseMutation.mutate({
-          ...vals,
-          paymentDate: vals.paymentDate ? dayjs(vals.paymentDate).format('YYYY-MM-DD') : null,
-        })} className="pt-2">
+        <Form
+          form={expenseForm}
+          layout="vertical"
+          onFinish={(vals) => {
+            const payload: any = {
+              title: vals.title?.trim(),
+              category: vals.category,
+              currency: vals.currency,
+              estimatedAmount: Number(vals.estimatedAmount) || 0,
+              status: vals.status,
+            };
+            if (vals.actualAmount !== undefined && vals.actualAmount !== null) {
+              payload.actualAmount = Number(vals.actualAmount) || 0;
+            }
+            if (vals.paymentDate) {
+              payload.paymentDate = dayjs(vals.paymentDate).format('YYYY-MM-DD');
+            }
+            if (vals.payer?.trim()) payload.payer = vals.payer.trim();
+            if (vals.notes?.trim()) payload.notes = vals.notes.trim();
+            saveExpenseMutation.mutate(payload);
+          }}
+          className="pt-2"
+        >
           <Form.Item name="title" label="Khoản chi phí" rules={[{ required: true, message: 'Vui lòng nhập tên khoản chi' }]}>
             <Input placeholder="Ví dụ: Phí thị thực di dân DS-260 ($345 x 4 người)..." />
           </Form.Item>

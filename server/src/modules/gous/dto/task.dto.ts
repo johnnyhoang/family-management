@@ -1,4 +1,4 @@
-import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 import { GoUsStage, TaskPriority, TaskStatus } from '../../../common/enums/gous.enums';
 
 export class CreateTaskDto {
@@ -23,6 +23,7 @@ export class CreateTaskDto {
   status?: TaskStatus;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   dueDate?: string;
 

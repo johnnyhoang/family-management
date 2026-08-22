@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString, IsDateString } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsOptional, IsString, IsDateString, ValidateIf } from 'class-validator';
 import { GoUsStage } from '../../../common/enums/gous.enums';
 
 export class CreateGoUsCaseDto {
@@ -15,10 +15,12 @@ export class CreateGoUsCaseDto {
   invoiceId?: string;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   priorityDate?: string;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   approvalDate?: string;
 
@@ -59,6 +61,7 @@ export class CreateGoUsCaseDto {
   jointSponsorInfo?: string;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   interviewDate?: string;
 
@@ -67,14 +70,17 @@ export class CreateGoUsCaseDto {
   interviewLocation?: string;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   medicalExamDate?: string;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   vaccinationDate?: string;
 
   @IsOptional()
+  @ValidateIf((_, v) => v !== null && v !== undefined && v !== '')
   @IsDateString()
   intendedDepartureDate?: string;
 
