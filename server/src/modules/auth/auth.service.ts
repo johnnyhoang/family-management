@@ -262,6 +262,40 @@ export class AuthService {
     return { id: user.id, email: user.email, fullName: user.fullName, avatarUrl: user.avatarUrl, otherNames: user.otherNames };
   }
 
+  async createNewFamily(userId: string, name?: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new UnauthorizedException();
+
+    const familyAdminRole = await this.permissionService.getRoleByCode(UserRole.FAMILY_ADMIN);
+    const familyName = name?.trim() || (user.fullName ? `${user.fullName}'s Family` : 'My Family');
+
+    const family = await this.familyRepository.save(
+      this.familyRepository.create({
+        name: familyName,
+      }),
+    );
+
+    await this.familyUserRepository.save(
+      this.familyUserRepository.create({
+        familyId: family.id,
+        userId: user.id,
+        roleId: familyAdminRole.id,
+        status: FamilyUserStatus.ACTIVE,
+      }),
+    );
+
+    user.lastActiveFamilyId = family.id;
+    await this.userRepository.save(user);
+
+    try {
+      await this.categoryService.ensureDefaultIncomeCategories(family.id);
+    } catch (err) {
+      this.logger.error('ensureDefaultIncomeCategories failed when creating family', err);
+    }
+
+    return this.getSessionProfile(userId, family.id);
+  }
+
   buildInviteToken() {
     return randomUUID();
   }

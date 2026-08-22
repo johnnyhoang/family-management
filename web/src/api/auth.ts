@@ -31,5 +31,6 @@ export const authApi = {
   updateMe: (data: { fullName?: string; otherNames?: string }) => api.patch('/auth/me', data),
   listFamilies: () => api.get<Array<{ familyId: string; familyName: string; role: FamilyRole; status: string }>>('/auth/families'),
   switchFamily: (familyId: string) => api.post<SessionResponse>('/auth/switch-family', { familyId }),
+  createFamily: (name?: string) => api.post<SessionResponse>('/auth/create-family', { name }),
   acceptInvite: (token: string) => api.post<SessionResponse>('/auth/accept-invite', { token }),
 };

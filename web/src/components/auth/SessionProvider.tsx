@@ -53,6 +53,8 @@ type SessionContextValue = {
   canAccess: (moduleKey: ModuleKey, action?: PermissionAction) => boolean;
   switchFamily: (familyId: string) => Promise<void>;
   isSwitchingFamily: boolean;
+  createFamily: (name?: string) => Promise<void>;
+  isCreatingFamily: boolean;
   refreshSession: () => Promise<SessionResponse | undefined>;
 };
 
@@ -92,6 +94,23 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     },
     onError: () => {
       message.error('Không thể chuyển gia đình đang làm việc');
+    },
+  });
+
+  const createFamilyMutation = useMutation({
+    mutationFn: async (name?: string) => {
+      const { data } = await authApi.createFamily(name);
+      return storeSession(data);
+    },
+    onSuccess: (session) => {
+      queryClient.setQueryData(['session'], session);
+      queryClient.invalidateQueries({
+        predicate: (query) => Array.isArray(query.queryKey) && query.queryKey[0] !== 'session',
+      });
+      message.success(`Đã tạo và kích hoạt gia đình mới thành công!`);
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Không thể tạo gia đình mới');
     },
   });
 
@@ -143,6 +162,10 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
       await switchFamilyMutation.mutateAsync(familyId);
     },
     isSwitchingFamily: switchFamilyMutation.isPending,
+    createFamily: async (name?: string) => {
+      await createFamilyMutation.mutateAsync(name);
+    },
+    isCreatingFamily: createFamilyMutation.isPending,
     refreshSession: async () => {
       const next = await sessionQuery.refetch();
       return next.data;
@@ -157,6 +180,7 @@ export const SessionProvider = ({ children }: { children: React.ReactNode }) => 
     systemRole,
     sessionQuery,
     switchFamilyMutation,
+    createFamilyMutation,
   ]);
 
   return (

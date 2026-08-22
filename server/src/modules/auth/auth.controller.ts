@@ -59,6 +59,14 @@ export class AuthController {
     return this.authService.switchActiveFamily(req.user.id, familyId);
   }
 
+  @Post('create-family')
+  @UseGuards(AuthGuard('jwt'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a new family and switch to it' })
+  async createFamily(@Req() req, @Body('name') name?: string) {
+    return this.authService.createNewFamily(req.user.id, name);
+  }
+
   @Post('accept-invite')
   @UseGuards(AuthGuard('jwt'))
   @ApiBearerAuth()

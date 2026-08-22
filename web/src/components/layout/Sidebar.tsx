@@ -1,5 +1,6 @@
+import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Select } from 'antd';
+import { Select, Modal, Form, Input, Button } from 'antd';
 import {
     LayoutDashboard,
     Package,
@@ -10,6 +11,8 @@ import {
     CalendarDays,
     ShieldCheck,
     Wrench,
+    Plus,
+    Users,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useSession } from '../auth/SessionProvider';
@@ -30,6 +33,8 @@ interface SidebarProps {
 
 export const Sidebar = ({ onClose }: SidebarProps) => {
     const navigate = useNavigate();
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [form] = Form.useForm();
     const {
         activeFamilyId,
         activeFamilyName,
@@ -39,12 +44,20 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
         canAccess,
         switchFamily,
         isSwitchingFamily,
+        createFamily,
+        isCreatingFamily,
     } = useSession();
 
     const handleLogout = () => {
         localStorage.removeItem('token');
         navigate('/login');
         onClose?.();
+    };
+
+    const handleCreateFamily = async (values: { name: string }) => {
+        await createFamily(values.name);
+        setIsCreateModalOpen(false);
+        form.resetFields();
     };
 
     const visibleNavigation = navigation.filter((item) => item.moduleKey === null || canAccess(item.moduleKey, 'view'));
@@ -85,7 +98,18 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
             </Link>
 
             <div className="mb-2 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-[0_10px_24px_rgba(237,200,183,0.12)]">
-                <p className="text-sm font-semibold text-[#4f3f37]">{roleLabel}</p>
+                <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold text-[#4f3f37]">{roleLabel}</p>
+                    <button
+                        type="button"
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="inline-flex items-center gap-1 text-xs text-[#c85f58] hover:text-[#b04a43] font-medium transition-colors"
+                        title="Tạo gia đình mới"
+                    >
+                        <Plus size={13} />
+                        <span>Tạo mới</span>
+                    </button>
+                </div>
                 {memberships.length > 0 ? (
                     <Select
                         value={activeFamilyId ?? undefined}
@@ -100,9 +124,58 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                         }))}
                     />
                 ) : (
-                    <p className="mt-1 text-xs text-[#8c6d61]">{activeFamilyName || 'Chưa gắn gia đình hoạt động'}</p>
+                    <div className="mt-1">
+                        <p className="text-xs text-[#8c6d61]">{activeFamilyName || 'Chưa có gia đình'}</p>
+                        <Button
+                            type="dashed"
+                            size="small"
+                            icon={<Plus size={12} />}
+                            className="mt-1 w-full text-xs text-[#c85f58]"
+                            onClick={() => setIsCreateModalOpen(true)}
+                        >
+                            Tạo gia đình đầu tiên
+                        </Button>
+                    </div>
                 )}
             </div>
+
+            <Modal
+                title={
+                    <div className="flex items-center gap-2 text-base font-bold text-slate-800">
+                        <Users size={18} className="text-[#c85f58]" />
+                        <span>Tạo Không Gian Gia Đình Mới</span>
+                    </div>
+                }
+                open={isCreateModalOpen}
+                onCancel={() => setIsCreateModalOpen(false)}
+                footer={null}
+                centered
+                destroyOnClose
+            >
+                <p className="text-xs text-slate-500 mb-4">
+                    Tạo một gia đình mới để quản lý độc lập tài sản, chi tiêu và hồ sơ định cư riêng biệt. Bạn sẽ là Quản trị viên của gia đình này.
+                </p>
+                <Form form={form} layout="vertical" onFinish={handleCreateFamily}>
+                    <Form.Item
+                        name="name"
+                        label="Tên gia đình"
+                        rules={[{ required: true, message: 'Vui lòng nhập tên gia đình' }]}
+                    >
+                        <Input placeholder="Ví dụ: Gia đình Nguyễn Văn A" size="large" />
+                    </Form.Item>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <Button onClick={() => setIsCreateModalOpen(false)}>Hủy</Button>
+                        <Button
+                            type="primary"
+                            htmlType="submit"
+                            loading={isCreatingFamily}
+                            className="bg-[#c85f58] hover:bg-[#b04a43]"
+                        >
+                            Tạo gia đình
+                        </Button>
+                    </div>
+                </Form>
+            </Modal>
 
             <nav className="flex-1 space-y-1">
                 {visibleNavigation.map((item) => (
