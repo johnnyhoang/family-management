@@ -1,4 +1,5 @@
-import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { PartialType } from '@nestjs/swagger';
+import { IsArray, IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 import { DocumentCategory, DocumentStatus } from '../../../common/enums/gous.enums';
 
 export class CreateDocumentDto {
@@ -41,8 +42,13 @@ export class CreateDocumentDto {
   fileUrl?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  fileUrls?: string[];
+
+  @IsOptional()
   @IsString()
   expertNotes?: string;
 }
 
-export class UpdateDocumentDto extends CreateDocumentDto {}
+export class UpdateDocumentDto extends PartialType(CreateDocumentDto) {}

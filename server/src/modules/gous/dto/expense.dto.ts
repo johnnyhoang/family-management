@@ -1,3 +1,4 @@
+import { PartialType } from '@nestjs/swagger';
 import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, ValidateIf } from 'class-validator';
 import { ExpenseCategory, ExpensePaymentStatus } from '../../../common/enums/gous.enums';
 
@@ -40,4 +41,4 @@ export class CreateGoUsExpenseDto {
   notes?: string;
 }
 
-export class UpdateGoUsExpenseDto extends CreateGoUsExpenseDto {}
+export class UpdateGoUsExpenseDto extends PartialType(CreateGoUsExpenseDto) {}

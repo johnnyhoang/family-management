@@ -1,3 +1,4 @@
+import { PartialType } from '@nestjs/swagger';
 import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, ValidateIf } from 'class-validator';
 import { GoUsStage, TaskPriority, TaskStatus } from '../../../common/enums/gous.enums';
 
@@ -40,4 +41,4 @@ export class CreateTaskDto {
   expertTips?: string;
 }
 
-export class UpdateTaskDto extends CreateTaskDto {}
+export class UpdateTaskDto extends PartialType(CreateTaskDto) {}

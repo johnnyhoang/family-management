@@ -52,7 +52,10 @@ export class GoUsDocument extends BaseEntity {
   expiryDate: string; // Ngày hết hạn
 
   @Column({ nullable: true })
-  fileUrl: string; // Link file đính kèm nếu có
+  fileUrl?: string; // Link file đính kèm chính / đầu tiên nếu có
+
+  @Column({ type: 'json', nullable: true })
+  fileUrls?: string[]; // Danh sách các file đính kèm (hỗ trợ nhiều hình / file)
 
   @Column({ type: 'text', nullable: true })
   expertNotes: string; // Lưu ý quan trọng từ luật sư / chuyên viên

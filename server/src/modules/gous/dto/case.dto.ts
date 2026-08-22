@@ -1,3 +1,4 @@
+import { PartialType } from '@nestjs/swagger';
 import { IsEnum, IsNotEmpty, IsOptional, IsString, IsDateString, ValidateIf } from 'class-validator';
 import { GoUsStage } from '../../../common/enums/gous.enums';
 
@@ -97,4 +98,4 @@ export class CreateGoUsCaseDto {
   notes?: string;
 }
 
-export class UpdateGoUsCaseDto extends CreateGoUsCaseDto {}
+export class UpdateGoUsCaseDto extends PartialType(CreateGoUsCaseDto) {}

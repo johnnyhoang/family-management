@@ -150,20 +150,33 @@ export class GoUsService {
     if (category) {
       where.category = category;
     }
-    return this.docRepo.find({
+    const docs = await this.docRepo.find({
       where,
       relations: ['member'],
       order: { category: 'ASC', isRequired: 'DESC', createdAt: 'ASC' },
+    });
+    return docs.map((doc) => {
+      if ((!doc.fileUrls || doc.fileUrls.length === 0) && doc.fileUrl) {
+        doc.fileUrls = [doc.fileUrl];
+      }
+      return doc;
     });
   }
 
   async addDocument(familyId: string, dto: CreateDocumentDto): Promise<GoUsDocument> {
     const gCase = await this.getOrCreateCase(familyId);
+    const fileUrls = dto.fileUrls && dto.fileUrls.length > 0
+      ? dto.fileUrls
+      : (dto.fileUrl ? [dto.fileUrl] : undefined);
+    const fileUrl = dto.fileUrl || (fileUrls && fileUrls.length > 0 ? fileUrls[0] : undefined);
+
     const doc = this.docRepo.create({
       ...dto,
+      fileUrl,
+      fileUrls,
       caseId: gCase.id,
-    });
-    return this.docRepo.save(doc);
+    } as any);
+    return this.docRepo.save(doc) as unknown as Promise<GoUsDocument>;
   }
 
   async updateDocument(familyId: string, docId: string, dto: UpdateDocumentDto): Promise<GoUsDocument> {
@@ -174,7 +187,21 @@ export class GoUsService {
     if (!doc) {
       throw new NotFoundException('Không tìm thấy tài liệu trong hồ sơ');
     }
-    Object.assign(doc, dto);
+
+    let fileUrls = doc.fileUrls;
+    let fileUrl = doc.fileUrl;
+
+    if (dto.fileUrls !== undefined) {
+      fileUrls = dto.fileUrls && dto.fileUrls.length > 0 ? dto.fileUrls : undefined;
+      fileUrl = fileUrls && fileUrls.length > 0 ? fileUrls[0] : (dto.fileUrl || undefined);
+    } else if (dto.fileUrl !== undefined) {
+      fileUrl = dto.fileUrl;
+      if (!fileUrls || fileUrls.length === 0) {
+        fileUrls = dto.fileUrl ? [dto.fileUrl] : undefined;
+      }
+    }
+
+    Object.assign(doc, dto, { fileUrl, fileUrls });
     return this.docRepo.save(doc);
   }
 

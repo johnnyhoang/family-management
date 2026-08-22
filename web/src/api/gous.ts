@@ -87,6 +87,7 @@ export interface GoUsDocument {
   issueDate?: string;
   expiryDate?: string;
   fileUrl?: string;
+  fileUrls?: string[];
   expertNotes?: string;
 }
 

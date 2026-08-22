@@ -19,6 +19,9 @@ import {
   Descriptions,
   Divider,
   Upload,
+  Image,
+  Popover,
+  Tooltip,
 } from 'antd';
 import {
   PlaneTakeoff,
@@ -43,6 +46,8 @@ import {
   HeartHandshake,
   UploadCloud,
   Paperclip,
+  FileText,
+  ExternalLink,
 } from 'lucide-react';
 import dayjs from 'dayjs';
 import {
@@ -61,43 +66,106 @@ import { filesApi } from '../api/files';
 
 import { useSession } from '../components/auth/SessionProvider';
 
+// ================= HELPERS: TỰ ĐỘNG TẠO TÊN GIẤY TỜ TỪ TÊN FILE =================
+function cleanFileNameToTitle(fileName: string, fallback = 'Giấy tờ đính kèm'): string {
+  if (!fileName) return fallback;
+  const withoutExt = fileName.replace(/\.[^/.]+$/, '').trim();
+  if (!withoutExt) return fallback;
+  const cleaned = withoutExt
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned ? cleaned.charAt(0).toUpperCase() + cleaned.slice(1) : fallback;
+}
+
 // ================= SHARED: DOCUMENT FILE UPLOADER =================
-// Dùng chung giữa Modal Thêm/Sửa Giấy tờ và mục Giấy tờ trong Modal Thành viên
-function DocumentFileUploader({ value, onChange }: { value?: string; onChange?: (url?: string) => void }) {
+// Dùng chung giữa Modal Thêm/Sửa Giấy tờ và mục Giấy tờ trong Modal Thành viên (hỗ trợ nhiều hình / PDF)
+function DocumentFileUploader({
+  value,
+  onChange,
+  onAutoTitle,
+}: {
+  value?: string | string[];
+  onChange?: (urls?: string[] | string) => void;
+  onAutoTitle?: (suggestedTitle: string) => void;
+}) {
   const [uploading, setUploading] = useState(false);
+
+  const fileList: string[] = useMemo(() => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value.filter(Boolean);
+    return [value].filter(Boolean);
+  }, [value]);
 
   const handleUpload = async (file: File) => {
     setUploading(true);
     try {
       const res = await filesApi.upload(file, 'gous-documents');
-      onChange?.(res.data.url);
-      message.success('Tải file lên thành công');
+      const nextUrls = [...fileList, res.data.url];
+      onChange?.(nextUrls);
+      onAutoTitle?.(cleanFileNameToTitle(file.name));
+      message.success(`Tải tệp "${file.name}" thành công`);
     } catch (err: any) {
-      message.error(err?.response?.data?.message || 'Không thể tải file lên, vui lòng thử lại');
+      message.error(err?.response?.data?.message || 'Không thể tải tệp lên, vui lòng thử lại');
     } finally {
       setUploading(false);
     }
   };
 
+  const handleRemove = (urlToRemove: string) => {
+    const nextUrls = fileList.filter((u) => u !== urlToRemove);
+    onChange?.(nextUrls.length > 0 ? nextUrls : undefined);
+  };
+
   return (
-    <div className="space-y-2">
-      {value && (
-        <div className="flex items-center justify-between gap-2 p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs">
-          <a href={value} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-blue-600 font-medium truncate">
-            <Paperclip size={13} className="shrink-0" />
-            Xem file đã tải lên
-          </a>
-          <Button type="text" size="small" danger icon={<Trash2 size={13} />} onClick={() => onChange?.(undefined)} />
+    <div className="space-y-3">
+      {fileList.length > 0 && (
+        <div className="space-y-1.5">
+          <span className="text-xs font-semibold text-slate-600">Đã đính kèm ({fileList.length} tệp):</span>
+          <Image.PreviewGroup>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {fileList.map((url, idx) => {
+                const isImg = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(url) || url.includes('/images/');
+                return (
+                  <div key={idx} className="flex items-center justify-between gap-2 p-2 rounded-xl border border-slate-200 bg-slate-50 text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      {isImg ? (
+                        <Image src={url} width={36} height={36} className="rounded-lg object-cover border border-slate-200" />
+                      ) : (
+                        <div className="w-9 h-9 rounded-lg bg-red-100 border border-red-200 flex items-center justify-center text-red-600 shrink-0">
+                          <FileText size={18} />
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 font-medium truncate block hover:underline" title={url}>
+                          Tệp #{idx + 1}
+                        </a>
+                        <span className="text-[11px] text-slate-500">{isImg ? 'Hình ảnh' : 'Tài liệu PDF'}</span>
+                      </div>
+                    </div>
+                    <Button
+                      type="text"
+                      size="small"
+                      danger
+                      icon={<Trash2 size={13} />}
+                      onClick={() => handleRemove(url)}
+                      title="Xóa tệp này"
+                    />
+                  </div>
+                );
+              })}
+            </div>
+          </Image.PreviewGroup>
         </div>
       )}
       <Upload
         accept="image/*,application/pdf"
-        maxCount={1}
+        multiple
         showUploadList={false}
         beforeUpload={(file) => { handleUpload(file); return false; }}
       >
         <Button icon={<UploadCloud size={14} />} loading={uploading}>
-          {value ? 'Thay file khác' : 'Tải ảnh hoặc PDF lên'}
+          {fileList.length > 0 ? 'Tải thêm ảnh hoặc PDF' : 'Tải ảnh hoặc PDF lên'}
         </Button>
       </Upload>
     </div>
@@ -108,8 +176,7 @@ function DocumentFileUploader({ value, onChange }: { value?: string; onChange?: 
 const QUICK_DOC_TITLES = new Set(['Hộ chiếu', 'Giấy khai sinh', 'Lý lịch tư pháp số 2', 'Giấy khám sức khỏe']);
 
 // Icon upload nhanh đặt ngay cạnh field liên quan (Hộ chiếu, Giấy khai sinh...)
-// Tự tìm giấy tờ đã có theo (memberId + title), có thì cập nhật file, chưa có thì tạo mới —
-// dùng chung API/mutation với tab "Cập nhật giấy tờ".
+// Tự tìm giấy tờ đã có theo (memberId + title), có thì cập nhật/thêm file, chưa có thì tạo mới
 function QuickDocUploadIcon({
   memberId,
   title,
@@ -125,11 +192,18 @@ function QuickDocUploadIcon({
   const [uploading, setUploading] = useState(false);
   const existing = documents.find((d) => d.memberId === memberId && d.title === title);
 
+  const fileList = useMemo(() => {
+    if (!existing) return [];
+    if (existing.fileUrls && existing.fileUrls.length > 0) return existing.fileUrls;
+    if (existing.fileUrl) return [existing.fileUrl];
+    return [];
+  }, [existing]);
+
   if (!memberId) {
     return (
-      <span title="Lưu thành viên trước để đính kèm giấy tờ">
+      <Tooltip title="Lưu thành viên trước để đính kèm giấy tờ">
         <Paperclip size={14} className="text-slate-300" />
-      </span>
+      </Tooltip>
     );
   }
 
@@ -138,11 +212,24 @@ function QuickDocUploadIcon({
     try {
       const { data } = await filesApi.upload(file, 'gous-documents');
       if (existing) {
-        await gousApi.updateDocument(existing.id, { fileUrl: data.url });
+        const nextUrls = [...fileList, data.url];
+        await gousApi.updateDocument(existing.id, {
+          title: existing.title,
+          fileUrls: nextUrls,
+          fileUrl: nextUrls[0],
+        });
       } else {
-        await gousApi.addDocument({ memberId, title, category, status: 'ORIGINAL_OBTAINED', isRequired: true, fileUrl: data.url });
+        await gousApi.addDocument({
+          memberId,
+          title,
+          category,
+          status: 'ORIGINAL_OBTAINED',
+          isRequired: true,
+          fileUrls: [data.url],
+          fileUrl: data.url,
+        });
       }
-      message.success(`Đã tải lên "${title}"`);
+      message.success(`Đã tải lên tệp cho "${title}"`);
       queryClient.invalidateQueries({ queryKey: ['gous-documents'] });
       queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
     } catch (err: any) {
@@ -152,21 +239,85 @@ function QuickDocUploadIcon({
     }
   };
 
+  const handleDeleteFile = async (urlToDelete: string) => {
+    if (!existing) return;
+    try {
+      const nextUrls = fileList.filter((u) => u !== urlToDelete);
+      await gousApi.updateDocument(existing.id, {
+        title: existing.title,
+        fileUrls: nextUrls,
+        fileUrl: nextUrls[0] || undefined,
+      });
+      message.success('Đã xóa tệp đính kèm');
+      queryClient.invalidateQueries({ queryKey: ['gous-documents'] });
+      queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
+    } catch (err: any) {
+      message.error('Không thể xóa tệp đính kèm');
+    }
+  };
+
   return (
-    <span className="flex items-center gap-1">
-      {existing?.fileUrl && (
-        <a href={existing.fileUrl} target="_blank" rel="noopener noreferrer" title={`Xem file ${title} đã tải lên`}>
-          <Paperclip size={14} className="text-emerald-600" />
-        </a>
+    <span className="flex items-center gap-1.5">
+      {fileList.length > 0 && (
+        <Popover
+          trigger="click"
+          placement="bottom"
+          title={<span className="font-bold text-xs text-slate-800">Danh sách tệp {title} ({fileList.length})</span>}
+          content={
+            <div className="space-y-2 w-64 max-h-60 overflow-y-auto pt-1">
+              <Image.PreviewGroup>
+                {fileList.map((url, idx) => {
+                  const isImg = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(url) || url.includes('/images/');
+                  return (
+                    <div key={idx} className="flex items-center justify-between gap-2 p-1.5 rounded-lg border border-slate-100 bg-slate-50 text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {isImg ? (
+                          <Image src={url} width={28} height={28} className="rounded object-cover border border-slate-200" />
+                        ) : (
+                          <div className="w-7 h-7 rounded bg-red-100 border border-red-200 flex items-center justify-center text-red-600 shrink-0">
+                            <FileText size={14} />
+                          </div>
+                        )}
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="text-blue-600 truncate max-w-[130px]" title={url}>
+                          {title} #{idx + 1}
+                        </a>
+                      </div>
+                      <Popconfirm
+                        title="Xóa tệp đính kèm này?"
+                        onConfirm={() => handleDeleteFile(url)}
+                        okText="Xóa"
+                        cancelText="Hủy"
+                      >
+                        <Button type="text" size="small" danger icon={<Trash2 size={12} />} className="!p-0 !h-5 !w-5" />
+                      </Popconfirm>
+                    </div>
+                  );
+                })}
+              </Image.PreviewGroup>
+            </div>
+          }
+        >
+          <Tag color="success" className="m-0 text-[11px] cursor-pointer flex items-center gap-1 hover:opacity-80">
+            <Paperclip size={11} /> {fileList.length} tệp
+          </Tag>
+        </Popover>
       )}
-      <Upload accept="image/*,application/pdf" maxCount={1} showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }}>
+      <Upload
+        accept="image/*,application/pdf"
+        multiple
+        showUploadList={false}
+        beforeUpload={(file) => {
+          handleUpload(file);
+          return false;
+        }}
+      >
         <Button
           type="text"
           size="small"
-          className="!p-0 !h-auto !w-auto !min-w-0"
-          icon={<UploadCloud size={14} className={existing?.fileUrl ? 'text-slate-500' : 'text-rose-500'} />}
+          className="!p-0 !h-auto !w-auto !min-w-0 flex items-center"
+          icon={<UploadCloud size={14} className={fileList.length > 0 ? 'text-slate-500 hover:text-blue-600' : 'text-rose-500 hover:text-rose-600'} />}
           loading={uploading}
-          title={existing?.fileUrl ? `Thay file ${title}` : `Tải ${title} lên`}
+          title={fileList.length > 0 ? `Thêm ảnh/tệp cho ${title}` : `Tải ${title} lên`}
         />
       </Upload>
     </span>
@@ -211,6 +362,15 @@ const STAGES: Array<{ key: GoUsStage; label: string; step: number; desc: string 
   { key: 'INTERVIEW_CONSULATE', label: 'Phỏng vấn tại LSQ TP.HCM', step: 9, desc: 'Phỏng vấn trực tiếp tại số 4 Lê Duẩn, Q1, TP.HCM' },
   { key: 'VISA_ISSUED_USCIS_FEE', label: 'Nhận Visa & Phí thẻ xanh', step: 10, desc: 'Nhận hộ chiếu có visa & Đóng $220 USCIS Fee' },
   { key: 'FLIGHT_AND_POE', label: 'Bay & Nhập cảnh Mỹ', step: 11, desc: 'Chuẩn bị vé máy bay, hành lý và nhập cảnh (POE)' },
+];
+
+const DOCUMENT_CATEGORIES: Array<{ key: DocumentCategory; label: string }> = [
+  { key: 'CIVIL_IDENTITY', label: 'Dân sự & Nhân thân' },
+  { key: 'FINANCIAL_SUPPORT', label: 'Bảo trợ tài chính I-864' },
+  { key: 'RELATIONSHIP_PROOF', label: 'Bằng chứng quan hệ F4' },
+  { key: 'MEDICAL_VACCINE', label: 'Khám SK & Tiêm chủng' },
+  { key: 'INTERVIEW_TRAVEL', label: 'Phỏng vấn & Nhập cảnh' },
+  { key: 'OTHER', label: 'Khác' },
 ];
 
 export function GoUsPortal() {
@@ -273,12 +433,48 @@ export function GoUsPortal() {
     queryFn: async () => (await gousApi.getMembers()).data,
   });
 
-  const { data: documents = [] } = useQuery({
-    queryKey: ['gous-documents', activeFamilyId, docCategoryFilter],
+  const { data: allDocuments = [] } = useQuery({
+    queryKey: ['gous-documents', activeFamilyId],
     enabled: Boolean(activeFamilyId),
-    queryFn: async () =>
-      (await gousApi.getDocuments(docCategoryFilter !== 'ALL' ? (docCategoryFilter as DocumentCategory) : undefined)).data,
+    queryFn: async () => (await gousApi.getDocuments()).data,
   });
+
+  const documents = useMemo(() => {
+    if (docCategoryFilter === 'ALL') return allDocuments;
+    return allDocuments.filter((d) => d.category === docCategoryFilter);
+  }, [allDocuments, docCategoryFilter]);
+
+  const allMemberAttachments = useMemo(() => {
+    if (!editingMember) return [];
+    const items: Array<{
+      docId: string;
+      docTitle: string;
+      category: DocumentCategory;
+      categoryLabel: string;
+      url: string;
+      index: number;
+      totalInDoc: number;
+    }> = [];
+    allDocuments
+      .filter((d) => d.memberId === editingMember.id)
+      .forEach((doc) => {
+        const urls = doc.fileUrls && doc.fileUrls.length > 0 ? doc.fileUrls : (doc.fileUrl ? [doc.fileUrl] : []);
+        const catObj = DOCUMENT_CATEGORIES.find((c) => c.key === doc.category);
+        const categoryLabel = catObj?.label || 'Dân sự & Nhân thân';
+        urls.forEach((url, idx) => {
+          items.push({
+            docId: doc.id,
+            docTitle: doc.title,
+            category: doc.category,
+            categoryLabel,
+            url,
+            index: idx,
+            totalInDoc: urls.length,
+          });
+        });
+      });
+    return items;
+  }, [allDocuments, editingMember]);
 
   const { data: tasks = [] } = useQuery({
     queryKey: ['gous-tasks', activeFamilyId, taskStageFilter],
@@ -523,6 +719,7 @@ export function GoUsPortal() {
   const openDocModal = (doc?: GoUsDocument, presetMemberId?: string) => {
     setEditingDoc(doc || null);
     if (doc) {
+      const urls = doc.fileUrls && doc.fileUrls.length > 0 ? doc.fileUrls : (doc.fileUrl ? [doc.fileUrl] : []);
       docForm.setFieldsValue({
         title: doc.title,
         category: doc.category,
@@ -532,6 +729,7 @@ export function GoUsPortal() {
         status: doc.status,
         issueDate: doc.issueDate ? dayjs(doc.issueDate) : null,
         expiryDate: doc.expiryDate ? dayjs(doc.expiryDate) : null,
+        fileUrls: urls,
         fileUrl: doc.fileUrl,
         expertNotes: doc.expertNotes,
       });
@@ -542,6 +740,7 @@ export function GoUsPortal() {
         isRequired: true,
         status: 'NOT_PREPARED',
         memberId: presetMemberId,
+        fileUrls: [],
       });
     }
     setIsDocModalOpen(true);
@@ -784,6 +983,7 @@ export function GoUsPortal() {
             children: (
               <MembersTab
                 members={members}
+                documents={allDocuments}
                 caseData={caseData!}
                 onOpenEditCase={openEditCaseModal}
                 onAddMember={() => openMemberModal()}
@@ -1138,29 +1338,32 @@ export function GoUsPortal() {
 
           {editingMember ? (
             <div className="space-y-2 mb-3">
-              {documents
+              {allDocuments
                 .filter((d) => d.memberId === editingMember.id && !QUICK_DOC_TITLES.has(d.title))
-                .map((doc) => (
-                  <div key={doc.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-medium text-slate-800 truncate">{doc.title}</span>
-                      {doc.fileUrl ? (
-                        <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 shrink-0">
-                          <Paperclip size={12} /> Xem file
-                        </a>
-                      ) : (
-                        <Tag color="warning" className="m-0 text-[12px] shrink-0">Chưa có file</Tag>
-                      )}
+                .map((doc) => {
+                  const docFiles = doc.fileUrls && doc.fileUrls.length > 0 ? doc.fileUrls : (doc.fileUrl ? [doc.fileUrl] : []);
+                  return (
+                    <div key={doc.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="font-medium text-slate-800 truncate">{doc.title}</span>
+                        {docFiles.length > 0 ? (
+                          <span className="flex items-center gap-1 text-emerald-600 shrink-0 font-medium">
+                            <Paperclip size={12} /> {docFiles.length} tệp
+                          </span>
+                        ) : (
+                          <Tag color="warning" className="m-0 text-[12px] shrink-0">Chưa có file</Tag>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button type="text" size="small" icon={<Edit2 size={14} />} onClick={() => openDocModal(doc)} />
+                        <Popconfirm title="Xác nhận xóa giấy tờ này?" onConfirm={() => deleteDocMutation.mutate(doc.id)} okText="Xóa" cancelText="Hủy">
+                          <Button type="text" size="small" danger icon={<Trash2 size={14} />} />
+                        </Popconfirm>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Button type="text" size="small" icon={<Edit2 size={14} />} onClick={() => openDocModal(doc)} />
-                      <Popconfirm title="Xác nhận xóa giấy tờ này?" onConfirm={() => deleteDocMutation.mutate(doc.id)} okText="Xóa" cancelText="Hủy">
-                        <Button type="text" size="small" danger icon={<Trash2 size={14} />} />
-                      </Popconfirm>
-                    </div>
-                  </div>
-                ))}
-              {documents.filter((d) => d.memberId === editingMember.id && !QUICK_DOC_TITLES.has(d.title)).length === 0 && (
+                  );
+                })}
+              {allDocuments.filter((d) => d.memberId === editingMember.id && !QUICK_DOC_TITLES.has(d.title)).length === 0 && (
                 <p className="text-xs text-slate-500 italic">Chưa có giấy tờ khác nào được gắn cho thành viên này.</p>
               )}
               <Button size="small" icon={<Plus size={14} />} onClick={() => openDocModal(undefined, editingMember.id)}>
@@ -1174,6 +1377,149 @@ export function GoUsPortal() {
               showIcon
               message="Lưu thành viên trước, sau đó mở lại để thêm giấy tờ đính kèm."
             />
+          )}
+
+          {/* ================= BOTTOM ATTACHMENTS GALLERY ================= */}
+          {editingMember && (
+            <div className="mt-5 pt-4 border-t border-slate-200 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                    <Paperclip size={15} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wide">
+                      Tất cả tệp đính kèm của thành viên ({allMemberAttachments.length})
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Tổng hợp toàn bộ hình ảnh và tài liệu PDF từ mọi mục giấy tờ
+                    </p>
+                  </div>
+                </div>
+                <Upload
+                  accept="image/*,application/pdf"
+                  multiple
+                  showUploadList={false}
+                  beforeUpload={async (file) => {
+                    try {
+                      const { data } = await filesApi.upload(file, 'gous-documents');
+                      const autoTitle = cleanFileNameToTitle(file.name, 'Giấy tờ đính kèm');
+                      await gousApi.addDocument({
+                        memberId: editingMember.id,
+                        title: autoTitle,
+                        category: 'CIVIL_IDENTITY',
+                        status: 'ORIGINAL_OBTAINED',
+                        isRequired: false,
+                        fileUrls: [data.url],
+                        fileUrl: data.url,
+                      });
+                      message.success(`Đã thêm tệp "${autoTitle}"`);
+                      queryClient.invalidateQueries({ queryKey: ['gous-documents'] });
+                      queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
+                    } catch (err: any) {
+                      message.error(err?.response?.data?.message || 'Không thể tải tệp lên');
+                    }
+                    return false;
+                  }}
+                >
+                  <Button size="small" icon={<UploadCloud size={13} />} className="!bg-rose-50 !text-rose-600 !border-rose-200 hover:!bg-rose-100 shrink-0">
+                    Tải thêm tệp / ảnh
+                  </Button>
+                </Upload>
+              </div>
+
+              {allMemberAttachments.length > 0 ? (
+                <Image.PreviewGroup>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5 max-h-72 overflow-y-auto p-1 bg-slate-50/70 rounded-2xl border border-slate-200/80">
+                    {allMemberAttachments.map((item, idx) => {
+                      const isImg = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(item.url) || item.url.includes('/images/');
+                      return (
+                        <div
+                          key={`${item.docId}-${idx}`}
+                          className="group relative flex flex-col rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs hover:shadow-md transition-all"
+                        >
+                          <div className="relative h-24 w-full bg-slate-100 flex items-center justify-center overflow-hidden">
+                            {isImg ? (
+                              <Image
+                                src={item.url}
+                                alt={item.docTitle}
+                                className="w-full h-full object-cover"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                            ) : (
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex flex-col items-center justify-center w-full h-full text-red-500 hover:text-red-600 hover:bg-red-50/50"
+                              >
+                                <FileText size={28} />
+                                <span className="text-[10px] font-semibold text-slate-600 mt-1">Xem PDF</span>
+                              </a>
+                            )}
+                          </div>
+
+                          <div className="p-2 space-y-1 bg-white">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="text-[11px] font-bold text-slate-800 truncate" title={item.docTitle}>
+                                {item.docTitle} {item.totalInDoc > 1 ? `(#${item.index + 1})` : ''}
+                              </span>
+                              <Popconfirm
+                                title="Xác nhận xóa tệp đính kèm này?"
+                                onConfirm={async () => {
+                                  try {
+                                    const doc = allDocuments.find((d) => d.id === item.docId);
+                                    if (!doc) return;
+                                    const currentUrls = doc.fileUrls && doc.fileUrls.length > 0 ? doc.fileUrls : (doc.fileUrl ? [doc.fileUrl] : []);
+                                    const nextUrls = currentUrls.filter((u, i) => i !== item.index || u !== item.url);
+                                    await gousApi.updateDocument(doc.id, {
+                                      title: doc.title,
+                                      fileUrls: nextUrls,
+                                      fileUrl: nextUrls[0] || undefined,
+                                    });
+                                    message.success('Đã xóa tệp đính kèm');
+                                    queryClient.invalidateQueries({ queryKey: ['gous-documents'] });
+                                    queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
+                                  } catch (e) {
+                                    message.error('Không thể xóa tệp');
+                                  }
+                                }}
+                                okText="Xóa"
+                                cancelText="Hủy"
+                              >
+                                <Button
+                                  type="text"
+                                  size="small"
+                                  danger
+                                  icon={<Trash2 size={12} />}
+                                  className="!p-0 !h-5 !w-5 text-slate-400 hover:text-red-500 shrink-0"
+                                  title="Xóa tệp này"
+                                />
+                              </Popconfirm>
+                            </div>
+                            <div className="flex items-center justify-between text-[10px] text-slate-500">
+                              <span className="truncate">{item.categoryLabel}</span>
+                              <a
+                                href={item.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline flex items-center gap-0.5 shrink-0"
+                              >
+                                Mở <ExternalLink size={10} />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Image.PreviewGroup>
+              ) : (
+                <div className="p-4 rounded-xl border border-dashed border-slate-200 text-center text-xs text-slate-500 bg-slate-50/50">
+                  Chưa có tệp đính kèm nào được tải lên cho thành viên này.
+                </div>
+              )}
+            </div>
           )}
 
           <div className="flex justify-end gap-2 mt-4">
@@ -1198,17 +1544,20 @@ export function GoUsPortal() {
           form={docForm}
           layout="vertical"
           onFinish={(vals) => {
+            const rawUrls = vals.fileUrls;
+            const fileUrls: string[] = Array.isArray(rawUrls) ? rawUrls.filter(Boolean) : (rawUrls ? [rawUrls] : []);
             const payload: any = {
               title: vals.title?.trim(),
               category: vals.category,
               isRequired: vals.isRequired,
               status: vals.status,
+              fileUrls: fileUrls.length > 0 ? fileUrls : undefined,
+              fileUrl: fileUrls.length > 0 ? fileUrls[0] : undefined,
             };
             if (vals.memberId) payload.memberId = vals.memberId;
             if (vals.issueDate) payload.issueDate = dayjs(vals.issueDate).format('YYYY-MM-DD');
             if (vals.expiryDate) payload.expiryDate = dayjs(vals.expiryDate).format('YYYY-MM-DD');
             if (vals.description?.trim()) payload.description = vals.description.trim();
-            if (vals.fileUrl?.trim()) payload.fileUrl = vals.fileUrl.trim();
             if (vals.expertNotes?.trim()) payload.expertNotes = vals.expertNotes.trim();
             saveDocMutation.mutate(payload);
           }}
@@ -1255,8 +1604,15 @@ export function GoUsPortal() {
             <TextArea rows={2} placeholder="Yêu cầu bản gốc, số lượng bản sao, dịch thuật tiếng Anh..." />
           </Form.Item>
 
-          <Form.Item name="fileUrl" label="File đính kèm (Ảnh chụp / Scan hoặc PDF)">
-            <DocumentFileUploader />
+          <Form.Item name="fileUrls" label="File đính kèm (Hỗ trợ nhiều hình ảnh / PDF)">
+            <DocumentFileUploader
+              onAutoTitle={(suggested) => {
+                const currentTitle = docForm.getFieldValue('title');
+                if (!currentTitle || currentTitle.trim() === '') {
+                  docForm.setFieldsValue({ title: suggested });
+                }
+              }}
+            />
           </Form.Item>
 
           <Form.Item name="expertNotes" label="Lưu ý quan trọng từ Luật sư / Chuyên viên">
@@ -1859,6 +2215,7 @@ function OverviewTab({
 // ================= TAB 2: MEMBERS & CSPA =================
 function MembersTab({
   members,
+  documents,
   caseData,
   onOpenEditCase,
   onAddMember,
@@ -1867,6 +2224,7 @@ function MembersTab({
   onOpenCspa,
 }: {
   members: GoUsMember[];
+  documents: GoUsDocument[];
   caseData: GoUsCase;
   onOpenEditCase: () => void;
   onAddMember: () => void;
@@ -1961,7 +2319,7 @@ function MembersTab({
         <div>
           <h2 className="text-base font-bold text-slate-800">Danh Sách Thành Viên Thụ Hưởng ({members.length} người)</h2>
           <p className="text-xs text-slate-700 mt-0.5">
-            Quản lý giấy tờ tùy thân, hộ chiếu, đơn DS-260, LLTP số 2 và theo dõi tuổi CSPA chống quá tuổi cho con cái.
+            Quản lý giấy tờ tùy thân, hộ chiếu, đơn DS-260, LLTP số 2, khám sức khỏe và theo dõi tuổi CSPA cho con cái.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1978,6 +2336,16 @@ function MembersTab({
         {members.map((member) => {
           const isChild = member.roleInCase === 'CHILD';
           const isPrincipal = member.roleInCase === 'PRINCIPAL';
+          const memberAge = member.dob ? dayjs().diff(dayjs(member.dob), 'year') : null;
+          const memberDocs = documents.filter((d) => d.memberId === member.id);
+          const memberFiles = memberDocs.flatMap((d) =>
+            (d.fileUrls && d.fileUrls.length > 0 ? d.fileUrls : (d.fileUrl ? [d.fileUrl] : [])).map((url, idx) => ({
+              docTitle: d.title,
+              category: d.category,
+              url,
+              idx,
+            }))
+          );
 
           return (
             <Card
@@ -1989,18 +2357,25 @@ function MembersTab({
               }`}
               title={
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-700 font-bold text-xs shrink-0">
                       <User size={16} />
                     </div>
-                    <div>
-                      <p className="text-sm font-bold text-slate-800 leading-tight">{member.fullName}</p>
-                      <Tag color={isPrincipal ? 'magenta' : member.roleInCase === 'SPOUSE' ? 'blue' : 'cyan'} className="text-[12px] mt-0.5">
-                        {isPrincipal ? 'Đương đơn chính' : member.roleInCase === 'SPOUSE' ? 'Vợ / Chồng' : 'Con cái'}
-                      </Tag>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-800 leading-tight truncate">{member.fullName}</p>
+                      <div className="flex items-center gap-1 mt-0.5 flex-wrap">
+                        <Tag color={isPrincipal ? 'magenta' : member.roleInCase === 'SPOUSE' ? 'blue' : 'cyan'} className="text-[11px] m-0">
+                          {isPrincipal ? 'Đương đơn chính' : member.roleInCase === 'SPOUSE' ? 'Vợ / Chồng' : 'Con cái'}
+                        </Tag>
+                        {member.gender && (
+                          <Tag color="default" className="text-[11px] m-0">
+                            {member.gender}
+                          </Tag>
+                        )}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 shrink-0">
                     <Button type="text" size="small" icon={<Edit2 size={14} />} onClick={() => onEditMember(member)} />
                     <Popconfirm title="Xác nhận xóa thành viên?" onConfirm={() => onDeleteMember(member.id)} okText="Xóa" cancelText="Hủy">
                       <Button type="text" size="small" danger icon={<Trash2 size={14} />} />
@@ -2009,70 +2384,186 @@ function MembersTab({
                 </div>
               }
             >
-              <div className="space-y-2.5 text-xs">
+              <div className="space-y-2 text-xs">
+                {/* 1. Thông tin cá nhân */}
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Ngày sinh:</span>
+                  <span className="text-slate-500">Ngày sinh:</span>
                   <span className="font-semibold text-slate-700">
-                    {member.dob ? dayjs(member.dob).format('DD/MM/YYYY') : 'Chưa nhập'}
+                    {member.dob ? `${dayjs(member.dob).format('DD/MM/YYYY')} (${memberAge} tuổi)` : 'Chưa nhập'}
                   </span>
                 </div>
+
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Hộ chiếu:</span>
-                  <span className="font-semibold text-slate-700">
+                  <span className="text-slate-500">Hộ chiếu:</span>
+                  <span className="font-semibold text-slate-700 text-right">
                     {member.passportNumber || 'Chưa nhập'}
-                    {member.passportExpiry && ` (Hạn: ${dayjs(member.passportExpiry).format('MM/YYYY')})`}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Đơn DS-260:</span>
-                  <span>
-                    {member.ds260Status === 'COMPLETED' ? (
-                      <Tag color="success" className="m-0 text-[12px]">Đã nộp ({member.ds260ConfirmationNumber || 'Đã có mã'})</Tag>
-                    ) : member.ds260Status === 'IN_PROGRESS' ? (
-                      <Tag color="processing" className="m-0 text-[12px]">Đang khai</Tag>
-                    ) : (
-                      <Tag color="default" className="m-0 text-[12px]">Chưa khai</Tag>
-                    )}
-                  </span>
-                </div>
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-600">Lý lịch tư pháp số 2:</span>
-                  <span>
-                    {member.policeCertStatus === 'COMPLETED' ? (
-                      <Tag color="success" className="m-0 text-[12px]">Đã có</Tag>
-                    ) : member.policeCertStatus === 'EXPIRED' ? (
-                      <Tag color="error" className="m-0 text-[12px]">Đã hết hạn</Tag>
-                    ) : member.policeCertStatus === 'NOT_APPLICABLE' ? (
-                      <Tag color="default" className="m-0 text-[12px]">Dưới 16 tuổi</Tag>
-                    ) : (
-                      <Tag color="warning" className="m-0 text-[12px]">Chưa làm</Tag>
+                    {member.passportExpiry && (
+                      <span className="text-slate-500 font-normal block text-[11px]">
+                        Hạn: {dayjs(member.passportExpiry).format('DD/MM/YYYY')}
+                      </span>
                     )}
                   </span>
                 </div>
 
+                {/* 2. Tiến trình thủ tục */}
+                <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Đơn DS-260:</span>
+                  <span>
+                    {member.ds260Status === 'COMPLETED' ? (
+                      <Tag color="success" className="m-0 text-[11px]">
+                        Đã nộp {member.ds260ConfirmationNumber ? `(${member.ds260ConfirmationNumber})` : ''}
+                      </Tag>
+                    ) : member.ds260Status === 'IN_PROGRESS' ? (
+                      <Tag color="processing" className="m-0 text-[11px]">Đang khai</Tag>
+                    ) : (
+                      <Tag color="default" className="m-0 text-[11px]">Chưa khai</Tag>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Lý lịch tư pháp số 2:</span>
+                  <span>
+                    {member.policeCertStatus === 'COMPLETED' ? (
+                      <Tag color="success" className="m-0 text-[11px]">
+                        Đã có {member.policeCertIssueDate ? `(${dayjs(member.policeCertIssueDate).format('DD/MM/YY')})` : ''}
+                      </Tag>
+                    ) : member.policeCertStatus === 'IN_PROGRESS' ? (
+                      <Tag color="processing" className="m-0 text-[11px]">Đang làm</Tag>
+                    ) : member.policeCertStatus === 'EXPIRED' ? (
+                      <Tag color="error" className="m-0 text-[11px]">Đã hết hạn</Tag>
+                    ) : member.policeCertStatus === 'NOT_APPLICABLE' ? (
+                      <Tag color="default" className="m-0 text-[11px]">Dưới 16 tuổi</Tag>
+                    ) : (
+                      <Tag color="warning" className="m-0 text-[11px]">Chưa làm</Tag>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Khám SK & Tiêm chủng:</span>
+                  <span>
+                    {member.medicalStatus === 'COMPLETED' ? (
+                      <Tag color="success" className="m-0 text-[11px]">Đã hoàn thành</Tag>
+                    ) : member.medicalStatus === 'IN_PROGRESS' ? (
+                      <Tag color="processing" className="m-0 text-[11px]">Đang khám / Đã hẹn</Tag>
+                    ) : (
+                      <Tag color="default" className="m-0 text-[11px]">Chưa khám</Tag>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Tình trạng Visa:</span>
+                  <span>
+                    {member.visaStatus === 'ISSUED' ? (
+                      <Tag color="success" className="m-0 text-[11px]">Đã cấp Visa</Tag>
+                    ) : member.visaStatus === 'PENDING_221G' ? (
+                      <Tag color="warning" className="m-0 text-[11px]">Giấy xanh 221(g)</Tag>
+                    ) : (
+                      <Tag color="default" className="m-0 text-[11px]">Chưa phỏng vấn</Tag>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Phí Thẻ Xanh $220:</span>
+                  <span>
+                    {member.uscisFeePaid ? (
+                      <Tag color="success" className="m-0 text-[11px]">Đã đóng $220</Tag>
+                    ) : (
+                      <Tag color="default" className="m-0 text-[11px]">Chưa đóng</Tag>
+                    )}
+                  </span>
+                </div>
+
+                {/* 3. CSPA Box for child */}
                 {isChild && (
-                  <div className="mt-3 p-2.5 rounded-xl bg-amber-50/70 border border-amber-200">
+                  <div className="mt-2 p-2.5 rounded-xl bg-amber-50/70 border border-amber-200">
                     <div className="flex items-center justify-between">
                       <span className="font-bold text-amber-900">Tuổi CSPA:</span>
                       {member.cspaAge ? (
                         <span className="font-extrabold text-sm text-amber-900">{member.cspaAge} tuổi</span>
                       ) : (
-                        <Button type="link" size="small" onClick={() => onOpenCspa(member.dob)} className="!p-0 !text-[13px]">
+                        <Button type="link" size="small" onClick={() => onOpenCspa(member.dob)} className="!p-0 !text-[12px]">
                           Tính ngay →
                         </Button>
                       )}
                     </div>
                     {member.cspaStatus === 'SAFE' && (
-                      <p className="text-[13px] text-emerald-700 font-semibold mt-1">✓ Đủ điều kiện đi cùng cha mẹ</p>
+                      <p className="text-[12px] text-emerald-700 font-semibold mt-0.5">✓ Đủ điều kiện đi cùng cha mẹ</p>
                     )}
                     {member.cspaStatus === 'WARNING' && (
-                      <p className="text-[13px] text-amber-700 font-semibold mt-1">⚠ Sát 21 tuổi - Cần nộp DS-260 gấp!</p>
+                      <p className="text-[12px] text-amber-700 font-semibold mt-0.5">⚠ Sát 21 tuổi - Cần nộp DS-260 gấp!</p>
                     )}
                     {member.cspaStatus === 'AGED_OUT' && (
-                      <p className="text-[13px] text-red-700 font-semibold mt-1">✕ Nguy cơ quá tuổi (Cần chuẩn bị F2B)</p>
+                      <p className="text-[12px] text-red-700 font-semibold mt-0.5">✕ Nguy cơ quá tuổi (Cần chuẩn bị F2B)</p>
                     )}
                   </div>
                 )}
+
+                {/* 4. Notes if present */}
+                {member.notes && (
+                  <div className="p-2 rounded-xl bg-slate-50 border border-slate-200/70 text-[11px] text-slate-700">
+                    <span className="font-semibold text-slate-800">Ghi chú: </span>
+                    {member.notes}
+                  </div>
+                )}
+
+                {/* 5. Attachments summary & preview */}
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-bold text-slate-700 flex items-center gap-1">
+                      <Paperclip size={12} className="text-slate-500" />
+                      Giấy tờ & Tệp đính kèm ({memberFiles.length})
+                    </span>
+                    <Button
+                      type="link"
+                      size="small"
+                      className="!p-0 !text-[11px]"
+                      onClick={() => onEditMember(member)}
+                    >
+                      Quản lý →
+                    </Button>
+                  </div>
+                  {memberFiles.length > 0 ? (
+                    <Image.PreviewGroup>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {memberFiles.map((file, fIdx) => {
+                          const isImg = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(file.url) || file.url.includes('/images/');
+                          return (
+                            <div
+                              key={fIdx}
+                              className="flex items-center gap-1 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-1.5 py-1 text-[11px]"
+                            >
+                              {isImg ? (
+                                <Image
+                                  src={file.url}
+                                  width={18}
+                                  height={18}
+                                  className="rounded object-cover border border-slate-200"
+                                />
+                              ) : (
+                                <FileText size={13} className="text-red-500 shrink-0" />
+                              )}
+                              <a
+                                href={file.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline truncate max-w-[90px]"
+                                title={file.docTitle}
+                              >
+                                {file.docTitle}
+                              </a>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </Image.PreviewGroup>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 italic">Chưa có tệp đính kèm nào</p>
+                  )}
+                </div>
               </div>
             </Card>
           );
@@ -2187,7 +2678,45 @@ function DocumentsTab({
                 )}
               </div>
 
-              {doc.fileUrl && (
+              {doc.fileUrls && doc.fileUrls.length > 0 ? (
+                <div className="pt-1">
+                  <span className="text-[11px] font-semibold text-slate-500 block mb-1">
+                    Tệp đính kèm ({doc.fileUrls.length}):
+                  </span>
+                  <Image.PreviewGroup>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {doc.fileUrls.map((url, i) => {
+                        const isImg = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(url) || url.includes('/images/');
+                        return (
+                          <div
+                            key={i}
+                            className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg px-2 py-1 text-xs transition-colors"
+                          >
+                            {isImg ? (
+                              <Image
+                                src={url}
+                                width={20}
+                                height={20}
+                                className="rounded object-cover border border-slate-200"
+                              />
+                            ) : (
+                              <FileText size={14} className="text-red-500 shrink-0" />
+                            )}
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 font-medium hover:underline text-[11px]"
+                            >
+                              Tệp #{i + 1}
+                            </a>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Image.PreviewGroup>
+                </div>
+              ) : doc.fileUrl ? (
                 <a
                   href={doc.fileUrl}
                   target="_blank"
@@ -2196,7 +2725,7 @@ function DocumentsTab({
                 >
                   <Paperclip size={13} /> Xem file đính kèm
                 </a>
-              )}
+              ) : null}
 
               {doc.expertNotes && (
                 <div className="p-2 rounded-xl bg-amber-50/80 border border-amber-200 text-[13px] text-amber-900">
