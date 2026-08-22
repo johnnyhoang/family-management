@@ -104,6 +104,97 @@ function DocumentFileUploader({ value, onChange }: { value?: string; onChange?: 
   );
 }
 
+// Các giấy tờ đã có icon upload nhanh riêng ngay trong form — loại khỏi danh sách "Giấy tờ khác" để tránh hiện trùng
+const QUICK_DOC_TITLES = new Set(['Hộ chiếu', 'Giấy khai sinh', 'Lý lịch tư pháp số 2', 'Giấy khám sức khỏe']);
+
+// Icon upload nhanh đặt ngay cạnh field liên quan (Hộ chiếu, Giấy khai sinh...)
+// Tự tìm giấy tờ đã có theo (memberId + title), có thì cập nhật file, chưa có thì tạo mới —
+// dùng chung API/mutation với tab "Cập nhật giấy tờ".
+function QuickDocUploadIcon({
+  memberId,
+  title,
+  category,
+  documents,
+}: {
+  memberId?: string;
+  title: string;
+  category: DocumentCategory;
+  documents: GoUsDocument[];
+}) {
+  const queryClient = useQueryClient();
+  const [uploading, setUploading] = useState(false);
+  const existing = documents.find((d) => d.memberId === memberId && d.title === title);
+
+  if (!memberId) {
+    return (
+      <span title="Lưu thành viên trước để đính kèm giấy tờ">
+        <Paperclip size={14} className="text-slate-300" />
+      </span>
+    );
+  }
+
+  const handleUpload = async (file: File) => {
+    setUploading(true);
+    try {
+      const { data } = await filesApi.upload(file, 'gous-documents');
+      if (existing) {
+        await gousApi.updateDocument(existing.id, { fileUrl: data.url });
+      } else {
+        await gousApi.addDocument({ memberId, title, category, status: 'ORIGINAL_OBTAINED', isRequired: true, fileUrl: data.url });
+      }
+      message.success(`Đã tải lên "${title}"`);
+      queryClient.invalidateQueries({ queryKey: ['gous-documents'] });
+      queryClient.invalidateQueries({ queryKey: ['gous-stats'] });
+    } catch (err: any) {
+      message.error(err?.response?.data?.message || `Không thể tải lên "${title}", vui lòng thử lại`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <span className="flex items-center gap-1">
+      {existing?.fileUrl && (
+        <a href={existing.fileUrl} target="_blank" rel="noopener noreferrer" title={`Xem file ${title} đã tải lên`}>
+          <Paperclip size={14} className="text-emerald-600" />
+        </a>
+      )}
+      <Upload accept="image/*,application/pdf" maxCount={1} showUploadList={false} beforeUpload={(file) => { handleUpload(file); return false; }}>
+        <Button
+          type="text"
+          size="small"
+          className="!p-0 !h-auto !w-auto !min-w-0"
+          icon={<UploadCloud size={14} className={existing?.fileUrl ? 'text-slate-500' : 'text-rose-500'} />}
+          loading={uploading}
+          title={existing?.fileUrl ? `Thay file ${title}` : `Tải ${title} lên`}
+        />
+      </Upload>
+    </span>
+  );
+}
+
+// Label kèm icon upload nhanh, dùng cho label của Form.Item (Số Hộ Chiếu, LLTP số 2...)
+function FieldLabelWithUpload({
+  text,
+  docTitle,
+  category,
+  memberId,
+  documents,
+}: {
+  text: string;
+  docTitle: string;
+  category: DocumentCategory;
+  memberId?: string;
+  documents: GoUsDocument[];
+}) {
+  return (
+    <div className="flex items-center justify-between w-full gap-2">
+      <span>{text}</span>
+      <QuickDocUploadIcon memberId={memberId} title={docTitle} category={category} documents={documents} />
+    </div>
+  );
+}
+
 const { Option } = Select;
 const { TextArea } = Input;
 
@@ -942,11 +1033,21 @@ export function GoUsPortal() {
                 <Option value="Nữ">Nữ</Option>
               </Select>
             </Form.Item>
-            <Form.Item name="passportNumber" label="Số Hộ Chiếu">
+            <Form.Item
+              name="passportNumber"
+              label={<FieldLabelWithUpload text="Số Hộ Chiếu" docTitle="Hộ chiếu" category="CIVIL_IDENTITY" memberId={editingMember?.id} documents={documents} />}
+            >
               <Input placeholder="Ví dụ: C1234567" />
             </Form.Item>
             <Form.Item name="passportExpiry" label="Ngày hết hạn Hộ Chiếu">
               <DatePicker className="w-full" format="DD/MM/YYYY" placeholder="Chọn ngày hết hạn" />
+            </Form.Item>
+            <Form.Item label={<FieldLabelWithUpload text="Giấy khai sinh" docTitle="Giấy khai sinh" category="CIVIL_IDENTITY" memberId={editingMember?.id} documents={documents} />}>
+              <div className="flex items-center h-8 px-3 border border-slate-200 rounded-lg bg-slate-50 text-xs text-slate-500">
+                {documents.find((d) => d.memberId === editingMember?.id && d.title === 'Giấy khai sinh')?.fileUrl
+                  ? 'Đã có file'
+                  : 'Chưa có file'}
+              </div>
             </Form.Item>
           </div>
 
@@ -963,7 +1064,10 @@ export function GoUsPortal() {
             <Form.Item name="ds260ConfirmationNumber" label="Mã xác nhận DS-260">
               <Input placeholder="Ví dụ: AA00123456" />
             </Form.Item>
-            <Form.Item name="policeCertStatus" label="Lý lịch tư pháp số 2 (Từ đủ 16 tuổi)">
+            <Form.Item
+              name="policeCertStatus"
+              label={<FieldLabelWithUpload text="Lý lịch tư pháp số 2 (Từ đủ 16 tuổi)" docTitle="Lý lịch tư pháp số 2" category="CIVIL_IDENTITY" memberId={editingMember?.id} documents={documents} />}
+            >
               <Select>
                 <Option value="NOT_STARTED">Chưa làm</Option>
                 <Option value="IN_PROGRESS">Đang làm / Chờ cấp</Option>
@@ -975,7 +1079,10 @@ export function GoUsPortal() {
             <Form.Item name="policeCertIssueDate" label="Ngày cấp LLTP số 2">
               <DatePicker className="w-full" format="DD/MM/YYYY" placeholder="Chọn ngày cấp" />
             </Form.Item>
-            <Form.Item name="medicalStatus" label="Khám sức khỏe & Tiêm chủng">
+            <Form.Item
+              name="medicalStatus"
+              label={<FieldLabelWithUpload text="Khám sức khỏe & Tiêm chủng" docTitle="Giấy khám sức khỏe" category="MEDICAL_VACCINE" memberId={editingMember?.id} documents={documents} />}
+            >
               <Select>
                 <Option value="NOT_STARTED">Chưa khám</Option>
                 <Option value="IN_PROGRESS">Đã đặt hẹn / Đang khám</Option>
@@ -995,35 +1102,37 @@ export function GoUsPortal() {
             <TextArea rows={2} placeholder="Ghi chú về tiền sử bệnh, tiêm ngừa, học bạ..." />
           </Form.Item>
 
-          <Divider className="my-3"><span className="text-xs text-slate-600 font-semibold uppercase">Giấy tờ của thành viên</span></Divider>
+          <Divider className="my-3"><span className="text-xs text-slate-600 font-semibold uppercase">Giấy tờ khác của thành viên</span></Divider>
 
           {editingMember ? (
             <div className="space-y-2 mb-3">
-              {documents.filter((d) => d.memberId === editingMember.id).map((doc) => (
-                <div key={doc.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span className="font-medium text-slate-800 truncate">{doc.title}</span>
-                    {doc.fileUrl ? (
-                      <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 shrink-0">
-                        <Paperclip size={12} /> Xem file
-                      </a>
-                    ) : (
-                      <Tag color="warning" className="m-0 text-[12px] shrink-0">Chưa có file</Tag>
-                    )}
+              {documents
+                .filter((d) => d.memberId === editingMember.id && !QUICK_DOC_TITLES.has(d.title))
+                .map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between gap-2 p-2 rounded-lg border border-slate-200 bg-slate-50 text-xs">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-medium text-slate-800 truncate">{doc.title}</span>
+                      {doc.fileUrl ? (
+                        <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-600 shrink-0">
+                          <Paperclip size={12} /> Xem file
+                        </a>
+                      ) : (
+                        <Tag color="warning" className="m-0 text-[12px] shrink-0">Chưa có file</Tag>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button type="text" size="small" icon={<Edit2 size={14} />} onClick={() => openDocModal(doc)} />
+                      <Popconfirm title="Xác nhận xóa giấy tờ này?" onConfirm={() => deleteDocMutation.mutate(doc.id)} okText="Xóa" cancelText="Hủy">
+                        <Button type="text" size="small" danger icon={<Trash2 size={14} />} />
+                      </Popconfirm>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <Button type="text" size="small" icon={<Edit2 size={14} />} onClick={() => openDocModal(doc)} />
-                    <Popconfirm title="Xác nhận xóa giấy tờ này?" onConfirm={() => deleteDocMutation.mutate(doc.id)} okText="Xóa" cancelText="Hủy">
-                      <Button type="text" size="small" danger icon={<Trash2 size={14} />} />
-                    </Popconfirm>
-                  </div>
-                </div>
-              ))}
-              {documents.filter((d) => d.memberId === editingMember.id).length === 0 && (
-                <p className="text-xs text-slate-500 italic">Chưa có giấy tờ nào được gắn cho thành viên này.</p>
+                ))}
+              {documents.filter((d) => d.memberId === editingMember.id && !QUICK_DOC_TITLES.has(d.title)).length === 0 && (
+                <p className="text-xs text-slate-500 italic">Chưa có giấy tờ khác nào được gắn cho thành viên này.</p>
               )}
               <Button size="small" icon={<Plus size={14} />} onClick={() => openDocModal(undefined, editingMember.id)}>
-                Thêm Giấy Tờ cho Thành Viên Này
+                Thêm Giấy Tờ Khác cho Thành Viên Này
               </Button>
             </div>
           ) : (

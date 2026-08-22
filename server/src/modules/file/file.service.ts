@@ -1,67 +1,46 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Storage } from '@google-cloud/storage';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { v4 as uuidv4 } from 'uuid';
 import * as path from 'path';
 
 @Injectable()
 export class FileService {
-  private storage: Storage;
+  private supabase: SupabaseClient;
   private bucketName: string;
 
   constructor(private configService: ConfigService) {
-    const keyJson = this.configService.get<string>('GCS_KEY_JSON');
-    const keyFilename = this.configService.get<string>('GCS_KEY_FILE');
-    const projectId = this.configService.get<string>('GCS_PROJECT_ID');
+    const url = this.configService.get<string>('SUPABASE_URL')!;
+    const serviceRoleKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY')!;
+    this.bucketName = this.configService.get<string>('SUPABASE_STORAGE_BUCKET') || 'family-mgmt-assets';
 
-    const options: any = { projectId };
-    
-    if (keyJson) {
-      try {
-        options.credentials = JSON.parse(keyJson);
-      } catch (e) {
-        console.error('Failed to parse GCS_KEY_JSON:', e);
-      }
-    } else if (keyFilename) {
-      options.keyFilename = keyFilename;
-    }
-
-    this.storage = new Storage(options);
-    this.bucketName = this.configService.get<string>('GCS_BUCKET')!;
+    this.supabase = createClient(url, serviceRoleKey);
   }
 
   async uploadFile(file: Express.Multer.File, folder: string = 'general'): Promise<string> {
-    try {
-      const bucket = this.storage.bucket(this.bucketName);
-      const fileName = `${folder}/${uuidv4()}${path.extname(file.originalname)}`;
-      const blob = bucket.file(fileName);
+    const fileName = `${folder}/${uuidv4()}${path.extname(file.originalname)}`;
 
-      const blobStream = blob.createWriteStream({
-        resumable: false,
-        gzip: true,
-      });
+    const { error } = await this.supabase.storage
+      .from(this.bucketName)
+      .upload(fileName, file.buffer, { contentType: file.mimetype, upsert: false });
 
-      return new Promise((resolve, reject) => {
-        blobStream.on('error', (err) => reject(err));
-        blobStream.on('finish', () => {
-          const publicUrl = `https://storage.googleapis.com/${this.bucketName}/${fileName}`;
-          resolve(publicUrl);
-        });
-        blobStream.end(file.buffer);
-      });
-    } catch (error) {
-      throw new InternalServerErrorException('Error uploading file to GCS');
+    if (error) {
+      throw new InternalServerErrorException('Error uploading file to Supabase Storage');
     }
+
+    const { data } = this.supabase.storage.from(this.bucketName).getPublicUrl(fileName);
+    return data.publicUrl;
   }
 
   async deleteFile(fileUrl: string): Promise<void> {
     try {
-      const fileName = fileUrl.split(`${this.bucketName}/`)[1];
-      if (fileName) {
-        await this.storage.bucket(this.bucketName).file(fileName).delete();
-      }
+      const marker = `/object/public/${this.bucketName}/`;
+      const idx = fileUrl.indexOf(marker);
+      if (idx === -1) return;
+      const fileName = fileUrl.slice(idx + marker.length);
+      await this.supabase.storage.from(this.bucketName).remove([fileName]);
     } catch (error) {
-      console.error('Error deleting file from GCS:', error);
+      console.error('Error deleting file from Supabase Storage:', error);
     }
   }
 }
