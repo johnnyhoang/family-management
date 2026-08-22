@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppModule, Permission, PermissionAction } from '../../common/entities/permission.entity';
@@ -84,6 +84,8 @@ const MEMBER_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> 
 
 @Injectable()
 export class PermissionService implements OnModuleInit {
+  private readonly logger = new Logger(PermissionService.name);
+
   constructor(
     @InjectRepository(Permission)
     private permissionRepository: Repository<Permission>,
@@ -105,41 +107,51 @@ export class PermissionService implements OnModuleInit {
     const allDefinitions = this.buildPermissionDefinitions();
 
     for (const definition of allDefinitions) {
-      const existing = await this.permissionRepository.findOne({
-        where: {
-          moduleKey: definition.moduleKey,
-          action: definition.action,
-        },
-      });
+      try {
+        const existing = await this.permissionRepository.findOne({
+          where: {
+            moduleKey: definition.moduleKey,
+            action: definition.action,
+          },
+        });
 
-      if (!existing) {
-        await this.permissionRepository.save(this.permissionRepository.create(definition));
+        if (!existing) {
+          await this.permissionRepository.save(this.permissionRepository.create(definition));
+        }
+      } catch (err) {
+        // Don't let one bad definition (e.g. a moduleKey the DB enum doesn't
+        // know about yet) block seeding/linking for every other module.
+        this.logger.error(`Failed to seed permission ${definition.moduleKey}.${definition.action}`, err instanceof Error ? err.stack : err);
       }
     }
 
     for (const template of this.getRoleTemplates()) {
-      const role = await this.ensureRole(template.role, template.scope);
-      const permissions = await this.permissionRepository.find({
-        where: template.permissions.map((permission) => ({
-          moduleKey: permission.moduleKey,
-          action: permission.action,
-        })),
-      });
-
-      for (const permission of permissions) {
-        const exists = await this.rolePermissionRepository.findOne({
-          where: {
-            roleId: role.id,
-            permissionId: permission.id,
-          },
+      try {
+        const role = await this.ensureRole(template.role, template.scope);
+        const permissions = await this.permissionRepository.find({
+          where: template.permissions.map((permission) => ({
+            moduleKey: permission.moduleKey,
+            action: permission.action,
+          })),
         });
 
-        if (!exists) {
-          await this.rolePermissionRepository.save(this.rolePermissionRepository.create({
-            roleId: role.id,
-            permissionId: permission.id,
-          }));
+        for (const permission of permissions) {
+          const exists = await this.rolePermissionRepository.findOne({
+            where: {
+              roleId: role.id,
+              permissionId: permission.id,
+            },
+          });
+
+          if (!exists) {
+            await this.rolePermissionRepository.save(this.rolePermissionRepository.create({
+              roleId: role.id,
+              permissionId: permission.id,
+            }));
+          }
         }
+      } catch (err) {
+        this.logger.error(`Failed to link permissions for role ${template.role}`, err instanceof Error ? err.stack : err);
       }
     }
   }
