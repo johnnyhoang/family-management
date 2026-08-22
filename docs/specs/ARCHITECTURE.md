@@ -72,6 +72,7 @@ invites.roleId -> roles.id
 - `CALENDAR`
 - `ASSET`
 - `TRANSACTION`
+- `GOUS` (Định cư Hoa Kỳ diện F4)
 
 ### Actions
 

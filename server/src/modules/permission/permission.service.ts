@@ -49,6 +49,10 @@ const FAMILY_ADMIN_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionActi
   { moduleKey: AppModule.TRANSACTION, action: PermissionAction.CREATE },
   { moduleKey: AppModule.TRANSACTION, action: PermissionAction.UPDATE },
   { moduleKey: AppModule.TRANSACTION, action: PermissionAction.DELETE },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.VIEW },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.CREATE },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.UPDATE },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.DELETE },
 ];
 
 const MEMBER_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> = [
@@ -68,6 +72,10 @@ const MEMBER_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> 
   { moduleKey: AppModule.TRANSACTION, action: PermissionAction.CREATE },
   { moduleKey: AppModule.TRANSACTION, action: PermissionAction.UPDATE },
   { moduleKey: AppModule.TRANSACTION, action: PermissionAction.DELETE },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.VIEW },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.CREATE },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.UPDATE },
+  { moduleKey: AppModule.GOUS, action: PermissionAction.DELETE },
 ];
 
 @Injectable()
@@ -223,6 +231,7 @@ export class PermissionService {
       asset: AppModule.ASSET,
       expense: AppModule.TRANSACTION,
       transaction: AppModule.TRANSACTION,
+      gous: AppModule.GOUS,
     };
 
     const actionAliases: Record<string, PermissionAction> = {

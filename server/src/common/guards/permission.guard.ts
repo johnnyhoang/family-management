@@ -27,6 +27,7 @@ const FAMILY_SCOPED_MODULES = new Set<AppModule>([
   AppModule.CALENDAR,
   AppModule.ASSET,
   AppModule.TRANSACTION,
+  AppModule.GOUS,
 ]);
 
 @Injectable()
