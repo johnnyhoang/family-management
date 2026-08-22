@@ -14,9 +14,13 @@ type RoleTemplate = {
 
 const APP_ADMIN_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> = [
   { moduleKey: AppModule.ADMIN, action: PermissionAction.VIEW },
+  { moduleKey: AppModule.ADMIN, action: PermissionAction.CREATE },
   { moduleKey: AppModule.ADMIN, action: PermissionAction.UPDATE },
+  { moduleKey: AppModule.ADMIN, action: PermissionAction.DELETE },
   { moduleKey: AppModule.FAMILY, action: PermissionAction.VIEW },
+  { moduleKey: AppModule.FAMILY, action: PermissionAction.CREATE },
   { moduleKey: AppModule.FAMILY, action: PermissionAction.UPDATE },
+  { moduleKey: AppModule.FAMILY, action: PermissionAction.DELETE },
   { moduleKey: AppModule.USER, action: PermissionAction.VIEW },
   { moduleKey: AppModule.USER, action: PermissionAction.UPDATE },
   { moduleKey: AppModule.PERMISSION, action: PermissionAction.VIEW },
@@ -31,7 +35,9 @@ const APP_ADMIN_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction 
 
 const FAMILY_ADMIN_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> = [
   { moduleKey: AppModule.FAMILY, action: PermissionAction.VIEW },
+  { moduleKey: AppModule.FAMILY, action: PermissionAction.CREATE },
   { moduleKey: AppModule.FAMILY, action: PermissionAction.UPDATE },
+  { moduleKey: AppModule.FAMILY, action: PermissionAction.DELETE },
   { moduleKey: AppModule.USER, action: PermissionAction.VIEW },
   { moduleKey: AppModule.USER, action: PermissionAction.CREATE },
   { moduleKey: AppModule.USER, action: PermissionAction.UPDATE },

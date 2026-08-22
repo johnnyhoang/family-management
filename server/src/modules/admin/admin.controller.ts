@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Patch, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionGuard } from '../../common/guards/permission.guard';
@@ -49,6 +49,18 @@ export class AdminController {
     return this.adminService.addMemberToFamily(familyId, data.userId, data.role);
   }
 
+  @Delete('families/:familyId/members/:userId')
+  @ApiOperation({ summary: 'Remove a user from a family (APP_ADMIN only)' })
+  @CheckPermission('Admin', 'delete')
+  async removeFamilyMember(
+    @Req() req,
+    @Param('familyId') familyId: string,
+    @Param('userId') userId: string,
+  ) {
+    this.assertAppAdmin(req.user.systemRole);
+    return this.adminService.removeMemberFromFamily(familyId, userId);
+  }
+
   @Post('families/:id/status')
   @ApiOperation({ summary: 'Update family status' })
   @CheckPermission('Admin', 'update')
@@ -63,6 +75,14 @@ export class AdminController {
   async updateFamily(@Req() req, @Param('id') id: string, @Body() data: { name?: string }) {
     this.assertAppAdmin(req.user.systemRole);
     return this.adminService.updateFamily(id, data);
+  }
+
+  @Delete('families/:id')
+  @ApiOperation({ summary: 'Delete a family when no members remain (APP_ADMIN only)' })
+  @CheckPermission('Admin', 'delete')
+  async deleteFamily(@Req() req, @Param('id') id: string) {
+    this.assertAppAdmin(req.user.systemRole);
+    return this.adminService.deleteFamily(id);
   }
 
   @Get('stats')

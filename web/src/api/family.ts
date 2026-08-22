@@ -16,4 +16,5 @@ export interface FamilyProfile {
 export const familyApi = {
   findOne: () => api.get<FamilyProfile>('/family'),
   update: (data: { name?: string }) => api.patch<FamilyProfile>('/family', data),
+  delete: () => api.delete<{ success: boolean; message: string }>('/family'),
 };

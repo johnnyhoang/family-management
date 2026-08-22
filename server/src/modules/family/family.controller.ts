@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Body, UseGuards, Request, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Patch, Delete, Body, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { PermissionGuard } from '../../common/guards/permission.guard';
@@ -29,5 +29,15 @@ export class FamilyController {
       throw new ForbiddenException('Only family admins can update family settings');
     }
     return this.familyService.update(req.user.familyId, data);
+  }
+
+  @Delete()
+  @ApiOperation({ summary: 'Delete current family if no other members remain (Family admin only)' })
+  @CheckPermission('Family', 'delete')
+  async remove(@Request() req) {
+    if (req.user.role !== UserRole.FAMILY_ADMIN) {
+      throw new ForbiddenException('Only family admins can delete family');
+    }
+    return this.familyService.deleteFamily(req.user.familyId, req.user.id);
   }
 }

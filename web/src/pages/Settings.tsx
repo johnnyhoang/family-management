@@ -1,10 +1,9 @@
 import { useEffect } from 'react';
-import { Card, Form, Input, Button, Switch, Divider, message, Tabs } from 'antd';
+import { Card, Form, Input, Button, Switch, Divider, message, Tabs, Modal } from 'antd';
 import { Building2, User, Bell, Shield, Palette, MoonStar, SunMedium, Sparkles, Save, Lock } from 'lucide-react';
 import { useThemeMode } from '../components/theme/ThemeProvider';
 import { useSession } from '../components/auth/SessionProvider';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import dayjs from 'dayjs';
 import { authApi } from '../api/auth';
 import { adminApi } from '../api/admin';
 import { familyApi } from '../api/family';
@@ -73,6 +72,19 @@ export const Settings = () => {
         },
     });
 
+    const deleteFamilyMutation = useMutation({
+        mutationFn: () => familyApi.delete(),
+        onSuccess: async () => {
+            queryClient.invalidateQueries({ queryKey: ['family-profile'] });
+            queryClient.invalidateQueries({ queryKey: ['admin-families'] });
+            await refreshSession();
+            message.success('Đã xóa gia đình thành công');
+        },
+        onError: (error: any) => {
+            message.error(error?.response?.data?.message || 'Không thể xóa gia đình');
+        },
+    });
+
     const profileTab = (
         <div className="space-y-6">
             <Card title={<div className="flex items-center gap-2"><User size={18} /><span>Hồ sơ cá nhân</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
@@ -129,46 +141,74 @@ export const Settings = () => {
     );
 
     const familyTab = canViewFamily ? (
-        <Card title={<div className="flex items-center gap-2"><Building2 size={18} /><span>Thông tin gia đình</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
-            <Form form={familyForm} layout="vertical" onFinish={(values) => updateFamilyMutation.mutate(values)}>
-                <Form.Item label="Tên gia đình" name="familyName" rules={[{ required: true, message: 'Vui lòng nhập tên gia đình' }]}>
-                    <Input placeholder="Nhập tên gia đình" disabled={!canUpdateFamily} />
-                </Form.Item>
-                <div className="mb-4 grid grid-cols-1 gap-3 text-sm text-slate-600 md:grid-cols-2 lg:grid-cols-4">
-                    <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Gia đình đang chọn</p>
-                        <p className="mt-1 font-semibold text-slate-800">{activeFamilyName || family?.name || 'Chưa có tên'}</p>
+        <div className="space-y-6">
+            <Card title={<div className="flex items-center gap-2"><Building2 size={18} /><span>Thông tin gia đình</span></div>} className="shadow-sm border-slate-100 rounded-2xl overflow-hidden">
+                <Form form={familyForm} layout="vertical" onFinish={(values) => updateFamilyMutation.mutate(values)}>
+                    <Form.Item label="Tên gia đình" name="familyName" rules={[{ required: true, message: 'Vui lòng nhập tên gia đình' }]}>
+                        <Input placeholder="Nhập tên gia đình" disabled={!canUpdateFamily} />
+                    </Form.Item>
+                    <div className="mb-4 grid grid-cols-1 gap-3 text-sm text-slate-600 md:grid-cols-3">
+                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Gia đình đang chọn</p>
+                            <p className="mt-1 font-semibold text-slate-800">{activeFamilyName || family?.name || 'Chưa có tên'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Trạng thái</p>
+                            <p className="mt-1 font-semibold text-slate-800">{family?.status === 'INACTIVE' ? 'Ngưng hoạt động' : 'Đang hoạt động'}</p>
+                        </div>
+                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Số thành viên</p>
+                            <p className="mt-1 font-semibold text-slate-800">{family?.members?.length ?? 0}</p>
+                        </div>
                     </div>
-                    <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Trạng thái</p>
-                        <p className="mt-1 font-semibold text-slate-800">{family?.status === 'INACTIVE' ? 'Ngưng hoạt động' : 'Đang hoạt động'}</p>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        icon={<Save size={18} />}
+                        title="Lưu tên gia đình"
+                        aria-label="Lưu tên gia đình"
+                        loading={updateFamilyMutation.isPending}
+                        disabled={!canUpdateFamily}
+                    />
+                </Form>
+            </Card>
+
+            {(role === 'FAMILY_ADMIN' || systemRole === 'APP_ADMIN') && (
+                <Card
+                    title={<div className="flex items-center gap-2 text-rose-600 font-semibold"><span>Vùng nguy hiểm: Xóa không gian gia đình</span></div>}
+                    className="shadow-sm border-rose-100 bg-rose-50/20 rounded-2xl overflow-hidden"
+                >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <p className="font-semibold text-slate-800">Xóa vĩnh viễn gia đình này</p>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                {(family?.members?.length ?? 0) > 1
+                                    ? `Gia đình đang có ${family?.members?.length} thành viên. Bạn phải gỡ hết các thành viên khác trước khi có thể xóa gia đình.`
+                                    : 'Xóa toàn bộ dữ liệu, danh mục thu chi, và hồ sơ định cư F4 gắn với gia đình này. Hành động không thể hoàn tác.'}
+                            </p>
+                        </div>
+                        <Button
+                            danger
+                            type="primary"
+                            disabled={(family?.members?.length ?? 0) > 1}
+                            loading={deleteFamilyMutation.isPending}
+                            onClick={() => {
+                                Modal.confirm({
+                                    title: `Xác nhận xóa vĩnh viễn gia đình "${family?.name || activeFamilyName}"?`,
+                                    content: 'Toàn bộ dữ liệu thu chi, hồ sơ định cư, và phân quyền của gia đình này sẽ bị xóa hoàn toàn.',
+                                    okText: 'Xóa vĩnh viễn',
+                                    okType: 'danger',
+                                    cancelText: 'Hủy',
+                                    onOk: () => deleteFamilyMutation.mutate(),
+                                });
+                            }}
+                        >
+                            Xóa gia đình
+                        </Button>
                     </div>
-                    <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Số thành viên</p>
-                        <p className="mt-1 font-semibold text-slate-800">{family?.members?.length ?? 0}</p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Ngày tạo</p>
-                        <p className="mt-1 font-semibold text-slate-800">
-                            {family?.createdAt ? dayjs(family.createdAt).format('DD/MM/YYYY') : 'Không rõ'}
-                        </p>
-                    </div>
-                    <div className="rounded-2xl bg-slate-50 px-4 py-3 md:col-span-2 lg:col-span-4">
-                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Mã gia đình</p>
-                        <p className="mt-1 break-all font-semibold text-slate-800 text-xs">{family?.id || activeFamilyId}</p>
-                    </div>
-                </div>
-                <Button
-                    type="primary"
-                    htmlType="submit"
-                    icon={<Save size={18} />}
-                    title="Lưu tên gia đình"
-                    aria-label="Lưu tên gia đình"
-                    loading={updateFamilyMutation.isPending}
-                    disabled={!canUpdateFamily}
-                />
-            </Form>
-        </Card>
+                </Card>
+            )}
+        </div>
     ) : (
         <p className="text-sm text-slate-400 p-4">Bạn chưa tham gia gia đình nào.</p>
     );

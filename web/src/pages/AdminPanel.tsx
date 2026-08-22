@@ -1,8 +1,8 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, Col, Divider, Row, Select, Table, Tag, Typography, Button, Modal, Form, Input, message } from 'antd';
+import { Card, Col, Divider, Row, Select, Table, Tag, Typography, Button, Modal, Form, Input, Popconfirm, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Building2, ShieldCheck, Users, Plus, UserPlus } from 'lucide-react';
+import { Building2, ShieldCheck, Users, Plus, UserPlus, Pencil, Trash2, UserMinus } from 'lucide-react';
 import { adminApi, type AdminFamily, type AdminUser } from '../api/admin';
 
 const ADMIN_USER_CHUNK = 8;
@@ -26,8 +26,10 @@ export const AdminPanel = () => {
   const [memberVisibleCount, setMemberVisibleCount] = useState(ADMIN_MEMBER_CHUNK);
   const [isCreateFamilyModalOpen, setIsCreateFamilyModalOpen] = useState(false);
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [editingFamily, setEditingFamily] = useState<AdminFamily | null>(null);
   const [createFamilyForm] = Form.useForm();
   const [addMemberForm] = Form.useForm();
+  const [editFamilyForm] = Form.useForm();
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats'],
@@ -57,6 +59,31 @@ export const AdminPanel = () => {
     onError: () => message.error('Không thể tạo gia đình mới'),
   });
 
+  const editFamilyMutation = useMutation({
+    mutationFn: ({ familyId, name }: { familyId: string; name: string }) =>
+      adminApi.updateFamilyProfile(familyId, { name }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-families'] });
+      message.success('Đã cập nhật tên gia đình');
+      setEditingFamily(null);
+      editFamilyForm.resetFields();
+    },
+    onError: () => message.error('Không thể cập nhật tên gia đình'),
+  });
+
+  const deleteFamilyMutation = useMutation({
+    mutationFn: (familyId: string) => adminApi.deleteFamily(familyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-families'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      message.success('Đã xóa gia đình thành công');
+    },
+    onError: (error: any) => {
+      message.error(error?.response?.data?.message || 'Không thể xóa gia đình');
+    },
+  });
+
   const addFamilyMemberMutation = useMutation({
     mutationFn: ({ familyId, userId, role }: { familyId: string; userId: string; role: 'FAMILY_ADMIN' | 'MEMBER' }) =>
       adminApi.addFamilyMember(familyId, { userId, role }),
@@ -69,6 +96,18 @@ export const AdminPanel = () => {
       addMemberForm.resetFields();
     },
     onError: () => message.error('Không thể gán người dùng vào gia đình'),
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: ({ familyId, userId }: { familyId: string; userId: string }) =>
+      adminApi.removeFamilyMember(familyId, userId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-families'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      message.success('Đã gỡ thành viên khỏi gia đình');
+    },
+    onError: () => message.error('Không thể gỡ thành viên khỏi gia đình'),
   });
 
   const updateSystemRoleMutation = useMutation({
@@ -260,6 +299,31 @@ export const AdminPanel = () => {
         />
       ),
     },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      width: 100,
+      render: (_, record) => (
+        <Popconfirm
+          title="Gỡ thành viên khỏi gia đình"
+          description={`Bạn có chắc muốn gỡ "${record.fullName || record.email}" khỏi "${record.familyName}"?`}
+          okText="Gỡ"
+          cancelText="Hủy"
+          okButtonProps={{ danger: true, loading: removeMemberMutation.isPending }}
+          onConfirm={() => removeMemberMutation.mutate({ familyId: record.familyId, userId: record.userId })}
+        >
+          <Button
+            type="text"
+            danger
+            size="small"
+            icon={<UserMinus size={14} />}
+            title="Gỡ khỏi gia đình"
+          >
+            Gỡ
+          </Button>
+        </Popconfirm>
+      ),
+    },
   ];
 
   return (
@@ -267,7 +331,7 @@ export const AdminPanel = () => {
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 font-display">Quản trị ứng dụng</h1>
         <p className="mt-1 text-sm text-slate-500">
-          Xem cấu trúc gia đình, chỉnh vai trò thành viên và cấp quyền APP_ADMIN ở mức hệ thống.
+          Xem cấu trúc gia đình, sửa/xóa gia đình, chỉnh vai trò và cấp quyền APP_ADMIN ở mức hệ thống.
         </p>
       </div>
 
@@ -336,7 +400,7 @@ export const AdminPanel = () => {
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <Typography.Title level={4} className="!mb-1">Gia đình và thành viên</Typography.Title>
-            <Typography.Text type="secondary">App admin có thể tạo gia đình mới, chỉ định chủ hộ, và gán thành viên vào bất kỳ gia đình nào.</Typography.Text>
+            <Typography.Text type="secondary">Quản lý gia đình, sửa tên, xóa gia đình khi không còn thành viên, và gán thành viên.</Typography.Text>
           </div>
           <div className="flex items-center gap-2">
             <Button
@@ -364,17 +428,55 @@ export const AdminPanel = () => {
                   <p className="font-semibold text-slate-900">{family.name}</p>
                   <p className="text-xs text-slate-500">{family.members.length} thành viên</p>
                 </div>
-                <Select
-                  size="small"
-                  value={family.status}
-                  className="w-36"
-                  loading={updateFamilyStatusMutation.isPending}
-                  onChange={(status) => updateFamilyStatusMutation.mutate({ familyId: family.id, status })}
-                  options={[
-                    { value: 'ACTIVE', label: 'Đang hoạt động' },
-                    { value: 'INACTIVE', label: 'Ngưng hoạt động' },
-                  ]}
-                />
+                <div className="flex items-center gap-2">
+                  <Select
+                    size="small"
+                    value={family.status}
+                    className="w-32"
+                    loading={updateFamilyStatusMutation.isPending}
+                    onChange={(status) => updateFamilyStatusMutation.mutate({ familyId: family.id, status })}
+                    options={[
+                      { value: 'ACTIVE', label: 'Hoạt động' },
+                      { value: 'INACTIVE', label: 'Ngưng' },
+                    ]}
+                  />
+                  <Button
+                    size="small"
+                    icon={<Pencil size={13} />}
+                    onClick={() => {
+                      setEditingFamily(family);
+                      editFamilyForm.setFieldsValue({ name: family.name });
+                    }}
+                    title="Sửa tên gia đình"
+                  />
+                  <Popconfirm
+                    title="Xóa gia đình"
+                    description={
+                      family.members.length > 0
+                        ? `Gia đình đang có ${family.members.length} thành viên. Bạn phải gỡ hết thành viên trước khi có thể xóa gia đình.`
+                        : `Bạn có chắc chắn muốn xóa vĩnh viễn gia đình "${family.name}"?`
+                    }
+                    okText={family.members.length > 0 ? 'Đã hiểu' : 'Xóa vĩnh viễn'}
+                    cancelText="Hủy"
+                    okButtonProps={{
+                      danger: family.members.length === 0,
+                      disabled: family.members.length > 0,
+                      loading: deleteFamilyMutation.isPending,
+                    }}
+                    onConfirm={() => {
+                      if (family.members.length === 0) {
+                        deleteFamilyMutation.mutate(family.id);
+                      }
+                    }}
+                  >
+                    <Button
+                      size="small"
+                      danger
+                      icon={<Trash2 size={13} />}
+                      title="Xóa gia đình"
+                    />
+                  </Popconfirm>
+                </div>
               </div>
             </div>
           ))}
@@ -537,6 +639,50 @@ export const AdminPanel = () => {
               className="bg-[#c85f58] hover:bg-[#b04a43]"
             >
               Gán thành viên
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Modal Sửa Tên Gia Đình */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-base font-bold text-slate-800">
+            <Pencil size={18} className="text-[#c85f58]" />
+            <span>Sửa Tên Gia Đình</span>
+          </div>
+        }
+        open={editingFamily !== null}
+        onCancel={() => setEditingFamily(null)}
+        footer={null}
+        centered
+        destroyOnClose
+      >
+        <Form
+          form={editFamilyForm}
+          layout="vertical"
+          onFinish={(values) => {
+            if (editingFamily) {
+              editFamilyMutation.mutate({ familyId: editingFamily.id, name: values.name });
+            }
+          }}
+        >
+          <Form.Item
+            name="name"
+            label="Tên gia đình"
+            rules={[{ required: true, message: 'Vui lòng nhập tên gia đình' }]}
+          >
+            <Input placeholder="Nhập tên mới cho gia đình" size="large" />
+          </Form.Item>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button onClick={() => setEditingFamily(null)}>Hủy</Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={editFamilyMutation.isPending}
+              className="bg-[#c85f58] hover:bg-[#b04a43]"
+            >
+              Lưu thay đổi
             </Button>
           </div>
         </Form>

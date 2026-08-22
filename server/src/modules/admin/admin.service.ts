@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Family, FamilyStatus } from '../../common/entities/family.entity';
@@ -255,6 +255,62 @@ export class AdminService {
       user.lastActiveFamilyId = familyId;
       await this.userRepository.save(user);
     }
+
+    return this.findAllFamilies();
+  }
+
+  async removeMemberFromFamily(familyId: string, userId: string) {
+    const membership = await this.familyUserRepository.findOne({
+      where: { familyId, userId },
+      relations: ['role'],
+    });
+
+    if (!membership) {
+      throw new NotFoundException('Membership not found');
+    }
+
+    await this.familyUserRepository.delete({ familyId, userId });
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (user && user.lastActiveFamilyId === familyId) {
+      const remainingMembership = await this.familyUserRepository.findOne({
+        where: { userId, status: FamilyUserStatus.ACTIVE },
+      });
+      user.lastActiveFamilyId = remainingMembership?.familyId ?? null;
+      await this.userRepository.save(user);
+    }
+
+    return this.findAllFamilies();
+  }
+
+  async deleteFamily(familyId: string) {
+    const family = await this.familyRepository.findOne({ where: { id: familyId } });
+    if (!family) {
+      throw new NotFoundException('Family not found');
+    }
+
+    const activeMembersCount = await this.familyUserRepository.count({
+      where: { familyId, status: FamilyUserStatus.ACTIVE },
+    });
+
+    if (activeMembersCount > 0) {
+      throw new BadRequestException(
+        'Không thể xóa gia đình đang có thành viên. Vui lòng gỡ hết thành viên trước khi xóa gia đình.',
+      );
+    }
+
+    // Dọn dẹp an toàn toàn bộ dữ liệu phụ thuộc của gia đình
+    await this.familyRepository.manager.transaction(async (trx) => {
+      await trx.query(`DELETE FROM invites WHERE "familyId" = $1`, [familyId]);
+      await trx.query(`DELETE FROM family_users WHERE "familyId" = $1`, [familyId]);
+      await trx.query(`DELETE FROM expenses WHERE "familyId" = $1`, [familyId]);
+      await trx.query(`DELETE FROM asset_maintenances WHERE "familyId" = $1`, [familyId]);
+      await trx.query(`DELETE FROM assets WHERE "familyId" = $1`, [familyId]);
+      await trx.query(`DELETE FROM calendar_events WHERE "familyId" = $1`, [familyId]);
+      await trx.query(`DELETE FROM categories WHERE "familyId" = $1`, [familyId]);
+      await trx.query(`DELETE FROM gous_cases WHERE "familyId" = $1`, [familyId]);
+      await trx.delete(Family, { id: familyId });
+    });
 
     return this.findAllFamilies();
   }

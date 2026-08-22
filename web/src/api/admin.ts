@@ -55,6 +55,10 @@ export const adminApi = {
     api.post(`/admin/families/${familyId}/status`, { status }),
   updateFamilyProfile: (familyId: string, data: { name?: string }) =>
     api.patch(`/admin/families/${familyId}`, data),
+  deleteFamily: (familyId: string) =>
+    api.delete<AdminFamily[]>(`/admin/families/${familyId}`),
+  removeFamilyMember: (familyId: string, userId: string) =>
+    api.delete<AdminFamily[]>(`/admin/families/${familyId}/members/${userId}`),
   updateFamilyMemberRole: (familyId: string, userId: string, role: 'FAMILY_ADMIN' | 'MEMBER') =>
     api.post(`/admin/families/${familyId}/members/${userId}/role`, { role }),
   updateSystemRole: (userId: string, systemRole: SystemRole) =>
