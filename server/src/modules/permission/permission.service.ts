@@ -85,6 +85,15 @@ const MEMBER_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> 
 @Injectable()
 export class PermissionService implements OnModuleInit {
   private readonly logger = new Logger(PermissionService.name);
+  // seedSystemPermissions() does ~100 sequential queries (a findOne per
+  // definition/link). It's already run once at boot via onModuleInit; without
+  // this flag, AuthService.validateOAuthUser also re-runs the whole thing on
+  // every single login, on every warm instance, adding seconds of latency
+  // (and risking the Vercel function timeout on a slow connection). Once a
+  // pass completes in this process, later calls are a no-op until the next
+  // cold start (new deploy/instance), which is exactly when re-seeding is
+  // actually needed again (e.g. a new AppModule value).
+  private seedingComplete = false;
 
   constructor(
     @InjectRepository(Permission)
@@ -104,6 +113,10 @@ export class PermissionService implements OnModuleInit {
   }
 
   async seedSystemPermissions() {
+    if (this.seedingComplete) {
+      return;
+    }
+
     const allDefinitions = this.buildPermissionDefinitions();
 
     for (const definition of allDefinitions) {
@@ -154,6 +167,8 @@ export class PermissionService implements OnModuleInit {
         this.logger.error(`Failed to link permissions for role ${template.role}`, err instanceof Error ? err.stack : err);
       }
     }
+
+    this.seedingComplete = true;
   }
 
   async findAllRoleTemplates() {
