@@ -1,22 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { GoUsCase } from './gous-case.entity';
+import { ExpenseCategory, ExpensePaymentStatus } from '../enums/gous.enums';
 
-export enum ExpenseCategory {
-  NVC_GOVERNMENT_FEE = 'NVC_GOVERNMENT_FEE', // Phí NVC chính phủ (AOS, DS-260)
-  MEDICAL_AND_VACCINE = 'MEDICAL_AND_VACCINE', // Khám sức khỏe & Tiêm vắc xin
-  CIVIL_AND_LEGAL_DOCS = 'CIVIL_AND_LEGAL_DOCS', // Dịch thuật, công chứng, làm hộ chiếu, LLTP số 2
-  USCIS_IMMIGRANT_FEE = 'USCIS_IMMIGRANT_FEE', // Phí cấp thẻ xanh $220/người
-  FLIGHT_AND_LOGISTICS = 'FLIGHT_AND_LOGISTICS', // Vé máy bay, hành lý, di chuyển
-  SETTLEMENT_FUNDS = 'SETTLEMENT_FUNDS', // Tiền mặt & tài chính mang theo dự phòng
-  OTHER = 'OTHER',
-}
-
-export enum ExpensePaymentStatus {
-  ESTIMATED = 'ESTIMATED', // Mới dự toán
-  PAID = 'PAID', // Đã thanh toán
-  UNPAID = 'UNPAID', // Cần thanh toán
-}
+export { ExpenseCategory, ExpensePaymentStatus };
 
 @Entity('gous_expenses')
 export class GoUsExpense extends BaseEntity {

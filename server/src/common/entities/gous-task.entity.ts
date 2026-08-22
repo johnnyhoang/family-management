@@ -1,20 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
-import { GoUsCase, GoUsStage } from './gous-case.entity';
+import { GoUsCase } from './gous-case.entity';
+import { GoUsStage, TaskPriority, TaskStatus } from '../enums/gous.enums';
 
-export enum TaskPriority {
-  URGENT = 'URGENT', // Khẩn cấp (Phải làm ngay)
-  HIGH = 'HIGH', // Ưu tiên cao
-  MEDIUM = 'MEDIUM', // Trung bình
-  LOW = 'LOW', // Thấp
-}
-
-export enum TaskStatus {
-  TODO = 'TODO', // Chưa làm
-  IN_PROGRESS = 'IN_PROGRESS', // Đang thực hiện
-  DONE = 'DONE', // Đã hoàn thành
-  SKIPPED = 'SKIPPED', // Bỏ qua / Không áp dụng
-}
+export { TaskPriority, TaskStatus };
 
 @Entity('gous_tasks')
 export class GoUsTask extends BaseEntity {

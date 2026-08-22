@@ -1,22 +1,9 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { GoUsCase } from './gous-case.entity';
+import { MemberRoleInCase, ProcessStatus } from '../enums/gous.enums';
 
-export enum MemberRoleInCase {
-  PRINCIPAL = 'PRINCIPAL', // Đương đơn chính (Chủ gia đình)
-  SPOUSE = 'SPOUSE', // Vợ / Chồng đi kèm
-  CHILD = 'CHILD', // Con đi kèm (Cần theo dõi tuổi CSPA)
-}
-
-export enum ProcessStatus {
-  NOT_STARTED = 'NOT_STARTED',
-  IN_PROGRESS = 'IN_PROGRESS',
-  COMPLETED = 'COMPLETED',
-  EXPIRED = 'EXPIRED',
-  ISSUED = 'ISSUED',
-  PENDING_221G = 'PENDING_221G',
-  NOT_APPLICABLE = 'NOT_APPLICABLE',
-}
+export { MemberRoleInCase, ProcessStatus };
 
 @Entity('gous_members')
 export class GoUsMember extends BaseEntity {

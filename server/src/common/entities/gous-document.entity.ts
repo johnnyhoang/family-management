@@ -2,24 +2,9 @@ import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 import { GoUsCase } from './gous-case.entity';
 import { GoUsMember } from './gous-member.entity';
+import { DocumentCategory, DocumentStatus } from '../enums/gous.enums';
 
-export enum DocumentCategory {
-  CIVIL_IDENTITY = 'CIVIL_IDENTITY', // Giấy tờ tùy thân & Dân sự (Khai sinh, Kết hôn, LLTP2...)
-  FINANCIAL_SUPPORT = 'FINANCIAL_SUPPORT', // Bảo trợ tài chính I-864 (Thuế 3 năm, W2, Việc làm...)
-  RELATIONSHIP_PROOF = 'RELATIONSHIP_PROOF', // Bằng chứng quan hệ huyết thống anh chị em ruột F4
-  MEDICAL_VACCINE = 'MEDICAL_VACCINE', // Khám sức khỏe, Phiếu tiêm chủng
-  INTERVIEW_TRAVEL = 'INTERVIEW_TRAVEL', // Giấy tờ mang đi phỏng vấn, Đăng ký địa chỉ visa, Vé máy bay
-  OTHER = 'OTHER',
-}
-
-export enum DocumentStatus {
-  NOT_PREPARED = 'NOT_PREPARED', // Chưa chuẩn bị
-  ORIGINAL_OBTAINED = 'ORIGINAL_OBTAINED', // Đã có bản gốc
-  TRANSLATED_NOTARIZED = 'TRANSLATED_NOTARIZED', // Đã dịch thuật công chứng tiếng Anh
-  SUBMITTED_NVC = 'SUBMITTED_NVC', // Đã nộp lên CEAC (NVC)
-  READY_FOR_INTERVIEW = 'READY_FOR_INTERVIEW', // Đã sẵn sàng mang đi phỏng vấn
-  EXPIRED = 'EXPIRED', // Đã hết hạn (Cần làm lại)
-}
+export { DocumentCategory, DocumentStatus };
 
 @Entity('gous_documents')
 export class GoUsDocument extends BaseEntity {

@@ -5,20 +5,9 @@ import { GoUsMember } from './gous-member.entity';
 import { GoUsDocument } from './gous-document.entity';
 import { GoUsTask } from './gous-task.entity';
 import { GoUsExpense } from './gous-expense.entity';
+import { GoUsStage } from '../enums/gous.enums';
 
-export enum GoUsStage {
-  USCIS_PETITION = 'USCIS_PETITION', // Nộp đơn I-130 tại USCIS & Chờ chấp thuận
-  NVC_CASE_CREATION = 'NVC_CASE_CREATION', // Chuyển NVC & Cấp Case Number / Invoice ID
-  NVC_FEES = 'NVC_FEES', // Đóng phí NVC (AOS $120 & IV $345/người)
-  DS260_CIVIL_DOCS = 'DS260_CIVIL_DOCS', // Khai DS-260 & Nộp hồ sơ Dân sự + Bảo trợ I-864
-  NVC_DQ = 'NVC_DQ', // NVC xét duyệt & Cấp thư hoàn tất DQ
-  INTERVIEW_LETTER = 'INTERVIEW_LETTER', // Nhận thư mời phỏng vấn (P4 Letter)
-  MEDICAL_VACCINATION = 'MEDICAL_VACCINATION', // Khám sức khỏe & Chích ngừa
-  INTERVIEW_PREP = 'INTERVIEW_PREP', // Đăng ký địa chỉ nhận visa & Chuẩn bị bộ hồ sơ PV
-  INTERVIEW_CONSULATE = 'INTERVIEW_CONSULATE', // Tham gia phỏng vấn tại LSQ Hoa Kỳ (TP.HCM)
-  VISA_ISSUED_USCIS_FEE = 'VISA_ISSUED_USCIS_FEE', // Nhận visa & Đóng phí thẻ xanh USCIS ($220/người)
-  FLIGHT_AND_POE = 'FLIGHT_AND_POE', // Chuẩn bị bay & Nhập cảnh Hoa Kỳ (Port of Entry)
-}
+export { GoUsStage };
 
 @Entity('gous_cases')
 export class GoUsCase extends BaseEntity {
