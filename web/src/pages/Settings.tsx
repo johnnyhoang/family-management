@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { authApi } from '../api/auth';
 import { adminApi } from '../api/admin';
 import { familyApi } from '../api/family';
+import { getFamilyRoleDescription, APP_ADMIN_DESCRIPTION } from '../utils/roleDescriptions';
 import { MemberList } from './MemberList';
 import { CategoryList } from './CategoryList';
 
@@ -126,7 +127,7 @@ export const Settings = () => {
                         <Input placeholder="Tên gọi khác để AI dễ nhận diện" />
                     </Form.Item>
                     <div className="mb-4 grid grid-cols-1 gap-3 text-sm text-slate-600 md:grid-cols-3">
-                        <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                        <div className="rounded-2xl bg-slate-50 px-4 py-3 md:col-span-3">
                             <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Vai trò hiện tại</p>
                             <p className="mt-1 font-semibold text-slate-800">
                                 {systemRole === 'APP_ADMIN' && role !== 'APP_ADMIN'
@@ -134,6 +135,9 @@ export const Settings = () => {
                                     : role === 'FAMILY_ADMIN' ? 'Quản trị gia đình'
                                     : role === 'MEMBER' ? 'Thành viên'
                                     : 'Quản trị ứng dụng'}
+                            </p>
+                            <p className="mt-1 text-xs text-slate-500">
+                                {role === 'FAMILY_ADMIN' || role === 'MEMBER' ? getFamilyRoleDescription(role) : APP_ADMIN_DESCRIPTION}
                             </p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 px-4 py-3">

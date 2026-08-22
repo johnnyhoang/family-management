@@ -1,16 +1,19 @@
 import { Link } from 'react-router-dom';
 import { Menu } from 'lucide-react';
+import { useSession } from '../auth/SessionProvider';
 
 interface MobileHeaderProps {
     onMenuClick: () => void;
 }
 
 export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
+    const { activeFamilyName } = useSession();
+
     return (
         <header className="fixed top-0 left-0 right-0 h-12 bg-[rgba(255,251,247,0.92)] backdrop-blur-md border-b border-[rgba(242,214,197,0.72)] z-40 flex items-center justify-between px-2 lg:hidden shadow-[0_10px_24px_rgba(228,189,167,0.08)]">
             <Link
                 to="/"
-                className="flex items-center gap-2 rounded-2xl outline-offset-2 hover:opacity-90 transition-opacity"
+                className="flex min-w-0 items-center gap-2 rounded-2xl outline-offset-2 hover:opacity-90 transition-opacity"
             >
                 <img
                     src="/logo.svg"
@@ -19,8 +22,11 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                     height={32}
                     className="w-8 h-8 rounded-xl shrink-0 shadow-md shadow-[#f4b6a8]/30"
                 />
-                <div>
-                    <h1 className="font-bold text-[15px] text-[#4f3f37] tracking-tight">Tài sản Gia đình</h1>
+                <div className="min-w-0">
+                    <h1 className="font-bold text-[15px] leading-tight text-[#4f3f37] tracking-tight">Tài sản Gia đình</h1>
+                    {activeFamilyName && (
+                        <p className="truncate text-[11px] leading-tight text-[#9f7d6e]">{activeFamilyName}</p>
+                    )}
                 </div>
             </Link>
 

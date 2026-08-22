@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Select, Modal, Form, Input, Button } from 'antd';
+import { Select, Modal, Form, Input, Button, Tooltip } from 'antd';
 import {
     LayoutDashboard,
     Package,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useSession } from '../auth/SessionProvider';
+import { getFamilyRoleDescription, APP_ADMIN_DESCRIPTION } from '../../utils/roleDescriptions';
 
 const navigation = [
     { name: 'Tổng quan', href: '/', icon: LayoutDashboard, moduleKey: 'DASHBOARD' as const },
@@ -68,6 +69,10 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
             ? 'Quản trị gia đình'
             : 'Thành viên';
 
+    const roleTooltip = systemRole === 'APP_ADMIN' && role !== 'FAMILY_ADMIN' && role !== 'MEMBER'
+        ? APP_ADMIN_DESCRIPTION
+        : getFamilyRoleDescription(role === 'FAMILY_ADMIN' || role === 'MEMBER' ? role : null);
+
     return (
         <aside className="w-64 h-screen flex flex-col p-2 relative bg-[linear-gradient(180deg,rgba(255,251,247,0.96),rgba(255,245,239,0.92))] border-r border-[rgba(242,214,197,0.75)] shadow-[18px_0_50px_rgba(227,188,165,0.12)] backdrop-blur-md">
             <button
@@ -99,7 +104,9 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
 
             <div className="mb-2 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-[0_10px_24px_rgba(237,200,183,0.12)]">
                 <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold text-[#4f3f37]">{roleLabel}</p>
+                    <Tooltip title={roleTooltip} placement="bottomLeft">
+                        <p className="text-xs font-semibold text-[#4f3f37] underline decoration-dotted decoration-[#c9a894] underline-offset-2 cursor-help">{roleLabel}</p>
+                    </Tooltip>
                     <button
                         type="button"
                         onClick={() => setIsCreateModalOpen(true)}
