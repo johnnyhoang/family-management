@@ -11,6 +11,7 @@ export enum AppModule {
   CALENDAR = 'CALENDAR',
   ASSET = 'ASSET',
   TRANSACTION = 'TRANSACTION',
+  GOUS = 'GOUS',
 }
 
 export enum PermissionAction {

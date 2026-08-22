@@ -3,13 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { authApi, type FamilyRole, type SessionMembership, type SessionResponse, type SessionUser, type SystemRole } from '../../api/auth';
 
-type ModuleKey = 'DASHBOARD' | 'CATEGORY' | 'CALENDAR' | 'ASSET' | 'TRANSACTION' | 'USER' | 'FAMILY' | 'PERMISSION' | 'ADMIN';
+type ModuleKey = 'DASHBOARD' | 'CATEGORY' | 'CALENDAR' | 'ASSET' | 'TRANSACTION' | 'USER' | 'FAMILY' | 'PERMISSION' | 'ADMIN' | 'GOUS';
 type PermissionAction = 'view' | 'create' | 'update' | 'delete';
 
 type PermissionMatrix = Record<Exclude<FamilyRole, null>, Partial<Record<ModuleKey, PermissionAction[]>>>;
 
 const SYSTEM_SCOPED_MODULES = new Set<ModuleKey>(['ADMIN', 'PERMISSION']);
-const FAMILY_SCOPED_MODULES = new Set<ModuleKey>(['FAMILY', 'USER', 'DASHBOARD', 'CATEGORY', 'CALENDAR', 'ASSET', 'TRANSACTION']);
+const FAMILY_SCOPED_MODULES = new Set<ModuleKey>(['FAMILY', 'USER', 'DASHBOARD', 'CATEGORY', 'CALENDAR', 'ASSET', 'TRANSACTION', 'GOUS']);
 
 const ROLE_PERMISSIONS: PermissionMatrix = {
   APP_ADMIN: {
@@ -26,6 +26,7 @@ const ROLE_PERMISSIONS: PermissionMatrix = {
     CALENDAR: ['view', 'create', 'update', 'delete'],
     ASSET: ['view', 'create', 'update', 'delete'],
     TRANSACTION: ['view', 'create', 'update', 'delete'],
+    GOUS: ['view', 'create', 'update', 'delete'],
   },
   MEMBER: {
     FAMILY: ['view'],
@@ -35,6 +36,7 @@ const ROLE_PERMISSIONS: PermissionMatrix = {
     CALENDAR: ['view', 'create', 'update', 'delete'],
     ASSET: ['view', 'create', 'update', 'delete'],
     TRANSACTION: ['view', 'create', 'update', 'delete'],
+    GOUS: ['view', 'create', 'update', 'delete'],
   },
 };
 

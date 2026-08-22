@@ -22,6 +22,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CalendarModule } from './modules/calendar/calendar.module';
 import { NaturalInputModule } from './modules/natural-input/natural-input.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
+import { GoUsModule } from './modules/gous/gous.module';
 
 @Module({
   imports: [
@@ -97,6 +98,7 @@ import { MaintenanceModule } from './modules/maintenance/maintenance.module';
     CalendarModule,
     NaturalInputModule,
     MaintenanceModule,
+    GoUsModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

@@ -21,6 +21,7 @@ const LoginSuccess = lazy(() => import('./pages/LoginSuccess').then((module) => 
 const Settings = lazy(() => import('./pages/Settings').then((module) => ({ default: module.Settings })));
 const CalendarPage = lazy(() => import('./pages/CalendarPage').then((module) => ({ default: module.CalendarPage })));
 const AdminPanel = lazy(() => import('./pages/AdminPanel').then((module) => ({ default: module.AdminPanel })));
+const GoUsPortal = lazy(() => import('./pages/GoUsPortal').then((module) => ({ default: module.GoUsPortal })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -84,6 +85,7 @@ function AppShell() {
             <Route element={<AuthGuard />}>
               <Route path="/" element={<MainLayout />}>
                 <Route index element={<HomePage />} />
+                <Route path="gous" element={<ProtectedPage moduleKey="GOUS"><GoUsPortal /></ProtectedPage>} />
                 <Route path="assets" element={<ProtectedPage moduleKey="ASSET"><AssetList /></ProtectedPage>} />
                 <Route path="maintenance" element={<ProtectedPage moduleKey="ASSET"><MaintenanceList /></ProtectedPage>} />
                 <Route path="expenses" element={<ProtectedPage moduleKey="TRANSACTION"><ExpenseList /></ProtectedPage>} />
