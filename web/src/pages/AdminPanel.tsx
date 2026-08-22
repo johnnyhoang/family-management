@@ -1,8 +1,8 @@
 import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card, Col, Divider, Row, Select, Table, Tag, Typography, message } from 'antd';
+import { Card, Col, Divider, Row, Select, Table, Tag, Typography, Button, Modal, Form, Input, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { Building2, ShieldCheck, Users } from 'lucide-react';
+import { Building2, ShieldCheck, Users, Plus, UserPlus } from 'lucide-react';
 import { adminApi, type AdminFamily, type AdminUser } from '../api/admin';
 
 const ADMIN_USER_CHUNK = 8;
@@ -24,6 +24,10 @@ export const AdminPanel = () => {
   const queryClient = useQueryClient();
   const [userVisibleCount, setUserVisibleCount] = useState(ADMIN_USER_CHUNK);
   const [memberVisibleCount, setMemberVisibleCount] = useState(ADMIN_MEMBER_CHUNK);
+  const [isCreateFamilyModalOpen, setIsCreateFamilyModalOpen] = useState(false);
+  const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
+  const [createFamilyForm] = Form.useForm();
+  const [addMemberForm] = Form.useForm();
 
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['admin-stats'],
@@ -38,6 +42,33 @@ export const AdminPanel = () => {
   const { data: families, isLoading: familiesLoading } = useQuery({
     queryKey: ['admin-families'],
     queryFn: () => adminApi.getFamilies().then((res) => res.data),
+  });
+
+  const createFamilyMutation = useMutation({
+    mutationFn: (data: { name: string; adminUserId?: string }) => adminApi.createFamily(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-families'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      message.success('Đã tạo gia đình mới thành công');
+      setIsCreateFamilyModalOpen(false);
+      createFamilyForm.resetFields();
+    },
+    onError: () => message.error('Không thể tạo gia đình mới'),
+  });
+
+  const addFamilyMemberMutation = useMutation({
+    mutationFn: ({ familyId, userId, role }: { familyId: string; userId: string; role: 'FAMILY_ADMIN' | 'MEMBER' }) =>
+      adminApi.addFamilyMember(familyId, { userId, role }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-families'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+      message.success('Đã gán người dùng vào gia đình thành công');
+      setIsAddMemberModalOpen(false);
+      addMemberForm.resetFields();
+    },
+    onError: () => message.error('Không thể gán người dùng vào gia đình'),
   });
 
   const updateSystemRoleMutation = useMutation({
@@ -302,10 +333,26 @@ export const AdminPanel = () => {
       </Card>
 
       <Card className="glass-card">
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <div>
             <Typography.Title level={4} className="!mb-1">Gia đình và thành viên</Typography.Title>
-            <Typography.Text type="secondary">App admin có thể đổi trạng thái gia đình và vai trò family cho mọi membership.</Typography.Text>
+            <Typography.Text type="secondary">App admin có thể tạo gia đình mới, chỉ định chủ hộ, và gán thành viên vào bất kỳ gia đình nào.</Typography.Text>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              type="primary"
+              icon={<Plus size={14} />}
+              className="bg-[#c85f58] hover:bg-[#b04a43]"
+              onClick={() => setIsCreateFamilyModalOpen(true)}
+            >
+              Tạo gia đình mới
+            </Button>
+            <Button
+              icon={<UserPlus size={14} />}
+              onClick={() => setIsAddMemberModalOpen(true)}
+            >
+              Gán thành viên
+            </Button>
           </div>
         </div>
 
@@ -346,6 +393,154 @@ export const AdminPanel = () => {
           size="small"
         />
       </Card>
+
+      {/* Modal Tạo Gia Đình Mới */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-base font-bold text-slate-800">
+            <Building2 size={18} className="text-[#c85f58]" />
+            <span>Tạo Gia Đình Mới (Quyền Quản Trị Hệ Thống)</span>
+          </div>
+        }
+        open={isCreateFamilyModalOpen}
+        onCancel={() => setIsCreateFamilyModalOpen(false)}
+        footer={null}
+        centered
+        destroyOnClose
+      >
+        <p className="text-xs text-slate-500 mb-4">
+          Tạo một gia đình mới trong hệ thống và tùy chọn chỉ định một người dùng làm Chủ hộ / Quản trị gia đình (FAMILY_ADMIN).
+        </p>
+        <Form
+          form={createFamilyForm}
+          layout="vertical"
+          onFinish={(values) => createFamilyMutation.mutate(values)}
+        >
+          <Form.Item
+            name="name"
+            label="Tên gia đình"
+            rules={[{ required: true, message: 'Vui lòng nhập tên gia đình' }]}
+          >
+            <Input placeholder="Ví dụ: Gia đình Nguyễn Văn C" size="large" />
+          </Form.Item>
+          <Form.Item
+            name="adminUserId"
+            label="Chỉ định Chủ hộ / Quản trị viên (Tùy chọn)"
+            tooltip="Người dùng được chọn sẽ có quyền Quản trị viên (FAMILY_ADMIN) của gia đình này"
+          >
+            <Select
+              placeholder="Chọn người dùng làm Quản trị gia đình"
+              size="large"
+              allowClear
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={(users ?? []).map((u) => ({
+                value: u.id,
+                label: `${u.fullName || 'Chưa đặt tên'} (${u.email})`,
+              }))}
+            />
+          </Form.Item>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button onClick={() => setIsCreateFamilyModalOpen(false)}>Hủy</Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={createFamilyMutation.isPending}
+              className="bg-[#c85f58] hover:bg-[#b04a43]"
+            >
+              Tạo gia đình
+            </Button>
+          </div>
+        </Form>
+      </Modal>
+
+      {/* Modal Gán Thành Viên Vào Gia Đình */}
+      <Modal
+        title={
+          <div className="flex items-center gap-2 text-base font-bold text-slate-800">
+            <UserPlus size={18} className="text-[#c85f58]" />
+            <span>Gán Người Dùng Vào Gia Đình</span>
+          </div>
+        }
+        open={isAddMemberModalOpen}
+        onCancel={() => setIsAddMemberModalOpen(false)}
+        footer={null}
+        centered
+        destroyOnClose
+      >
+        <p className="text-xs text-slate-500 mb-4">
+          Chỉ định trực tiếp bất kỳ tài khoản người dùng nào vào một gia đình với vai trò cụ thể.
+        </p>
+        <Form
+          form={addMemberForm}
+          layout="vertical"
+          initialValues={{ role: 'MEMBER' }}
+          onFinish={(values) => addFamilyMemberMutation.mutate(values)}
+        >
+          <Form.Item
+            name="familyId"
+            label="Chọn Gia đình"
+            rules={[{ required: true, message: 'Vui lòng chọn gia đình' }]}
+          >
+            <Select
+              placeholder="Chọn gia đình"
+              size="large"
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={(families ?? []).map((f) => ({
+                value: f.id,
+                label: f.name,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="userId"
+            label="Chọn Người dùng"
+            rules={[{ required: true, message: 'Vui lòng chọn người dùng' }]}
+          >
+            <Select
+              placeholder="Chọn người dùng"
+              size="large"
+              showSearch
+              filterOption={(input, option) =>
+                (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+              }
+              options={(users ?? []).map((u) => ({
+                value: u.id,
+                label: `${u.fullName || 'Chưa đặt tên'} (${u.email})`,
+              }))}
+            />
+          </Form.Item>
+          <Form.Item
+            name="role"
+            label="Vai trò trong gia đình"
+            rules={[{ required: true, message: 'Vui lòng chọn vai trò' }]}
+          >
+            <Select
+              size="large"
+              options={[
+                { value: 'FAMILY_ADMIN', label: 'Quản trị gia đình (Chủ hộ)' },
+                { value: 'MEMBER', label: 'Thành viên' },
+              ]}
+            />
+          </Form.Item>
+          <div className="flex justify-end gap-2 mt-6">
+            <Button onClick={() => setIsAddMemberModalOpen(false)}>Hủy</Button>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={addFamilyMemberMutation.isPending}
+              className="bg-[#c85f58] hover:bg-[#b04a43]"
+            >
+              Gán thành viên
+            </Button>
+          </div>
+        </Form>
+      </Modal>
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { Family, FamilyStatus } from '../../common/entities/family.entity';
 import { SystemRole, User, UserRole } from '../../common/entities/user.entity';
 import { FamilyUser, FamilyUserStatus } from '../../common/entities/family-user.entity';
 import { Role } from '../../common/entities/role.entity';
+import { CategoryService } from '../category/category.service';
 
 @Injectable()
 export class AdminService {
@@ -17,6 +18,7 @@ export class AdminService {
     private familyUserRepository: Repository<FamilyUser>,
     @InjectRepository(Role)
     private roleRepository: Repository<Role>,
+    private categoryService: CategoryService,
   ) {}
 
   async findAllFamilies() {
@@ -176,6 +178,85 @@ export class AdminService {
       totalUsers,
       totalMemberships,
     };
+  }
+
+  async createFamilyByAdmin(name: string, adminUserId?: string) {
+    const family = await this.familyRepository.save(
+      this.familyRepository.create({
+        name: name.trim(),
+        status: FamilyStatus.ACTIVE,
+      }),
+    );
+
+    await this.categoryService.ensureDefaultIncomeCategories(family.id);
+
+    if (adminUserId) {
+      const user = await this.userRepository.findOne({ where: { id: adminUserId } });
+      if (user) {
+        const familyAdminRole = await this.roleRepository.findOne({
+          where: { code: UserRole.FAMILY_ADMIN },
+        });
+
+        if (familyAdminRole) {
+          await this.familyUserRepository.save(
+            this.familyUserRepository.create({
+              familyId: family.id,
+              userId: user.id,
+              roleId: familyAdminRole.id,
+              status: FamilyUserStatus.ACTIVE,
+            }),
+          );
+
+          if (!user.lastActiveFamilyId) {
+            user.lastActiveFamilyId = family.id;
+            await this.userRepository.save(user);
+          }
+        }
+      }
+    }
+
+    return this.findAllFamilies();
+  }
+
+  async addMemberToFamily(familyId: string, userId: string, roleCode: UserRole) {
+    if (roleCode === UserRole.APP_ADMIN) {
+      throw new ForbiddenException('APP_ADMIN is a system role, not a family membership role');
+    }
+
+    const family = await this.familyRepository.findOne({ where: { id: familyId } });
+    if (!family) throw new NotFoundException('Family not found');
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    const role = await this.roleRepository.findOne({ where: { code: roleCode } });
+    if (!role) throw new NotFoundException(`Role ${roleCode} not found`);
+
+    let membership = await this.familyUserRepository.findOne({
+      where: { familyId, userId },
+    });
+
+    if (membership) {
+      membership.roleId = role.id;
+      membership.status = FamilyUserStatus.ACTIVE;
+      await this.familyUserRepository.save(membership);
+    } else {
+      membership = await this.familyUserRepository.save(
+        this.familyUserRepository.create({
+          familyId,
+          userId,
+          roleId: role.id,
+          status: FamilyUserStatus.ACTIVE,
+        }),
+      );
+    }
+
+    if (!user.lastActiveFamilyId) {
+      user.lastActiveFamilyId = familyId;
+      await this.userRepository.save(user);
+    }
+
+    return this.findAllFamilies();
   }
 
   private async ensureFamilyKeepsAdmin(familyId: string) {

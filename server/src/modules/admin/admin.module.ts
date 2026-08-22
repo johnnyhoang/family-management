@@ -7,11 +7,13 @@ import { Role } from '../../common/entities/role.entity';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
 import { PermissionModule } from '../permission/permission.module';
+import { CategoryModule } from '../category/category.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([User, Family, FamilyUser, Role]),
     PermissionModule,
+    CategoryModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],
