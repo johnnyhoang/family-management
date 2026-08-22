@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, UseGuards, Req, Res, Post, Body } from '@nestjs/common';
+import { Controller, Get, Patch, UseGuards, Req, Res, Post, Body, Param } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -73,5 +73,11 @@ export class AuthController {
   @ApiOperation({ summary: 'Accept a family invite token' })
   async acceptInvite(@Req() req, @Body('token') token: string) {
     return this.authService.acceptInvite(req.user.id, token);
+  }
+
+  @Get('invite/:token')
+  @ApiOperation({ summary: 'Preview an invite before logging in (public, no auth required)' })
+  async previewInvite(@Param('token') token: string) {
+    return this.authService.previewInvite(token);
   }
 }

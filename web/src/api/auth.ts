@@ -34,4 +34,6 @@ export const authApi = {
   switchFamily: (familyId: string) => api.post<SessionResponse>('/auth/switch-family', { familyId }),
   createFamily: (name?: string) => api.post<SessionResponse>('/auth/create-family', { name }),
   acceptInvite: (token: string) => api.post<SessionResponse>('/auth/accept-invite', { token }),
+  previewInvite: (token: string) =>
+    api.get<{ email: string; familyName: string | null; role: FamilyRole; isExpired: boolean; status: string }>(`/auth/invite/${token}`),
 };

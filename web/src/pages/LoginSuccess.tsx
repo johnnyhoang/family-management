@@ -9,7 +9,13 @@ export const LoginSuccess = () => {
         const token = searchParams.get('token');
         if (token) {
             localStorage.setItem('token', token);
-            navigate('/', { replace: true });
+            const pendingInviteToken = localStorage.getItem('pendingInviteToken');
+            if (pendingInviteToken) {
+                localStorage.removeItem('pendingInviteToken');
+                navigate(`/accept-invite?token=${pendingInviteToken}`, { replace: true });
+            } else {
+                navigate('/', { replace: true });
+            }
         } else {
             navigate('/login', { replace: true });
         }

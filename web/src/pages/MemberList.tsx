@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useMutation, useQueryClient, useInfiniteQuery } from '@tanstack/react-query';
 import { Table, Button, Modal, Form, Input, Select, Space, Tag, message, Avatar, Spin } from 'antd';
-import { UserPlus, Shield, Copy, Mail, Users, X, Check, Trash2, Send } from 'lucide-react';
+import { UserPlus, Shield, Copy, Mail, Users, X, Check, Trash2, Send, Link2, CopyPlus } from 'lucide-react';
 import { userApi } from '../api/user';
 import type { User } from '../api/user';
 import { useSession } from '../components/auth/SessionProvider';
@@ -15,6 +15,7 @@ export const MemberList = () => {
     const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
     const [editingUser, setEditingUser] = useState<User | null>(null);
+    const [inviteLink, setInviteLink] = useState<string | null>(null);
     const [form] = Form.useForm();
     const [editForm] = Form.useForm();
 
@@ -53,16 +54,26 @@ export const MemberList = () => {
     const inviteMutation = useMutation({
         mutationFn: (values: { email: string; role: string; fullName: string }) =>
             userApi.invite(values.email, values.role, values.fullName),
-        onSuccess: () => {
+        onSuccess: (res) => {
             queryClient.invalidateQueries({ queryKey: ['members'] });
-            message.success('Đã gửi lời mời tham gia gia đình');
-            setIsInviteModalOpen(false);
-            form.resetFields();
+            setInviteLink(`${window.location.origin}/accept-invite?token=${res.data.token}`);
         },
-        onError: () => {
-            message.error('Không thể gửi lời mời. Vui lòng kiểm tra lại email.');
+        onError: (error: any) => {
+            message.error(error?.response?.data?.message || 'Không thể tạo lời mời. Vui lòng kiểm tra lại email.');
         },
     });
+
+    const copyInviteLink = () => {
+        if (!inviteLink) return;
+        navigator.clipboard.writeText(inviteLink);
+        message.success('Đã sao chép đường dẫn mời');
+    };
+
+    const closeInviteModal = () => {
+        setIsInviteModalOpen(false);
+        setInviteLink(null);
+        form.resetFields();
+    };
 
     const updateMutation = useMutation({
         mutationFn: ({ id, data }: { id: string; data: Partial<User> }) => userApi.update(id, data),
@@ -146,17 +157,19 @@ export const MemberList = () => {
             dataIndex: 'role',
             key: 'role',
             render: (role: string, record: User) => (
-                <Select
-                    value={role}
-                    size="small"
-                    className="w-32"
-                    disabled={!canManageMembers}
-                    onChange={(val) => updateRoleMutation.mutate({ id: record.id, role: val })}
-                    options={[
-                        { value: 'FAMILY_ADMIN', label: 'Quản trị viên' },
-                        { value: 'MEMBER', label: 'Thành viên' },
-                    ]}
-                />
+                <span onClick={(e) => e.stopPropagation()}>
+                    <Select
+                        value={role}
+                        size="small"
+                        className="w-32"
+                        disabled={!canManageMembers}
+                        onChange={(val) => updateRoleMutation.mutate({ id: record.id, role: val })}
+                        options={[
+                            { value: 'FAMILY_ADMIN', label: 'Quản trị viên' },
+                            { value: 'MEMBER', label: 'Thành viên' },
+                        ]}
+                    />
+                </span>
             ),
             sorter: (a: User, b: User) => (a.role || '').localeCompare(b.role || ''),
         },
@@ -183,9 +196,9 @@ export const MemberList = () => {
                     <Button
                         type="text"
                         disabled={!canManageMembers}
-                        icon={<Copy size={16} />}
-                        title="Sao chép để mời (họ tên và vai trò)"
-                        aria-label="Sao chép để mời"
+                        icon={<CopyPlus size={16} />}
+                        title="Mời người khác với vai trò tương tự"
+                        aria-label="Mời người khác với vai trò tương tự"
                         onClick={(e) => openInviteFromMemberCopy(record, e)}
                     />
                 </Space>
@@ -321,69 +334,85 @@ export const MemberList = () => {
             </Modal>
 
             <Modal
-                title="Mời thành viên mới"
+                title={inviteLink ? 'Lời mời đã sẵn sàng' : 'Mời thành viên mới'}
                 open={isInviteModalOpen}
                 forceRender
-                onCancel={() => {
-                    setIsInviteModalOpen(false);
-                    form.resetFields();
-                }}
-                confirmLoading={inviteMutation.isPending}
-                footer={[
+                onCancel={closeInviteModal}
+                footer={inviteLink ? [
+                    <Button key="done" type="primary" onClick={closeInviteModal}>
+                        Xong
+                    </Button>,
+                ] : [
                     <Button
                         key="cancel"
                         type="text"
                         icon={<X size={18} />}
                         title="Hủy"
                         aria-label="Hủy"
-                        onClick={() => { setIsInviteModalOpen(false); form.resetFields(); }}
+                        onClick={closeInviteModal}
                     />,
                     <Button
                         key="submit"
                         type="primary"
                         icon={<Send size={18} />}
-                        title="Gửi lời mời"
-                        aria-label="Gửi lời mời"
+                        title="Tạo lời mời"
+                        aria-label="Tạo lời mời"
                         onClick={() => form.submit()}
                         loading={inviteMutation.isPending}
                     />,
                 ]}
             >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onFinish={(values) => inviteMutation.mutate(values)}
-                    className="mt-4"
-                >
-                    <Form.Item
-                        name="fullName"
-                        label="Họ và tên"
-                    >
-                        <Input prefix={<Users size={16} className="text-slate-400 mr-2" />} placeholder="Nguyễn Văn A" />
-                    </Form.Item>
-                    <Form.Item
-                        name="email"
-                        label="Địa chỉ Email"
-                        rules={[{ required: true, type: 'email' }]}
-                    >
-                        <Input prefix={<Mail size={16} className="text-slate-400 mr-2" />} placeholder="member@example.com" />
-                    </Form.Item>
-                    <Form.Item
-                        name="role"
-                        label="Vai trò"
-                        rules={[{ required: true }]}
-                        initialValue="MEMBER"
-                    >
-                        <Select options={[
-                            { value: 'FAMILY_ADMIN', label: 'Quản trị viên (Toàn quyền)' },
-                            { value: 'MEMBER', label: 'Thành viên (Theo quyền mẫu của gia đình)' },
-                        ]} />
-                    </Form.Item>
-                    <div className="bg-sky-50 p-3 rounded-lg flex gap-3 text-sky-700 text-sm">
-                        <Shield size={18} className="flex-shrink-0" />
-                        <p>Hệ thống sẽ tạo lời mời theo email và người nhận cần đăng nhập bằng Google để chấp nhận tham gia gia đình.</p>
+                {inviteLink ? (
+                    <div className="mt-4 space-y-4">
+                        <div className="bg-emerald-50 p-3 rounded-lg flex gap-3 text-emerald-700 text-sm">
+                            <Check size={18} className="flex-shrink-0" />
+                            <p>Gửi đường dẫn này cho người bạn muốn mời (qua Zalo, tin nhắn...). Họ chỉ cần đăng nhập bằng Google để tham gia.</p>
+                        </div>
+                        <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                            <Link2 size={16} className="flex-shrink-0 text-slate-400" />
+                            <span className="flex-1 truncate text-sm text-slate-600">{inviteLink}</span>
+                        </div>
+                        <Button block icon={<Copy size={16} />} onClick={copyInviteLink}>
+                            Sao chép đường dẫn
+                        </Button>
                     </div>
-                </Form>
+                ) : (
+                    <Form
+                        form={form}
+                        layout="vertical"
+                        onFinish={(values) => inviteMutation.mutate(values)}
+                        className="mt-4"
+                    >
+                        <Form.Item
+                            name="fullName"
+                            label="Họ và tên"
+                        >
+                            <Input prefix={<Users size={16} className="text-slate-400 mr-2" />} placeholder="Nguyễn Văn A" />
+                        </Form.Item>
+                        <Form.Item
+                            name="email"
+                            label="Địa chỉ Email"
+                            rules={[{ required: true, type: 'email' }]}
+                        >
+                            <Input prefix={<Mail size={16} className="text-slate-400 mr-2" />} placeholder="member@example.com" />
+                        </Form.Item>
+                        <Form.Item
+                            name="role"
+                            label="Vai trò"
+                            rules={[{ required: true }]}
+                            initialValue="MEMBER"
+                        >
+                            <Select options={[
+                                { value: 'FAMILY_ADMIN', label: 'Quản trị viên (Toàn quyền)' },
+                                { value: 'MEMBER', label: 'Thành viên (Theo quyền mẫu của gia đình)' },
+                            ]} />
+                        </Form.Item>
+                        <div className="bg-sky-50 p-3 rounded-lg flex gap-3 text-sky-700 text-sm">
+                            <Shield size={18} className="flex-shrink-0" />
+                            <p>Bạn sẽ nhận được một đường dẫn mời để gửi tay cho người nhận (qua Zalo, tin nhắn...). Họ cần đăng nhập bằng Google với đúng email này để tham gia.</p>
+                        </div>
+                    </Form>
+                )}
             </Modal>
         </div>
     );

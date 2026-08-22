@@ -74,7 +74,20 @@ export class AuthService {
     });
 
     if (memberships.length === 0 && user.systemRole !== SystemRole.APP_ADMIN) {
-      await this.createDefaultFamilyForUser(user);
+      // A brand-new user with a pending invite waiting should join that
+      // family, not get a throwaway "Gia đình của X" created out from under
+      // them the moment they log in before ever seeing the invite link.
+      const pendingInvite = await this.inviteRepository.findOne({
+        where: { email: profile.email.toLowerCase(), status: InviteStatus.PENDING },
+        relations: ['role', 'family'],
+      });
+
+      if (pendingInvite && pendingInvite.expiresAt.getTime() >= Date.now()) {
+        await this.applyInvite(user, pendingInvite);
+      } else {
+        await this.createDefaultFamilyForUser(user);
+      }
+
       memberships = await this.familyUserRepository.find({
         where: { userId: user.id, status: FamilyUserStatus.ACTIVE },
         relations: ['role', 'family'],
@@ -131,6 +144,27 @@ export class AuthService {
     return this.getSessionProfile(userId, familyId);
   }
 
+  async previewInvite(token: string) {
+    const invite = await this.inviteRepository.findOne({
+      where: { token },
+      relations: ['role', 'family'],
+    });
+
+    if (!invite) {
+      throw new NotFoundException('Lời mời không tồn tại hoặc đã bị hủy');
+    }
+
+    const isExpired = invite.status !== InviteStatus.PENDING || invite.expiresAt.getTime() < Date.now();
+
+    return {
+      email: invite.email,
+      familyName: invite.family?.name ?? null,
+      role: invite.role?.code ?? null,
+      isExpired,
+      status: invite.status,
+    };
+  }
+
   async acceptInvite(userId: string, token: string) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) {
@@ -156,9 +190,19 @@ export class AuthService {
       throw new UnauthorizedException('Invite has expired');
     }
 
+    await this.applyInvite(user, invite);
+
+    return this.getSessionProfile(userId, invite.familyId);
+  }
+
+  // Shared by acceptInvite (explicit token from the accept-invite page) and
+  // validateOAuthUser (a brand-new user whose email already has a pending
+  // invite waiting -- so they join that family instead of getting a throwaway
+  // default one created out from under them).
+  private async applyInvite(user: User, invite: Invite): Promise<void> {
     const existingMembership = await this.familyUserRepository.findOne({
       where: {
-        userId,
+        userId: user.id,
         familyId: invite.familyId,
       },
     });
@@ -166,7 +210,7 @@ export class AuthService {
     if (!existingMembership) {
       await this.familyUserRepository.save(this.familyUserRepository.create({
         familyId: invite.familyId,
-        userId,
+        userId: user.id,
         roleId: invite.roleId,
         status: FamilyUserStatus.ACTIVE,
         invitedByUserId: invite.invitedByUserId,
@@ -179,14 +223,17 @@ export class AuthService {
     }
 
     invite.status = InviteStatus.ACCEPTED;
-    invite.acceptedByUserId = userId;
+    invite.acceptedByUserId = user.id;
     await this.inviteRepository.save(invite);
 
     user.lastActiveFamilyId = invite.familyId;
     await this.userRepository.save(user);
-    await this.categoryService.ensureDefaultIncomeCategories(invite.familyId);
 
-    return this.getSessionProfile(userId, invite.familyId);
+    try {
+      await this.categoryService.ensureDefaultIncomeCategories(invite.familyId);
+    } catch (err) {
+      this.logger.error('ensureDefaultIncomeCategories failed when accepting invite', err instanceof Error ? err.stack : err);
+    }
   }
 
   async listUserFamilies(userId: string) {

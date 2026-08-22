@@ -19,6 +19,7 @@ const MemberList = lazy(() => import('./pages/MemberList').then((module) => ({ d
 const CategoryList = lazy(() => import('./pages/CategoryList').then((module) => ({ default: module.CategoryList })));
 const Login = lazy(() => import('./pages/Login').then((module) => ({ default: module.Login })));
 const LoginSuccess = lazy(() => import('./pages/LoginSuccess').then((module) => ({ default: module.LoginSuccess })));
+const AcceptInvite = lazy(() => import('./pages/AcceptInvite').then((module) => ({ default: module.AcceptInvite })));
 const Settings = lazy(() => import('./pages/Settings').then((module) => ({ default: module.Settings })));
 const CalendarPage = lazy(() => import('./pages/CalendarPage').then((module) => ({ default: module.CalendarPage })));
 const AdminPanel = lazy(() => import('./pages/AdminPanel').then((module) => ({ default: module.AdminPanel })));
@@ -82,6 +83,7 @@ function AppShell() {
           <Routes>
             <Route path="/login" element={<Login />} />
             <Route path="/login-success" element={<LoginSuccess />} />
+            <Route path="/accept-invite" element={<AcceptInvite />} />
 
             <Route element={<AuthGuard />}>
               <Route path="/gous" element={<GoUsLayout />}>
