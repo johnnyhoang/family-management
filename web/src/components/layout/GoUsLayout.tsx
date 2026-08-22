@@ -22,7 +22,7 @@ export const GoUsLayout = () => {
                     <Link
                         to="/"
                         title="Về Tài sản Gia đình"
-                        className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                        className="flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 hover:text-slate-700 transition-colors"
                     >
                         <ArrowLeft size={16} />
                         <span className="hidden sm:inline">Tài sản Gia đình</span>
@@ -50,7 +50,7 @@ export const GoUsLayout = () => {
                         onClick={handleLogout}
                         title="Đăng xuất"
                         aria-label="Đăng xuất"
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-400 hover:bg-slate-100 hover:text-rose-500 transition-colors"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-slate-600 hover:bg-slate-100 hover:text-rose-500 transition-colors"
                     >
                         <LogOut size={16} />
                     </button>

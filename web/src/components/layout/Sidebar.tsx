@@ -77,7 +77,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
         <aside className="w-64 h-screen flex flex-col p-2 relative bg-[linear-gradient(180deg,rgba(255,251,247,0.96),rgba(255,245,239,0.92))] border-r border-[rgba(242,214,197,0.75)] shadow-[18px_0_50px_rgba(227,188,165,0.12)] backdrop-blur-md">
             <button
                 onClick={onClose}
-                className="absolute top-4 right-4 p-2 lg:hidden text-[#9f7d6e] hover:text-[#7e5f52] hover:bg-white rounded-xl transition-colors"
+                className="absolute top-4 right-4 p-2 lg:hidden text-[#5c4437] hover:text-[#4a3a34] hover:bg-white rounded-xl transition-colors"
                 aria-label="Đóng thanh bên"
             >
                 <X size={20} />
@@ -136,7 +136,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                     />
                 ) : (
                     <div className="mt-1">
-                        <p className="text-xs text-[#8c6d61]">{activeFamilyName || 'Chưa có gia đình'}</p>
+                        <p className="text-xs text-[#5c4437]">{activeFamilyName || 'Chưa có gia đình'}</p>
                         <Button
                             type="dashed"
                             size="small"
@@ -163,7 +163,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                 centered
                 destroyOnClose
             >
-                <p className="text-xs text-slate-500 mb-4">
+                <p className="text-xs text-slate-700 mb-4">
                     Tạo một gia đình mới để quản lý độc lập tài sản, chi tiêu và hồ sơ định cư riêng biệt. Bạn sẽ là Quản trị viên của gia đình này.
                 </p>
                 <Form form={form} layout="vertical" onFinish={handleCreateFamily}>
@@ -195,7 +195,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                         to={item.href}
                         onClick={() => onClose?.()}
                         className={({ isActive }) => cn(
-                            "group flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all text-[#6c5a51] hover:text-[#c85f58] hover:bg-white/80",
+                            "group flex items-center gap-2.5 px-2.5 py-2 rounded-xl transition-all text-[#4a3a34] hover:text-[#c85f58] hover:bg-white/80",
                             isActive && "bg-white text-[#c85f58] font-semibold shadow-[0_10px_24px_rgba(235,189,168,0.18)] border border-[rgba(247,208,190,0.8)]"
                         )}
                     >
@@ -205,7 +205,7 @@ export const Sidebar = ({ onClose }: SidebarProps) => {
                         )}>
                             <item.icon size={16} />
                         </span>
-                        <span className="text-[14px] leading-tight">{item.name}</span>
+                        <span className="text-[16px] leading-tight">{item.name}</span>
                     </NavLink>
                 ))}
             </nav>

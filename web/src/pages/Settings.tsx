@@ -128,7 +128,7 @@ export const Settings = () => {
                     </Form.Item>
                     <div className="mb-4 grid grid-cols-1 gap-3 text-sm text-slate-600 md:grid-cols-3">
                         <div className="rounded-2xl bg-slate-50 px-4 py-3 md:col-span-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Vai trò hiện tại</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-600">Vai trò hiện tại</p>
                             <p className="mt-1 font-semibold text-slate-800">
                                 {systemRole === 'APP_ADMIN' && role !== 'APP_ADMIN'
                                     ? `${role === 'FAMILY_ADMIN' ? 'Quản trị gia đình' : 'Thành viên'} + APP_ADMIN`
@@ -136,16 +136,16 @@ export const Settings = () => {
                                     : role === 'MEMBER' ? 'Thành viên'
                                     : 'Quản trị ứng dụng'}
                             </p>
-                            <p className="mt-1 text-xs text-slate-500">
+                            <p className="mt-1 text-xs text-slate-700">
                                 {role === 'FAMILY_ADMIN' || role === 'MEMBER' ? getFamilyRoleDescription(role) : APP_ADMIN_DESCRIPTION}
                             </p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Gia đình đang chọn</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-600">Gia đình đang chọn</p>
                             <p className="mt-1 font-semibold text-slate-800">{activeFamilyName || 'Không áp dụng'}</p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Số gia đình tham gia</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-600">Số gia đình tham gia</p>
                             <p className="mt-1 font-semibold text-slate-800">{memberships.length}</p>
                         </div>
                     </div>
@@ -178,15 +178,15 @@ export const Settings = () => {
                     </Form.Item>
                     <div className="mb-4 grid grid-cols-1 gap-3 text-sm text-slate-600 md:grid-cols-3">
                         <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Gia đình đang chọn</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-600">Gia đình đang chọn</p>
                             <p className="mt-1 font-semibold text-slate-800">{activeFamilyName || family?.name || 'Chưa có tên'}</p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Trạng thái</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-600">Trạng thái</p>
                             <p className="mt-1 font-semibold text-slate-800">{family?.status === 'INACTIVE' ? 'Ngưng hoạt động' : 'Đang hoạt động'}</p>
                         </div>
                         <div className="rounded-2xl bg-slate-50 px-4 py-3">
-                            <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Số thành viên</p>
+                            <p className="text-xs uppercase tracking-[0.16em] text-slate-600">Số thành viên</p>
                             <p className="mt-1 font-semibold text-slate-800">{family?.members?.length ?? 0}</p>
                         </div>
                     </div>
@@ -210,7 +210,7 @@ export const Settings = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <p className="font-semibold text-slate-800">Tạm ngưng thay vì xóa hẳn</p>
-                            <p className="text-xs text-slate-500 mt-0.5">
+                            <p className="text-xs text-slate-700 mt-0.5">
                                 Mọi thành viên (kể cả bạn) sẽ không truy cập được gia đình này cho đến khi quản trị viên hệ thống mở lại. Dữ liệu vẫn được giữ nguyên, không mất gì.
                             </p>
                         </div>
@@ -241,7 +241,7 @@ export const Settings = () => {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                         <div>
                             <p className="font-semibold text-slate-800">Xóa vĩnh viễn gia đình này</p>
-                            <p className="text-xs text-slate-500 mt-0.5">
+                            <p className="text-xs text-slate-700 mt-0.5">
                                 {(family?.members?.length ?? 0) > 1
                                     ? `Gia đình đang có ${family?.members?.length} thành viên. Bạn phải gỡ hết các thành viên khác trước khi có thể xóa gia đình.`
                                     : 'Xóa toàn bộ dữ liệu, danh mục thu chi, và hồ sơ định cư F4 gắn với gia đình này. Hành động không thể hoàn tác.'}
@@ -276,7 +276,7 @@ export const Settings = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div>
                         <p className="font-semibold text-slate-800">Rời khỏi gia đình này</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-xs text-slate-700 mt-0.5">
                             Bạn sẽ mất quyền truy cập vào dữ liệu của gia đình này. Nếu bạn là Quản trị viên duy nhất, hãy chuyển quyền cho người khác trước.
                         </p>
                     </div>
@@ -300,7 +300,7 @@ export const Settings = () => {
             </Card>
         </div>
     ) : (
-        <p className="text-sm text-slate-400 p-4">Bạn chưa tham gia gia đình nào.</p>
+        <p className="text-sm text-slate-600 p-4">Bạn chưa tham gia gia đình nào.</p>
     );
 
     const appearanceTab = (
@@ -310,7 +310,7 @@ export const Settings = () => {
                     <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                             <p className="font-semibold text-slate-800">Chế độ tối</p>
-                            <p className="mt-1 text-sm text-slate-500">Chuyển đổi giữa giao diện sáng và tối để dùng thoải mái hơn vào buổi tối hoặc môi trường ít sáng.</p>
+                            <p className="mt-1 text-sm text-slate-700">Chuyển đổi giữa giao diện sáng và tối để dùng thoải mái hơn vào buổi tối hoặc môi trường ít sáng.</p>
                         </div>
                         <Switch
                             checked={themeMode === 'dark'}
@@ -352,7 +352,7 @@ export const Settings = () => {
                         </div>
                     </div>
 
-                    <div className="mt-4 flex items-center gap-2 text-xs text-slate-500">
+                    <div className="mt-4 flex items-center gap-2 text-xs text-slate-700">
                         <Sparkles size={14} className="text-[#9b7fd4]" />
                         <span>Giao diện đang áp dụng ngay cho các bề mặt chính, bảng, biểu mẫu và popup.</span>
                     </div>
@@ -364,7 +364,7 @@ export const Settings = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="font-semibold text-slate-800">Thông báo qua Email</p>
-                            <p className="text-sm text-slate-500">Nhận thông báo về các thay đổi trong gia đình qua email</p>
+                            <p className="text-sm text-slate-700">Nhận thông báo về các thay đổi trong gia đình qua email</p>
                         </div>
                         <Switch defaultChecked />
                     </div>
@@ -372,7 +372,7 @@ export const Settings = () => {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="font-semibold text-slate-800">Cảnh báo bảo hành</p>
-                            <p className="text-sm text-slate-500">Thông báo khi tài sản sắp hết hạn bảo hành</p>
+                            <p className="text-sm text-slate-700">Thông báo khi tài sản sắp hết hạn bảo hành</p>
                         </div>
                         <Switch defaultChecked />
                     </div>

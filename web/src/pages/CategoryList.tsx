@@ -229,7 +229,7 @@ export const CategoryList = () => {
       key: 'name',
       render: (text: string, record: Category) => (
         <Space>
-          <FolderTree size={16} className={!record.parentId ? 'text-slate-500' : 'text-slate-300'} />
+          <FolderTree size={16} className={!record.parentId ? 'text-slate-700' : 'text-slate-600'} />
           <span className={!record.parentId ? 'font-semibold text-slate-800' : 'text-slate-700'}>{text}</span>
         </Space>
       ),

@@ -472,7 +472,7 @@ export const ExpenseList = () => {
         bodyStyle={window.innerWidth < 480 ? { padding: 12, maxHeight: 'calc(100vh - 140px)', overflowY: 'auto' } : undefined}
         className={transactionType === 'INCOME' ? 'rounded-2xl transaction-modal-income' : 'rounded-2xl transaction-modal-expense'}
         footer={[
-          <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-4 w-full">
+          <div key="metadata" className="flex flex-col items-start text-[12px] text-slate-600 mb-4 px-4 w-full">
             {editingExpense?.createdAt && (
               <span>Tạo bởi {editingExpense.creator?.fullName || editingExpense.creator?.email || 'Hệ thống'} lúc {dayjs(editingExpense.createdAt).format('HH:mm DD/MM/YYYY')}</span>
             )}
@@ -610,7 +610,7 @@ export const ExpenseList = () => {
               className={window.innerWidth < 480 ? 'w-full' : 'w-full h-12 text-lg font-bold'}
               formatter={(val) => `${val}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
               parser={(val) => val!.replace(/\$\s?|(,*)/g, '')}
-              prefix={<Wallet size={18} className="text-slate-400 mr-2" />}
+              prefix={<Wallet size={18} className="text-slate-600 mr-2" />}
               addonAfter="đồng"
             />
           </Form.Item>

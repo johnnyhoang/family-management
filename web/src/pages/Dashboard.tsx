@@ -152,7 +152,7 @@ export const Dashboard = () => {
         );
     }
 
-    if (isLoading) return <div className="p-8 text-center text-slate-500 font-medium">Đang tải dữ liệu...</div>;
+    if (isLoading) return <div className="p-8 text-center text-slate-700 font-medium">Đang tải dữ liệu...</div>;
     if (isError) return <div className="p-8 text-center text-red-500 font-medium">Không thể tải dữ liệu tổng quan cho gia đình đang chọn.</div>;
 
     const incomeDelta = formatPercentDelta(stats?.monthlyIncome || 0, stats?.prevMonthIncome || 0);
@@ -179,7 +179,7 @@ export const Dashboard = () => {
         <div className="space-y-4 lg:space-y-5 animate-in fade-in duration-700">
             <header>
                 <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 tracking-tight font-display">Tổng quan gia đình</h1>
-                <p className="text-slate-500 mt-1 text-sm lg:text-base">
+                <p className="text-slate-700 mt-1 text-sm lg:text-base">
                     {new Date().toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
             </header>
@@ -195,7 +195,7 @@ export const Dashboard = () => {
                     </div>
                     <div>
                         <div className="flex items-center gap-2">
-                            <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200 border border-rose-400/30">
+                            <span className="text-[13px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-rose-500/30 text-rose-200 border border-rose-400/30">
                                 Định cư Mỹ F4
                             </span>
                             <span className="text-xs text-blue-200 hidden sm:inline">
@@ -205,7 +205,7 @@ export const Dashboard = () => {
                         <h2 className="text-base lg:text-lg font-bold text-white mt-0.5 tracking-tight">
                             Cổng Quản Lý Định Cư Hoa Kỳ (/gous)
                         </h2>
-                        <p className="text-xs text-slate-300 mt-0.5 line-clamp-1">
+                        <p className="text-xs text-slate-600 mt-0.5 line-clamp-1">
                             Kiểm soát tiến trình 11 bước NVC, giấy tờ, tính tuổi CSPA cho con, lịch phỏng vấn & dự toán chi phí.
                         </p>
                     </div>
@@ -259,15 +259,15 @@ export const Dashboard = () => {
             <div className="glass-card p-4 lg:p-5">
                 <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                     <h2 className="font-bold text-lg lg:text-xl text-[#4a3a34] font-display">Thu chi 6 tháng gần đây</h2>
-                    <span className="text-xs text-[#886f63]">Cột: thu nhập / chi tiêu • Đường: số dư</span>
+                    <span className="text-xs text-[#5c4437]">Cột: thu nhập / chi tiêu • Đường: số dư</span>
                 </div>
                 <div className="h-[260px] lg:h-[300px]">
                     {trendData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={trendData}>
                                 <CartesianGrid strokeDasharray="3 3" stroke="#f0e3d8" />
-                                <XAxis dataKey="monthLabel" tick={{ fontSize: 12 }} />
-                                <YAxis tickFormatter={(val) => formatCompactVnd(val)} tick={{ fontSize: 12 }} />
+                                <XAxis dataKey="monthLabel" tick={{ fontSize: 13 }} />
+                                <YAxis tickFormatter={(val) => formatCompactVnd(val)} tick={{ fontSize: 13 }} />
                                 <Tooltip
                                     contentStyle={{ borderRadius: '14px', border: '1px solid #f4d6c7' }}
                                     formatter={(val: any) => formatVndAmount(val || 0)}
@@ -290,7 +290,7 @@ export const Dashboard = () => {
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                         <div>
                             <h2 className="font-bold text-lg lg:text-xl text-[#4a3a34] font-display">Phân tích thu chi theo danh mục</h2>
-                            <p className="text-xs text-[#886f63] mt-0.5">
+                            <p className="text-xs text-[#5c4437] mt-0.5">
                                 Đang xem: <span className="font-semibold text-[#4a3a34]">{periodLabel}</span>
                             </p>
                         </div>
@@ -369,7 +369,7 @@ export const Dashboard = () => {
                                         ))}
                                     </Pie>
                                     <Tooltip formatter={(val: any) => formatVndAmount(val || 0)} />
-                                    <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                                    <Legend iconType="circle" wrapperStyle={{ fontSize: 13 }} />
                                 </PieChart>
                             </ResponsiveContainer>
                         ) : (
@@ -381,7 +381,7 @@ export const Dashboard = () => {
                     <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
                         {filteredBreakdown.length > 0 ? (
                             <>
-                                <div className="flex justify-between items-center text-xs text-[#886f63] px-1 pb-1 border-b border-[rgba(242,214,197,0.7)]">
+                                <div className="flex justify-between items-center text-xs text-[#5c4437] px-1 pb-1 border-b border-[rgba(242,214,197,0.7)]">
                                     <span>Tổng cộng</span>
                                     <span className={cn('font-bold', entryTypeColors[breakdownEntryType])}>
                                         {formatVndAmount(breakdownTotal)}
@@ -405,7 +405,7 @@ export const Dashboard = () => {
                                                     {formatVndAmount(row.amount)}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center justify-between gap-2 text-[11px] text-[#886f63]">
+                                            <div className="flex items-center justify-between gap-2 text-[13px] text-[#5c4437]">
                                                 <div className="flex-1 h-1.5 rounded-full bg-[#f3e6db] overflow-hidden">
                                                     <div
                                                         className="h-full rounded-full"
@@ -419,7 +419,7 @@ export const Dashboard = () => {
                                 })}
                             </>
                         ) : (
-                            <div className="h-full flex items-center justify-center text-slate-400 text-sm">
+                            <div className="h-full flex items-center justify-center text-slate-600 text-sm">
                                 Chưa có giao dịch trong khoảng này
                             </div>
                         )}
@@ -433,7 +433,7 @@ export const Dashboard = () => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-sm">
                                 <thead>
-                                    <tr className="text-xs text-[#886f63] border-b border-[rgba(242,214,197,0.7)]">
+                                    <tr className="text-xs text-[#5c4437] border-b border-[rgba(242,214,197,0.7)]">
                                         <th className="text-left py-2 px-2 font-semibold">Danh mục</th>
                                         <th className="text-right py-2 px-2 font-semibold text-emerald-600">Thu</th>
                                         <th className="text-right py-2 px-2 font-semibold text-rose-600">Chi</th>
@@ -446,7 +446,7 @@ export const Dashboard = () => {
                                             <td className="py-2 px-2 text-[#4a3a34]">
                                                 <div className="font-medium">{row.name}</div>
                                                 {row.parentName && (
-                                                    <div className="text-[11px] text-[#886f63]">{row.parentName}</div>
+                                                    <div className="text-[13px] text-[#5c4437]">{row.parentName}</div>
                                                 )}
                                             </td>
                                             <td className="py-2 px-2 text-right text-emerald-600">
@@ -471,7 +471,7 @@ export const Dashboard = () => {
             <div className="glass-card p-4 lg:p-5 flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="font-bold text-lg lg:text-xl text-[#4a3a34] font-display">Phân bổ tài sản</h2>
-                    <span className="text-xs text-[#886f63]">{formatVndAmount(stats?.totalAssetValue || 0)}</span>
+                    <span className="text-xs text-[#5c4437]">{formatVndAmount(stats?.totalAssetValue || 0)}</span>
                 </div>
                 <div className="h-[260px]">
                     {stats?.assetsByCategory?.length > 0 ? (
@@ -493,7 +493,7 @@ export const Dashboard = () => {
                                     ))}
                                 </Pie>
                                 <Tooltip formatter={(val: any) => formatVndAmount(val || 0)} />
-                                <Legend iconType="circle" wrapperStyle={{ fontSize: 12 }} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: 13 }} />
                             </PieChart>
                         </ResponsiveContainer>
                     ) : (
@@ -514,7 +514,7 @@ export const Dashboard = () => {
                                         <p className="font-bold text-[#4a3a34] text-sm truncate">
                                             {exp.note?.trim() || exp.category?.name || 'Giao dịch'}
                                         </p>
-                                        <p className="text-xs text-[#886f63] truncate">
+                                        <p className="text-xs text-[#5c4437] truncate">
                                             {exp.category?.name || '—'} • {dayjs(exp.expenseDate).format('DD/MM/YYYY')}
                                         </p>
                                     </div>
@@ -541,7 +541,7 @@ export const Dashboard = () => {
                                         </div>
                                         <div className="min-w-0">
                                             <p className="font-bold text-[#4a3a34] text-sm truncate">{asset.name}</p>
-                                            <p className="text-xs text-[#886f63]">
+                                            <p className="text-xs text-[#5c4437]">
                                                 Hết hạn:
                                                 <span className={getDateBadgeClassName(asset.warrantyExpiredAt, 'ml-1')}>
                                                     {asset.warrantyExpiredAt ? new Date(asset.warrantyExpiredAt).toLocaleDateString('vi-VN') : '—'}
@@ -572,7 +572,7 @@ export const Dashboard = () => {
                                         </div>
                                         <div className="min-w-0">
                                             <p className="font-bold text-[#4a3a34] text-sm truncate">{asset.name}</p>
-                                            <p className="text-xs text-[#886f63]">
+                                            <p className="text-xs text-[#5c4437]">
                                                 Bảo dưỡng:
                                                 <span className={getDateBadgeClassName(asset.nextMaintenanceDate, 'ml-1')}>
                                                     {new Date(asset.nextMaintenanceDate).toLocaleDateString('vi-VN')}
@@ -602,7 +602,7 @@ export const Dashboard = () => {
                                             </div>
                                             <div className="min-w-0">
                                                 <p className="font-bold text-[#4a3a34] text-sm truncate">{event.title}</p>
-                                                <p className="text-xs text-[#886f63] truncate">
+                                                <p className="text-xs text-[#5c4437] truncate">
                                                     {dayjs(event.startDate).format('HH:mm DD/MM')}
                                                     {event.location ? ` • ${event.location}` : ''}
                                                 </p>
@@ -648,9 +648,9 @@ const KpiCard = ({ label, primary, secondary, icon: Icon, accent }: KpiCardProps
                     <Icon size={20} />
                 </div>
                 <div className="min-w-0 flex-1">
-                    <p className="text-xs lg:text-sm font-semibold text-[#8a6f61] truncate">{label}</p>
+                    <p className="text-xs lg:text-sm font-semibold text-[#5c4437] truncate">{label}</p>
                     <p className="text-base lg:text-xl font-bold text-[#473934] tracking-tight truncate">{primary}</p>
-                    <div className="text-[11px] lg:text-xs text-[#8a6f61] mt-0.5 truncate">{secondary}</div>
+                    <div className="text-[13px] lg:text-xs text-[#5c4437] mt-0.5 truncate">{secondary}</div>
                 </div>
             </div>
         </div>
@@ -659,7 +659,7 @@ const KpiCard = ({ label, primary, secondary, icon: Icon, accent }: KpiCardProps
 
 const DeltaText = ({ pct, positiveIsGood }: { pct: number; positiveIsGood: boolean }) => {
     if (pct === 0) {
-        return <span className="text-slate-500">Bằng tháng trước</span>;
+        return <span className="text-slate-700">Bằng tháng trước</span>;
     }
     const isPositive = pct > 0;
     const isGood = positiveIsGood ? isPositive : !isPositive;
@@ -677,7 +677,7 @@ const EmptyState = ({ icon: Icon, message, compact }: {
     message: string;
     compact?: boolean;
 }) => (
-    <div className={cn('flex flex-col items-center justify-center text-slate-400', compact ? 'h-[180px]' : 'h-full')}>
+    <div className={cn('flex flex-col items-center justify-center text-slate-600', compact ? 'h-[180px]' : 'h-full')}>
         <Icon size={compact ? 36 : 48} className="mb-2 opacity-25" />
         <p className="text-sm">{message}</p>
     </div>

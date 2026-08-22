@@ -154,7 +154,7 @@ export const NaturalInputBox: React.FC = () => {
                                     <Tag color={item.confidence > 0.8 ? 'green' : 'orange'}>
                                         {Math.round(item.confidence * 100)}% khớp
                                     </Tag>
-                                    <span style={{ fontSize: '12px', color: '#94a3b8' }}>
+                                    <span style={{ fontSize: '13px', color: '#475569' }}>
                                         {dayjs(item.createdAt).format('DD/MM HH:mm')}
                                     </span>
                                 </Space>

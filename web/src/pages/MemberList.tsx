@@ -137,7 +137,7 @@ export const MemberList = () => {
                     </Avatar>
                     <div>
                         <div className="font-medium text-slate-900">{text || 'Đang chờ...'}</div>
-                        <div className="text-xs text-slate-500">{record.email}</div>
+                        <div className="text-xs text-slate-700">{record.email}</div>
                     </div>
                 </Space>
             ),
@@ -321,7 +321,7 @@ export const MemberList = () => {
                         label="Họ và tên"
                         rules={[{ required: true }]}
                     >
-                        <Input prefix={<Users size={16} className="text-slate-400 mr-2" />} />
+                        <Input prefix={<Users size={16} className="text-slate-600 mr-2" />} />
                     </Form.Item>
                     <Form.Item
                         name="otherNames"
@@ -369,7 +369,7 @@ export const MemberList = () => {
                             <p>Gửi đường dẫn này cho người bạn muốn mời (qua Zalo, tin nhắn...). Họ chỉ cần đăng nhập bằng Google để tham gia.</p>
                         </div>
                         <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                            <Link2 size={16} className="flex-shrink-0 text-slate-400" />
+                            <Link2 size={16} className="flex-shrink-0 text-slate-600" />
                             <span className="flex-1 truncate text-sm text-slate-600">{inviteLink}</span>
                         </div>
                         <Button block icon={<Copy size={16} />} onClick={copyInviteLink}>
@@ -387,14 +387,14 @@ export const MemberList = () => {
                             name="fullName"
                             label="Họ và tên"
                         >
-                            <Input prefix={<Users size={16} className="text-slate-400 mr-2" />} placeholder="Nguyễn Văn A" />
+                            <Input prefix={<Users size={16} className="text-slate-600 mr-2" />} placeholder="Nguyễn Văn A" />
                         </Form.Item>
                         <Form.Item
                             name="email"
                             label="Địa chỉ Email"
                             rules={[{ required: true, type: 'email' }]}
                         >
-                            <Input prefix={<Mail size={16} className="text-slate-400 mr-2" />} placeholder="member@example.com" />
+                            <Input prefix={<Mail size={16} className="text-slate-600 mr-2" />} placeholder="member@example.com" />
                         </Form.Item>
                         <Form.Item
                             name="role"

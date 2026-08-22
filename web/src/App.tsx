@@ -57,11 +57,23 @@ function AppShell() {
           colorBgContainer: isDark ? '#1f2431' : '#fffdfb',
           colorTextBase: isDark ? '#f5eef2' : '#2d2a26',
           colorBorderSecondary: isDark ? '#424a60' : '#f2d7c7',
+          fontSize: 16,
+          fontSizeSM: 13,
+          fontSizeLG: 18,
+          fontSizeXL: 22,
+          fontSizeHeading1: 40,
+          fontSizeHeading2: 32,
+          fontSizeHeading3: 26,
+          fontSizeHeading4: 22,
+          fontSizeHeading5: 18,
+          colorTextSecondary: isDark ? 'rgba(245,238,242,0.85)' : 'rgba(45,42,38,0.82)',
+          colorTextTertiary: isDark ? 'rgba(245,238,242,0.65)' : 'rgba(45,42,38,0.62)',
+          colorTextQuaternary: isDark ? 'rgba(245,238,242,0.45)' : 'rgba(45,42,38,0.40)',
         },
         components: {
           Button: {
             borderRadius: 12,
-            controlHeight: 38,
+            controlHeight: 40,
             fontWeight: 600,
           },
           Table: {
@@ -72,13 +84,13 @@ function AppShell() {
             borderRadiusLG: 18,
           },
           Input: {
-            controlHeight: 38,
+            controlHeight: 40,
           },
           Select: {
-            controlHeight: 38,
+            controlHeight: 40,
           },
           DatePicker: {
-            controlHeight: 38,
+            controlHeight: 40,
           },
         },
       }}
@@ -115,13 +127,13 @@ function AppShell() {
 }
 
 const RouteLoading = () => (
-  <div className="min-h-[40vh] flex items-center justify-center text-slate-500">
+  <div className="min-h-[40vh] flex items-center justify-center text-slate-700">
     Đang tải phiên làm việc...
   </div>
 );
 
 const PageFallback = () => (
-  <div className="min-h-[30vh] flex items-center justify-center text-slate-500">
+  <div className="min-h-[30vh] flex items-center justify-center text-slate-700">
     Đang tải giao diện...
   </div>
 );

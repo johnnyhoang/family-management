@@ -70,7 +70,7 @@ export const AcceptInvite = () => {
                     {status === 'loading' && (
                         <div className="py-8">
                             <Spin size="large" />
-                            <p className="mt-4 text-sm text-slate-500">Đang kiểm tra lời mời...</p>
+                            <p className="mt-4 text-sm text-slate-700">Đang kiểm tra lời mời...</p>
                         </div>
                     )}
 
@@ -80,7 +80,7 @@ export const AcceptInvite = () => {
                                 <AlertTriangle size={28} />
                             </div>
                             <h1 className="text-xl font-bold text-[#4d3b35]">Không thể tham gia</h1>
-                            <p className="text-sm text-slate-500">{errorMessage}</p>
+                            <p className="text-sm text-slate-700">{errorMessage}</p>
                             <Button type="default" block onClick={() => (window.location.href = '/')}>
                                 Về trang chủ
                             </Button>
@@ -95,7 +95,7 @@ export const AcceptInvite = () => {
                             <div>
                                 <h1 className="text-xl font-bold text-[#4d3b35]">Bạn được mời tham gia</h1>
                                 <p className="mt-2 text-2xl font-extrabold text-[#c85f58]">{preview.familyName || 'một gia đình'}</p>
-                                <p className="mt-1 text-sm text-slate-500">
+                                <p className="mt-1 text-sm text-slate-700">
                                     với vai trò <strong>{roleLabel(preview.role)}</strong>
                                 </p>
                             </div>
@@ -113,7 +113,7 @@ export const AcceptInvite = () => {
                                 </Button>
                             ) : (
                                 <>
-                                    <p className="text-xs text-slate-400">
+                                    <p className="text-xs text-slate-600">
                                         Đăng nhập bằng Google với email <strong>{preview.email}</strong> để tham gia.
                                     </p>
                                     <Button

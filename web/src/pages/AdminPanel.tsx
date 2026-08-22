@@ -207,7 +207,7 @@ export const AdminPanel = () => {
       render: (_, record) => (
         <div>
           <div className="font-semibold text-slate-900">{record.fullName || 'Chưa đặt tên'}</div>
-          <div className="text-xs text-slate-500">{record.email}</div>
+          <div className="text-xs text-slate-700">{record.email}</div>
         </div>
       ),
     },
@@ -240,7 +240,7 @@ export const AdminPanel = () => {
                 {membership.familyName} · {membership.role === 'FAMILY_ADMIN' ? 'Quản trị' : 'Thành viên'}
               </Tag>
             ))
-            : <span className="text-xs text-slate-400">Chưa tham gia gia đình nào</span>}
+            : <span className="text-xs text-slate-600">Chưa tham gia gia đình nào</span>}
         </div>
       ),
     },
@@ -253,7 +253,7 @@ export const AdminPanel = () => {
       render: (_, record) => (
         <div>
           <div className="font-semibold text-slate-900">{record.familyName}</div>
-          <div className="text-xs text-slate-500">{record.familyStatus === 'ACTIVE' ? 'Đang hoạt động' : 'Ngưng hoạt động'}</div>
+          <div className="text-xs text-slate-700">{record.familyStatus === 'ACTIVE' ? 'Đang hoạt động' : 'Ngưng hoạt động'}</div>
         </div>
       ),
     },
@@ -263,7 +263,7 @@ export const AdminPanel = () => {
       render: (_, record) => (
         <div>
           <div className="font-semibold text-slate-900">{record.fullName || 'Chưa đặt tên'}</div>
-          <div className="text-xs text-slate-500">{record.email}</div>
+          <div className="text-xs text-slate-700">{record.email}</div>
         </div>
       ),
     },
@@ -330,7 +330,7 @@ export const AdminPanel = () => {
     <div className="space-y-4 lg:space-y-5">
       <div>
         <h1 className="text-2xl lg:text-3xl font-bold text-slate-900 font-display">Quản trị ứng dụng</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-700">
           Xem cấu trúc gia đình, sửa/xóa gia đình, chỉnh vai trò và cấp quyền APP_ADMIN ở mức hệ thống.
         </p>
       </div>
@@ -343,7 +343,7 @@ export const AdminPanel = () => {
                 <ShieldCheck size={18} />
               </div>
               <div>
-                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Người dùng</div>
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-600">Người dùng</div>
                 <div className="text-2xl font-bold text-slate-900">{stats?.totalUsers ?? 0}</div>
               </div>
             </div>
@@ -356,7 +356,7 @@ export const AdminPanel = () => {
                 <Building2 size={18} />
               </div>
               <div>
-                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Gia đình</div>
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-600">Gia đình</div>
                 <div className="text-2xl font-bold text-slate-900">{stats?.totalFamilies ?? 0}</div>
               </div>
             </div>
@@ -369,7 +369,7 @@ export const AdminPanel = () => {
                 <Users size={18} />
               </div>
               <div>
-                <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Membership đang hoạt động</div>
+                <div className="text-xs uppercase tracking-[0.16em] text-slate-600">Membership đang hoạt động</div>
                 <div className="text-2xl font-bold text-slate-900">{stats?.totalMemberships ?? 0}</div>
               </div>
             </div>
@@ -426,7 +426,7 @@ export const AdminPanel = () => {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="font-semibold text-slate-900">{family.name}</p>
-                  <p className="text-xs text-slate-500">{family.members.length} thành viên</p>
+                  <p className="text-xs text-slate-700">{family.members.length} thành viên</p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Select
@@ -510,7 +510,7 @@ export const AdminPanel = () => {
         centered
         destroyOnClose
       >
-        <p className="text-xs text-slate-500 mb-4">
+        <p className="text-xs text-slate-700 mb-4">
           Tạo một gia đình mới trong hệ thống và chỉ định một người dùng làm Chủ hộ / Quản trị gia đình (FAMILY_ADMIN). Bắt buộc phải có người quản lý để gia đình không bị bỏ trống không ai kiểm soát.
         </p>
         <Form
@@ -573,7 +573,7 @@ export const AdminPanel = () => {
         centered
         destroyOnClose
       >
-        <p className="text-xs text-slate-500 mb-4">
+        <p className="text-xs text-slate-700 mb-4">
           Chỉ định trực tiếp bất kỳ tài khoản người dùng nào vào một gia đình với vai trò cụ thể.
         </p>
         <Form

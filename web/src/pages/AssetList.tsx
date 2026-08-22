@@ -23,7 +23,7 @@ const getAssetRowClassName = (record: Asset) => {
         return '[&>td]:!bg-slate-100 [&>td]:!text-red-600';
     }
     if (record.status === 'SOLD' || record.status === 'LOST') {
-        return '[&>td]:!bg-slate-100 [&>td]:!text-slate-500';
+        return '[&>td]:!bg-slate-100 [&>td]:!text-slate-700';
     }
     return '';
 };
@@ -181,7 +181,7 @@ export const AssetList = () => {
                         className={cn(
                             'font-medium',
                             record.status === 'BROKEN' && 'text-red-600',
-                            (record.status === 'SOLD' || record.status === 'LOST') && 'text-slate-500',
+                            (record.status === 'SOLD' || record.status === 'LOST') && 'text-slate-700',
                             (!record.status || record.status === 'ACTIVE') && 'text-slate-900',
                         )}
                     >
@@ -191,8 +191,8 @@ export const AssetList = () => {
                         className={cn(
                             'text-xs',
                             record.status === 'BROKEN' && 'text-red-500/90',
-                            (record.status === 'SOLD' || record.status === 'LOST') && 'text-slate-400',
-                            (!record.status || record.status === 'ACTIVE') && 'text-slate-500',
+                            (record.status === 'SOLD' || record.status === 'LOST') && 'text-slate-600',
+                            (!record.status || record.status === 'ACTIVE') && 'text-slate-700',
                         )}
                     >
                         {record.description}
@@ -331,7 +331,7 @@ export const AssetList = () => {
                 <div className="mb-4 flex flex-col sm:flex-row gap-3">
                     <Input
                         placeholder="Tìm kiếm tài sản..."
-                        prefix={<Search size={16} className="text-slate-400" />}
+                        prefix={<Search size={16} className="text-slate-600" />}
                         className="w-full sm:max-w-xs"
                         onChange={(e) => setFilters({ ...filters, search: e.target.value })}
                     />
@@ -387,7 +387,7 @@ export const AssetList = () => {
                 confirmLoading={createMutation.isPending || updateMutation.isPending}
                 width={600}
                 footer={[
-                    <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-2 sm:px-4 w-full">
+                    <div key="metadata" className="flex flex-col items-start text-[12px] text-slate-600 mb-4 px-2 sm:px-4 w-full">
                         {editingAsset?.createdAt && (
                             <span>Tạo bởi {editingAsset.creator?.fullName || editingAsset.creator?.email || 'Hệ thống'} lúc {dayjs(editingAsset.createdAt).format('HH:mm DD/MM/YYYY')}</span>
                         )}
@@ -482,7 +482,7 @@ export const AssetList = () => {
                                 {formatVndAmount(displayedCurrentValue)}
                             </Typography.Text>
                             {editingAsset ? (
-                                <div className="mt-1 text-xs text-slate-500">
+                                <div className="mt-1 text-xs text-slate-700">
                                     Chi đã gắn: {formatVndAmount(linkedChi)} · Thu đã gắn: {formatVndAmount(linkedThu)}
                                 </div>
                             ) : null}

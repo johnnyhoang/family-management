@@ -22,7 +22,7 @@
   --soft-panel-shadow: 0 16px 34px rgba(233, 185, 154, 0.12);
   --chip-bg: rgba(255, 255, 255, 0.78);
   --chip-border: rgba(245, 200, 183, 0.5);
-  --chip-text: #7b5a4b;
+  --chip-text: #5c4437;
 }
 
 :root[data-theme='dark'] {
@@ -112,7 +112,7 @@ body {
   background: var(--chip-bg);
   border: 1px solid var(--chip-border);
   color: var(--chip-text);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
 }
 

@@ -23,16 +23,16 @@ export const MobileHeader = ({ onMenuClick }: MobileHeaderProps) => {
                     className="w-8 h-8 rounded-xl shrink-0 shadow-md shadow-[#f4b6a8]/30"
                 />
                 <div className="min-w-0">
-                    <h1 className="font-bold text-[15px] leading-tight text-[#4f3f37] tracking-tight">Tài sản Gia đình</h1>
+                    <h1 className="font-bold text-[17px] leading-tight text-[#4f3f37] tracking-tight">Tài sản Gia đình</h1>
                     {activeFamilyName && (
-                        <p className="truncate text-[11px] leading-tight text-[#9f7d6e]">{activeFamilyName}</p>
+                        <p className="truncate text-[13px] leading-tight text-[#5c4437]">{activeFamilyName}</p>
                     )}
                 </div>
             </Link>
 
             <button
                 onClick={onMenuClick}
-                className="p-2 hover:bg-white rounded-xl transition-colors text-[#8c6d61] border border-[rgba(245,214,198,0.8)] shadow-sm"
+                className="p-2 hover:bg-white rounded-xl transition-colors text-[#5c4437] border border-[rgba(245,214,198,0.8)] shadow-sm"
                 aria-label="Mở menu"
             >
                 <Menu size={24} />

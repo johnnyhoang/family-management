@@ -328,7 +328,7 @@ export const MaintenanceList = () => {
             <Wrench className="text-amber-600" size={28} />
             Bảo trì khai thác và nợ
           </h1>
-          <p className="text-sm text-slate-500">Theo dõi các hoạt động phát sinh chi phí hoặc thu nhập gắn với tài sản</p>
+          <p className="text-sm text-slate-700">Theo dõi các hoạt động phát sinh chi phí hoặc thu nhập gắn với tài sản</p>
         </div>
         <Button type="primary" icon={<Plus size={18} />} onClick={openCreate}>
           Thêm bản ghi

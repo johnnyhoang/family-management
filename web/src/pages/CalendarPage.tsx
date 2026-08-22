@@ -125,7 +125,7 @@ const EventListCard = ({
                     {statusLabel ? <Tag color={getEventBadgeStatus(event)}>{statusLabel}</Tag> : null}
                   </div>
                 </div>
-                <div className="text-right text-xs text-slate-500">
+                <div className="text-right text-xs text-slate-700">
                   <div>{dayjs(event.startDate).format('DD/MM/YYYY')}</div>
                   <div>{dayjs(event.startDate).format('HH:mm')}</div>
                 </div>
@@ -135,7 +135,7 @@ const EventListCard = ({
                 {event.description || 'Không có mô tả'}
               </Text>
 
-              <Space className="w-full text-slate-500 text-sm" wrap>
+              <Space className="w-full text-slate-700 text-sm" wrap>
                 <div className="flex items-center gap-1.5">
                   <Clock className="w-3.5 h-3.5" />
                   <span>{dayjs(event.startDate).format('HH:mm')}</span>
@@ -152,7 +152,7 @@ const EventListCard = ({
         })}
       </div>
     ) : (
-      <div className="py-10 text-center text-slate-400">
+      <div className="py-10 text-center text-slate-600">
         <Text type="secondary">{emptyText}</Text>
       </div>
     )}
@@ -224,7 +224,7 @@ export const CalendarPage = () => {
           <li key={item.id} className="mt-1">
             <Badge
               status={getEventBadgeStatus(item)}
-              text={<span className="text-[10px] truncate max-w-[80px] inline-block">{getEventKindLabel(item)}</span>}
+              text={<span className="text-[12px] truncate max-w-[80px] inline-block">{getEventKindLabel(item)}</span>}
             />
           </li>
         ))}
@@ -319,7 +319,7 @@ export const CalendarPage = () => {
         forceRender
         onCancel={() => setIsModalVisible(false)}
         footer={[
-          <div key="metadata" className="flex flex-col items-start text-[10px] text-slate-400 mb-4 px-2 sm:px-4 w-full">
+          <div key="metadata" className="flex flex-col items-start text-[12px] text-slate-600 mb-4 px-2 sm:px-4 w-full">
             {selectedEvent?.createdAt ? (
               <span>Tạo bởi {selectedEvent.creator?.fullName || selectedEvent.creator?.email || 'Hệ thống'} lúc {dayjs(selectedEvent.createdAt).format('HH:mm DD/MM/YYYY')}</span>
             ) : null}
@@ -415,7 +415,7 @@ export const CalendarPage = () => {
           </div>
 
           <Form.Item name="location" label="Địa điểm">
-            <Input prefix={<MapPin className="w-4 h-4 text-slate-400" />} placeholder="Nhập địa điểm..." className="rounded-lg h-10" />
+            <Input prefix={<MapPin className="w-4 h-4 text-slate-600" />} placeholder="Nhập địa điểm..." className="rounded-lg h-10" />
           </Form.Item>
 
           <Form.Item name="description" label="Mô tả">
