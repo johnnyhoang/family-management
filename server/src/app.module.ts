@@ -48,9 +48,12 @@ import { GoUsModule } from './modules/gous/gous.module';
           synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
           migrationsRun: true,
           migrations: [
-            path.join(process.cwd(), 'dist/migrations/*{.ts,.js}'),
-            path.join(process.cwd(), 'server/dist/migrations/*{.ts,.js}'),
-            path.join(__dirname, '/migrations/*{.ts,.js}')
+            path.join(process.cwd(), 'dist/migrations/*.js'),
+            path.join(process.cwd(), 'dist/src/migrations/*.js'),
+            path.join(process.cwd(), 'server/dist/migrations/*.js'),
+            path.join(process.cwd(), 'server/dist/src/migrations/*.js'),
+            path.join(__dirname, '/migrations/*.js'),
+            path.join(__dirname, '../migrations/*.js'),
           ],
           ssl: configService.get<string>('DB_SSL') === 'true' || !!url ? {
             rejectUnauthorized: false
