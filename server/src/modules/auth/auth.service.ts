@@ -61,7 +61,11 @@ export class AuthService {
       }
     }
 
-    await this.permissionService.seedSystemPermissions();
+    try {
+      await this.permissionService.seedSystemPermissions();
+    } catch (err) {
+      this.logger.error('seedSystemPermissions failed during login; continuing without blocking auth', err instanceof Error ? err.stack : err);
+    }
 
     let memberships = await this.familyUserRepository.find({
       where: { userId: user.id, status: FamilyUserStatus.ACTIVE },
