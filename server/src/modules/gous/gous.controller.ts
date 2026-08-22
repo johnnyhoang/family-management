@@ -21,8 +21,7 @@ import { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto';
 import { CreateTaskDto, UpdateTaskDto } from './dto/task.dto';
 import { CreateGoUsExpenseDto, UpdateGoUsExpenseDto } from './dto/expense.dto';
 import { CalculateCspaDto } from './dto/cspa.dto';
-import { DocumentCategory } from '../../common/entities/gous-document.entity';
-import { GoUsStage } from '../../common/entities/gous-case.entity';
+import { DocumentCategory, GoUsStage } from '../../common/enums/gous.enums';
 
 @ApiTags('GoUS - US Immigration F4 Portal')
 @ApiBearerAuth()

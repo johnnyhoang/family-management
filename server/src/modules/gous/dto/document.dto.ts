@@ -1,5 +1,5 @@
 import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { DocumentCategory, DocumentStatus } from '../../../common/entities/gous-document.entity';
+import { DocumentCategory, DocumentStatus } from '../../../common/enums/gous.enums';
 
 export class CreateDocumentDto {
   @IsOptional()

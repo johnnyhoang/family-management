@@ -1,6 +1,5 @@
 import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
-import { GoUsStage } from '../../../common/entities/gous-case.entity';
-import { TaskPriority, TaskStatus } from '../../../common/entities/gous-task.entity';
+import { GoUsStage, TaskPriority, TaskStatus } from '../../../common/enums/gous.enums';
 
 export class CreateTaskDto {
   @IsOptional()

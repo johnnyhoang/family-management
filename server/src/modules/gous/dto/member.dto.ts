@@ -1,5 +1,5 @@
 import { IsBoolean, IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-import { MemberRoleInCase, ProcessStatus } from '../../../common/entities/gous-member.entity';
+import { MemberRoleInCase, ProcessStatus } from '../../../common/enums/gous.enums';
 
 export class CreateMemberDto {
   @IsNotEmpty()

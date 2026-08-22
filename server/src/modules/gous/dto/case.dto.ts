@@ -1,5 +1,5 @@
 import { IsEnum, IsNotEmpty, IsOptional, IsString, IsDateString } from 'class-validator';
-import { GoUsStage } from '../../../common/entities/gous-case.entity';
+import { GoUsStage } from '../../../common/enums/gous.enums';
 
 export class CreateGoUsCaseDto {
   @IsOptional()

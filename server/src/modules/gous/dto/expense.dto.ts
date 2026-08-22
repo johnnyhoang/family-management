@@ -1,5 +1,5 @@
 import { IsDateString, IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString } from 'class-validator';
-import { ExpenseCategory, ExpensePaymentStatus } from '../../../common/entities/gous-expense.entity';
+import { ExpenseCategory, ExpensePaymentStatus } from '../../../common/enums/gous.enums';
 
 export class CreateGoUsExpenseDto {
   @IsOptional()

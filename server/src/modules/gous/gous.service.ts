@@ -1,11 +1,22 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { GoUsCase, GoUsStage } from '../../common/entities/gous-case.entity';
-import { GoUsMember, MemberRoleInCase, ProcessStatus } from '../../common/entities/gous-member.entity';
-import { DocumentCategory, DocumentStatus, GoUsDocument } from '../../common/entities/gous-document.entity';
-import { GoUsTask, TaskPriority, TaskStatus } from '../../common/entities/gous-task.entity';
-import { ExpenseCategory, ExpensePaymentStatus, GoUsExpense } from '../../common/entities/gous-expense.entity';
+import { GoUsCase } from '../../common/entities/gous-case.entity';
+import { GoUsMember } from '../../common/entities/gous-member.entity';
+import { GoUsDocument } from '../../common/entities/gous-document.entity';
+import { GoUsTask } from '../../common/entities/gous-task.entity';
+import { GoUsExpense } from '../../common/entities/gous-expense.entity';
+import {
+  GoUsStage,
+  MemberRoleInCase,
+  ProcessStatus,
+  DocumentCategory,
+  DocumentStatus,
+  TaskPriority,
+  TaskStatus,
+  ExpenseCategory,
+  ExpensePaymentStatus,
+} from '../../common/enums/gous.enums';
 import { UpdateGoUsCaseDto } from './dto/case.dto';
 import { CreateMemberDto, UpdateMemberDto } from './dto/member.dto';
 import { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto';
