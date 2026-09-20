@@ -1,0 +1,71 @@
+import { NestFactory } from '@nestjs/core';
+import { ValidationPipe, INestApplication } from '@nestjs/common';
+import compression from 'compression';
+import { AppModule } from '../server/src/app.module';
+
+let cachedApp: INestApplication;
+
+async function getApp(): Promise<INestApplication> {
+  if (!cachedApp) {
+    console.log('--- NEST_BOOTSTRAP_START ---');
+    cachedApp = await NestFactory.create(AppModule, {
+      logger: ['error', 'warn', 'log'],
+    });
+
+    // Dashboard/list payloads are JSON and compress well; gzip cuts the
+    // bytes the client has to download over what's often already a
+    // higher-latency mobile connection.
+    cachedApp.use(compression());
+
+    cachedApp.useGlobalPipes(new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }));
+
+    cachedApp.enableCors({
+      origin: true,
+      credentials: true,
+    });
+
+    cachedApp.setGlobalPrefix('api/v1', {
+      exclude: ['/', 'status'],
+    });
+
+    // Get the underlying express instance to set proxy trust
+    const expressInstance = cachedApp.getHttpAdapter().getInstance();
+    if (expressInstance && typeof expressInstance.set === 'function') {
+      expressInstance.set('trust proxy', 1);
+    }
+
+    await cachedApp.init();
+    console.log('--- NEST_BOOTSTRAP_COMPLETE ---');
+  }
+  return cachedApp;
+}
+
+export default async (req: any, res: any) => {
+  // Ultra-fast diagnostic path (No AppModule, No NestJS)
+  if (req.url?.includes('/api/v1/diagnostic') || req.url?.includes('/api/diagnostic')) {
+    return res.status(200).json({
+      status: 'ok',
+      message: 'Vercel Function is alive (Monorepo)!',
+      timestamp: new Date().toISOString(),
+      node: process.version,
+    });
+  }
+
+  try {
+    const app = await getApp();
+    const instance = app.getHttpAdapter().getInstance();
+    return instance(req, res);
+  } catch (err: any) {
+    console.error('--- VERCEL_HANDLER_ERROR ---');
+    console.error(err);
+    return res.status(500).json({
+      statusCode: 500,
+      message: 'Server Initialization Failed',
+      error: err.message,
+    });
+  }
+};

@@ -4,18 +4,18 @@
   "outputDirectory": "web/dist",
   "regions": ["icn1"],
   "functions": {
-    "server/api/index.ts": {
+    "api/index.ts": {
       "includeFiles": "server/{dist/**,src/i18n/**}",
       "maxDuration": 30
     }
   },
   "rewrites": [
     {
-      "source": "/api/v1/:path*",
-      "destination": "/server/api/index.ts"
+      "source": "/api/(.*)",
+      "destination": "/api/index.ts"
     },
     {
-      "source": "/((?!api/v1|.*\\..*).*)",
+      "source": "/((?!api/|api$|.*\\..*).*)",
       "destination": "/index.html"
     }
   ]
