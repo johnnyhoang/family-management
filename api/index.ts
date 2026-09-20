@@ -2,13 +2,24 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, INestApplication } from '@nestjs/common';
 import compression from 'compression';
-import { AppModule } from '../server/src/app.module';
 
 let cachedApp: INestApplication | null = null;
 let bootstrapPromise: Promise<INestApplication> | null = null;
 
+function loadAppModule() {
+  try {
+    const { AppModule } = require('../server/dist/src/app.module');
+    if (AppModule) return AppModule;
+  } catch (err) {
+    console.warn('Could not load compiled AppModule from server/dist, falling back to source:', err);
+  }
+  const { AppModule } = require('../server/src/app.module');
+  return AppModule;
+}
+
 async function bootstrapNest(): Promise<INestApplication> {
   console.log('--- NEST_BOOTSTRAP_START ---');
+  const AppModule = loadAppModule();
   const app = await NestFactory.create(AppModule, {
     logger: ['error', 'warn', 'log'],
   });
