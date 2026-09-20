@@ -15,6 +15,8 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react()],
     build: {
+      outDir: resolve(__dirname, '../dist'),
+      emptyOutDir: true,
       rollupOptions: {
         output: {
           // Vite's default heuristics were dumping React, antd, framer-motion,
