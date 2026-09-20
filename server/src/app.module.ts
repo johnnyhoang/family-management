@@ -28,7 +28,7 @@ import { GoUsModule } from './modules/gous/gous.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: '.env',
+      envFilePath: ['.env', 'server/.env', '../.env'],
       ignoreEnvFile: process.env.NODE_ENV === 'production',
     }),
     TypeOrmModule.forRootAsync({
@@ -46,7 +46,7 @@ import { GoUsModule } from './modules/gous/gous.module';
           database: url ? undefined : configService.get<string>('DB_DATABASE'),
           autoLoadEntities: true,
           synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
-          migrationsRun: true,
+          migrationsRun: configService.get<string>('DB_MIGRATIONS_RUN') === 'true',
           // 'each' (not the default 'all') so an individual migration can opt out of
           // its own transaction via `public transaction = false` — needed by migrations
           // that run `ALTER TYPE ... ADD VALUE`, which Postgres refuses to run inside a

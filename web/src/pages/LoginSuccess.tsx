@@ -27,7 +27,7 @@ export const LoginSuccess = () => {
                 const { data: { session }, error } = await supabase.auth.getSession();
 
                 if (error || !session) {
-                    // Kiểm tra token trong hash URL
+                    // Kiểm tra token trong hash URL (#access_token=...)
                     const hash = window.location.hash;
                     if (hash.includes('access_token')) {
                         const params = new URLSearchParams(hash.replace(/^#/, ''));
@@ -37,8 +37,8 @@ export const LoginSuccess = () => {
                         }
                     }
                     if (isMounted) {
-                        setErrorMessage('Không tìm thấy phiên đăng nhập hợp lệ.');
-                        setTimeout(() => navigate('/login', { replace: true }), 2000);
+                        setErrorMessage('Không tìm thấy phiên đăng nhập Supabase.');
+                        setTimeout(() => navigate('/login', { replace: true }), 3000);
                     }
                     return;
                 }
@@ -46,8 +46,10 @@ export const LoginSuccess = () => {
                 await exchangeSupabaseToken(session.access_token);
             } catch (err: any) {
                 if (isMounted) {
-                    setErrorMessage(err.response?.data?.message || err.message || 'Lỗi khi đồng bộ tài khoản');
-                    setTimeout(() => navigate('/login', { replace: true }), 2500);
+                    const serverError = err.response?.data?.error || err.response?.data?.message;
+                    const msg = serverError || err.message || 'Lỗi khi đồng bộ tài khoản';
+                    setErrorMessage(msg);
+                    setTimeout(() => navigate('/login', { replace: true }), 4000);
                 }
             }
         }
@@ -60,14 +62,15 @@ export const LoginSuccess = () => {
                     localStorage.setItem('token', appToken);
                     handleRedirect();
                 } else {
-                    throw new Error('Máy chủ không trả về token hợp lệ');
+                    throw new Error('Máy chủ không trả về token phiên làm việc');
                 }
             } catch (err: any) {
                 if (isMounted) {
-                    const msg = err.response?.data?.message || err.message || 'Đăng nhập không thành công';
+                    const serverError = err.response?.data?.error || err.response?.data?.message;
+                    const msg = serverError || err.message || 'Đăng nhập không thành công';
                     message.error(msg);
                     setErrorMessage(msg);
-                    setTimeout(() => navigate('/login', { replace: true }), 2500);
+                    setTimeout(() => navigate('/login', { replace: true }), 4000);
                 }
             }
         }
@@ -91,12 +94,14 @@ export const LoginSuccess = () => {
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
-            <div className="text-center p-8 bg-white rounded-2xl shadow-sm border border-gray-100 max-w-md w-full mx-4">
+            <div className="text-center p-8 bg-white rounded-2xl shadow-sm border border-gray-100 max-w-lg w-full mx-4">
                 {errorMessage ? (
                     <>
-                        <h2 className="text-2xl font-semibold text-red-600">Đăng nhập thất bại</h2>
-                        <p className="mt-2 text-gray-600">{errorMessage}</p>
-                        <p className="mt-4 text-sm text-gray-400">Đang chuyển hướng về trang đăng nhập...</p>
+                        <h2 className="text-2xl font-semibold text-red-600 mb-2">Đăng nhập thất bại</h2>
+                        <div className="p-3 bg-red-50 text-red-700 rounded-lg text-sm mb-4 break-words">
+                            {errorMessage}
+                        </div>
+                        <p className="text-sm text-gray-400">Đang chuyển hướng về trang đăng nhập...</p>
                     </>
                 ) : (
                     <>

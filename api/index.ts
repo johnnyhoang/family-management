@@ -12,9 +12,6 @@ async function getApp(): Promise<INestApplication> {
       logger: ['error', 'warn', 'log'],
     });
 
-    // Dashboard/list payloads are JSON and compress well; gzip cuts the
-    // bytes the client has to download over what's often already a
-    // higher-latency mobile connection.
     cachedApp.use(compression());
 
     cachedApp.useGlobalPipes(new ValidationPipe({
@@ -32,7 +29,6 @@ async function getApp(): Promise<INestApplication> {
       exclude: ['/', 'status'],
     });
 
-    // Get the underlying express instance to set proxy trust
     const expressInstance = cachedApp.getHttpAdapter().getInstance();
     if (expressInstance && typeof expressInstance.set === 'function') {
       expressInstance.set('trust proxy', 1);
@@ -45,13 +41,37 @@ async function getApp(): Promise<INestApplication> {
 }
 
 export default async (req: any, res: any) => {
-  // Ultra-fast diagnostic path (No AppModule, No NestJS)
+  // Ultra-fast diagnostic path
   if (req.url?.includes('/api/v1/diagnostic') || req.url?.includes('/api/diagnostic')) {
+    const hasDbUrl = Boolean(process.env.DATABASE_URL);
+    const hasSupabaseUrl = Boolean(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
+    const hasAnonKey = Boolean(process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY);
+    const hasJwtSecret = Boolean(process.env.JWT_SECRET);
+
+    let dbCheck = 'untested';
+    let dbError: string | null = null;
+
+    try {
+      const app = await getApp();
+      dbCheck = 'connected';
+    } catch (e: any) {
+      dbCheck = 'failed';
+      dbError = e?.message || String(e);
+    }
+
     return res.status(200).json({
-      status: 'ok',
-      message: 'Vercel Function is alive (Monorepo)!',
+      status: dbCheck === 'connected' ? 'ok' : 'degraded',
+      message: 'Vercel Diagnostic Report',
       timestamp: new Date().toISOString(),
       node: process.version,
+      env: {
+        DATABASE_URL: hasDbUrl ? 'configured' : 'MISSING',
+        SUPABASE_URL: hasSupabaseUrl ? 'configured' : 'MISSING',
+        SUPABASE_ANON_KEY: hasAnonKey ? 'configured' : 'MISSING',
+        JWT_SECRET: hasJwtSecret ? 'configured' : 'MISSING',
+      },
+      database: dbCheck,
+      databaseError: dbError,
     });
   }
 
@@ -64,7 +84,7 @@ export default async (req: any, res: any) => {
     console.error(err);
     return res.status(500).json({
       statusCode: 500,
-      message: 'Server Initialization Failed',
+      message: 'Khởi tạo máy chủ thất bại: ' + (err.message || 'Lỗi không xác định'),
       error: err.message,
     });
   }

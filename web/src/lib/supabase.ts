@@ -12,7 +12,7 @@ export async function getSupabaseClient(): Promise<SupabaseClient> {
   const envUrl = import.meta.env.VITE_SUPABASE_URL;
   const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-  if (envUrl && envKey) {
+  if (envUrl && envKey && !envUrl.includes('placeholder')) {
     supabaseClient = createClient(envUrl, envKey);
     return supabaseClient;
   }
@@ -21,7 +21,7 @@ export async function getSupabaseClient(): Promise<SupabaseClient> {
   try {
     const res = await axios.get(`${apiBaseUrl}/auth/config`);
     const { supabaseUrl, supabaseAnonKey } = res.data;
-    if (supabaseUrl && supabaseAnonKey) {
+    if (supabaseUrl && supabaseAnonKey && !supabaseUrl.includes('placeholder')) {
       supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
       return supabaseClient;
     }
@@ -29,7 +29,5 @@ export async function getSupabaseClient(): Promise<SupabaseClient> {
     console.warn('Không thể tải cấu hình Supabase từ backend:', err);
   }
 
-  // Fallback khởi tạo rỗng để tránh crash
-  supabaseClient = createClient(envUrl || 'https://placeholder.supabase.co', envKey || 'placeholder');
-  return supabaseClient;
+  throw new Error('Chưa cấu hình SUPABASE_URL và SUPABASE_ANON_KEY trong Environment Variables trên Vercel!');
 }
