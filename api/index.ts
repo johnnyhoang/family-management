@@ -1,47 +1,66 @@
+import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe, INestApplication } from '@nestjs/common';
 import compression from 'compression';
 import { AppModule } from '../server/src/app.module';
 
-let cachedApp: INestApplication;
+let cachedApp: INestApplication | null = null;
+let bootstrapPromise: Promise<INestApplication> | null = null;
 
-async function getApp(): Promise<INestApplication> {
-  if (!cachedApp) {
-    console.log('--- NEST_BOOTSTRAP_START ---');
-    cachedApp = await NestFactory.create(AppModule, {
-      logger: ['error', 'warn', 'log'],
-    });
+async function bootstrapNest(): Promise<INestApplication> {
+  console.log('--- NEST_BOOTSTRAP_START ---');
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'],
+  });
 
-    cachedApp.use(compression());
+  app.use(compression());
 
-    cachedApp.useGlobalPipes(new ValidationPipe({
+  app.useGlobalPipes(
+    new ValidationPipe({
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-    }));
+    }),
+  );
 
-    cachedApp.enableCors({
-      origin: true,
-      credentials: true,
-    });
+  app.enableCors({
+    origin: true,
+    credentials: true,
+  });
 
-    cachedApp.setGlobalPrefix('api/v1', {
-      exclude: ['/', 'status'],
-    });
+  app.setGlobalPrefix('api/v1', {
+    exclude: ['/', 'status'],
+  });
 
-    const expressInstance = cachedApp.getHttpAdapter().getInstance();
-    if (expressInstance && typeof expressInstance.set === 'function') {
-      expressInstance.set('trust proxy', 1);
-    }
-
-    await cachedApp.init();
-    console.log('--- NEST_BOOTSTRAP_COMPLETE ---');
+  const expressInstance = app.getHttpAdapter().getInstance();
+  if (expressInstance && typeof expressInstance.set === 'function') {
+    expressInstance.set('trust proxy', 1);
   }
-  return cachedApp;
+
+  await app.init();
+  console.log('--- NEST_BOOTSTRAP_COMPLETE ---');
+  return app;
+}
+
+async function getApp(): Promise<INestApplication> {
+  if (cachedApp) return cachedApp;
+  if (!bootstrapPromise) {
+    bootstrapPromise = bootstrapNest().then((app) => {
+      cachedApp = app;
+      return app;
+    });
+  }
+  return bootstrapPromise;
 }
 
 export default async (req: any, res: any) => {
-  // Ultra-fast diagnostic path
+  // If request was rewritten by Vercel, restore original path so Express routes match properly
+  const matchedPath = req.headers['x-matched-path'];
+  if (matchedPath && typeof matchedPath === 'string') {
+    req.url = matchedPath;
+  }
+
+  // Diagnostic route
   if (req.url?.includes('/api/v1/diagnostic') || req.url?.includes('/api/diagnostic')) {
     const hasDbUrl = Boolean(process.env.DATABASE_URL);
     const hasSupabaseUrl = Boolean(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL);
@@ -52,7 +71,7 @@ export default async (req: any, res: any) => {
     let dbError: string | null = null;
 
     try {
-      const app = await getApp();
+      await getApp();
       dbCheck = 'connected';
     } catch (e: any) {
       dbCheck = 'failed';
@@ -64,6 +83,7 @@ export default async (req: any, res: any) => {
       message: 'Vercel Diagnostic Report',
       timestamp: new Date().toISOString(),
       node: process.version,
+      matchedPath: req.url,
       env: {
         DATABASE_URL: hasDbUrl ? 'configured' : 'MISSING',
         SUPABASE_URL: hasSupabaseUrl ? 'configured' : 'MISSING',
