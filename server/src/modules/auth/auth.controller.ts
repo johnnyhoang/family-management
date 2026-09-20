@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, UseGuards, Req, Res, Post, Body, Param } from '@nestjs/common';
+import { Controller, Get, Patch, UseGuards, Req, Res, Post, Body, Param, BadRequestException } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -12,19 +12,19 @@ export class AuthController {
     private configService: ConfigService,
   ) {}
 
-  @Get('google')
-  @UseGuards(AuthGuard('google'))
-  @ApiOperation({ summary: 'Login with Google' })
-  async googleAuth() {
-    return;
+  @Get('config')
+  @ApiOperation({ summary: 'Get public auth configuration for frontend' })
+  getAuthConfig() {
+    return this.authService.getAuthConfig();
   }
 
-  @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
-  async googleAuthRedirect(@Req() req, @Res() res) {
-    const result = await this.authService.validateOAuthUser(req.user);
-    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
-    res.redirect(`${frontendUrl}/login-success?token=${result.access_token}`);
+  @Post('supabase')
+  @ApiOperation({ summary: 'Exchange Supabase access token for app session' })
+  async loginWithSupabase(@Body('token') token: string) {
+    if (!token) {
+      throw new BadRequestException('Token Supabase không được để trống');
+    }
+    return this.authService.validateSupabaseToken(token);
   }
 
   @Get('me')

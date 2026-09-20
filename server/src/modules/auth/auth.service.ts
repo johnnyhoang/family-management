@@ -1,7 +1,9 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
 import { User, SystemRole, UserRole } from '../../common/entities/user.entity';
 import { Family, FamilyStatus } from '../../common/entities/family.entity';
@@ -20,9 +22,11 @@ interface OAuthProfile {
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
+  private supabaseClient: SupabaseClient | null = null;
 
   constructor(
     private jwtService: JwtService,
+    private configService: ConfigService,
     private dataSource: DataSource,
     @InjectRepository(User)
     private userRepository: Repository<User>,
@@ -35,6 +39,54 @@ export class AuthService {
     private permissionService: PermissionService,
     private categoryService: CategoryService,
   ) {}
+
+  getAuthConfig() {
+    return {
+      supabaseUrl: this.configService.get<string>('SUPABASE_URL') || '',
+      supabaseAnonKey: this.configService.get<string>('SUPABASE_ANON_KEY') || '',
+    };
+  }
+
+  private getSupabase(): SupabaseClient {
+    if (!this.supabaseClient) {
+      const url = this.configService.get<string>('SUPABASE_URL');
+      const key = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') || this.configService.get<string>('SUPABASE_ANON_KEY');
+      if (!url || !key) {
+        throw new UnauthorizedException('Chưa cấu hình SUPABASE_URL hoặc SUPABASE_ANON_KEY trên máy chủ');
+      }
+      this.supabaseClient = createClient(url, key);
+    }
+    return this.supabaseClient;
+  }
+
+  async validateSupabaseToken(token: string) {
+    const supabase = this.getSupabase();
+    const { data, error } = await supabase.auth.getUser(token);
+
+    if (error || !data?.user) {
+      this.logger.error('Xác thực Supabase token thất bại:', error?.message);
+      throw new UnauthorizedException('Phiên đăng nhập Supabase không hợp lệ hoặc đã hết hạn');
+    }
+
+    const sbUser = data.user;
+    const email = sbUser.email;
+    if (!email) {
+      throw new UnauthorizedException('Tài khoản không có email');
+    }
+
+    const meta = sbUser.user_metadata || {};
+    const fullName = (meta.full_name || meta.name || meta.user_name || email.split('@')[0] || '').trim();
+    const avatarUrl = meta.avatar_url || meta.picture || null;
+    const googleIdentity = sbUser.identities?.find((id) => id.provider === 'google');
+    const googleId = (googleIdentity && googleIdentity.identity_id) ? googleIdentity.identity_id : (googleIdentity?.id || sbUser.id);
+
+    return this.validateOAuthUser({
+      email,
+      fullName,
+      googleId,
+      avatarUrl,
+    });
+  }
 
   async validateOAuthUser(profile: OAuthProfile) {
     this.logger.log(`Validating user ${profile.email}`);
@@ -74,9 +126,6 @@ export class AuthService {
     });
 
     if (memberships.length === 0 && user.systemRole !== SystemRole.APP_ADMIN) {
-      // A brand-new user with a pending invite waiting should join that
-      // family, not get a throwaway "Gia đình của X" created out from under
-      // them the moment they log in before ever seeing the invite link.
       const pendingInvite = await this.inviteRepository.findOne({
         where: { email: profile.email.toLowerCase(), status: InviteStatus.PENDING },
         relations: ['role', 'family'],
@@ -195,10 +244,6 @@ export class AuthService {
     return this.getSessionProfile(userId, invite.familyId);
   }
 
-  // Shared by acceptInvite (explicit token from the accept-invite page) and
-  // validateOAuthUser (a brand-new user whose email already has a pending
-  // invite waiting -- so they join that family instead of getting a throwaway
-  // default one created out from under them).
   private async applyInvite(user: User, invite: Invite): Promise<void> {
     const existingMembership = await this.familyUserRepository.findOne({
       where: {
@@ -271,10 +316,6 @@ export class AuthService {
     await this.categoryService.ensureDefaultIncomeCategories(family.id);
   }
 
-  // Picks the active family from a preference list, skipping any membership
-  // whose family has been deactivated -- so a user whose current family goes
-  // INACTIVE automatically falls back to another family they belong to
-  // (or null) instead of getting stuck locked out of the whole app.
   private pickActiveFamilyId(memberships: FamilyUser[], ...preferredFamilyIds: Array<string | null | undefined>): string | null {
     const activeMemberships = memberships.filter((membership) => membership.family?.status === FamilyStatus.ACTIVE);
     for (const preferred of preferredFamilyIds) {

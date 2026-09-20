@@ -1,10 +1,30 @@
-import { Button } from 'antd';
+import { Button, message } from 'antd';
 import { LogIn } from 'lucide-react';
-import { apiBaseUrl } from '../api/client';
+import { useState } from 'react';
+import { getSupabaseClient } from '../lib/supabase';
 
 export const Login = () => {
-    const handleGoogleLogin = () => {
-        window.location.href = `${apiBaseUrl}/auth/google`;
+    const [loading, setLoading] = useState(false);
+
+    const handleGoogleLogin = async () => {
+        try {
+            setLoading(true);
+            const supabase = await getSupabaseClient();
+            const { error } = await supabase.auth.signInWithOAuth({
+                provider: 'google',
+                options: {
+                    redirectTo: `${window.location.origin}/login-success`,
+                },
+            });
+
+            if (error) {
+                message.error(`Đăng nhập thất bại: ${error.message}`);
+                setLoading(false);
+            }
+        } catch (err: any) {
+            message.error(err.message || 'Có lỗi xảy ra khi kết nối xác thực Google');
+            setLoading(false);
+        }
     };
 
     return (
@@ -43,18 +63,21 @@ export const Login = () => {
                                 type="primary"
                                 size="large"
                                 block
+                                loading={loading}
                                 onClick={handleGoogleLogin}
                                 className="h-14 rounded-2xl !bg-[linear-gradient(135deg,#ff9f90,#f97370)] text-white border-none hover:brightness-105 flex items-center justify-center transition-all active:scale-95 shadow-[0_14px_28px_rgba(249,115,112,0.24)]"
                                 title="Đăng nhập với Google"
                                 aria-label="Đăng nhập với Google"
-                                icon={(
+                                icon={!loading && (
                                     <img
                                         src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
                                         alt=""
                                         className="w-7 h-7 rounded-full bg-white p-0.5"
                                     />
                                 )}
-                            />
+                            >
+                                {loading ? 'Đang kết nối...' : 'Đăng nhập với Google'}
+                            </Button>
                         </div>
                     </div>
                 </div>

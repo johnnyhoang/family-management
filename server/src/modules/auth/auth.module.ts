@@ -8,7 +8,6 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { PermissionModule } from '../permission/permission.module';
 import { CategoryModule } from '../category/category.module';
-import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { User } from '../../common/entities/user.entity';
 import { Family } from '../../common/entities/family.entity';
@@ -25,7 +24,7 @@ import { Invite } from '../../common/entities/invite.entity';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        secret: configService.get<string>('JWT_SECRET'),
+        secret: configService.get<string>('JWT_SECRET') || 'default-secret-key-change-in-prod',
         signOptions: {
           expiresIn: configService.get('JWT_EXPIRES_IN') || '7d',
         },
@@ -33,7 +32,7 @@ import { Invite } from '../../common/entities/invite.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, GoogleStrategy, JwtStrategy],
+  providers: [AuthService, JwtStrategy],
   exports: [AuthService],
 })
 export class AuthModule {}
