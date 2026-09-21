@@ -40,8 +40,8 @@ export default defineConfig(({ mode }) => {
     server: {
       // Cho phép truy cập từ điện thoại / máy khác cùng WiFi (mặc định chỉ localhost)
       host: true,
-      // Cố định 5173: nếu cổng bị chiếm, Vite mặc định nhảy sang 5174… mà vẫn in "5173" trong doc → dễ mở nhầm URL và gặp 404.
-      port: 5173,
+      // Cố định 5174 (tránh đụng TokenWallet 5173): nếu cổng bị chiếm, báo lỗi thay vì nhảy bừa.
+      port: 5174,
       strictPort: true,
       proxy: {
         '/api': {
