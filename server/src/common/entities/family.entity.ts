@@ -8,7 +8,7 @@ export enum FamilyStatus {
   INACTIVE = 'INACTIVE',
 }
 
-@Entity('families')
+@Entity('fml_families')
 export class Family extends BaseEntity {
   @Column()
   name: string;

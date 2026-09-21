@@ -8,7 +8,7 @@ export enum RoleScope {
   FAMILY = 'FAMILY',
 }
 
-@Entity('roles')
+@Entity('fml_roles')
 @Index(['code'], { unique: true })
 export class Role {
   @PrimaryGeneratedColumn('uuid')

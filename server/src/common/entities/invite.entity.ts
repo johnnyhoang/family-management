@@ -10,7 +10,7 @@ export enum InviteStatus {
   CANCELLED = 'CANCELLED',
 }
 
-@Entity('invites')
+@Entity('fml_invites')
 @Index(['token'], { unique: true })
 export class Invite {
   @PrimaryGeneratedColumn('uuid')

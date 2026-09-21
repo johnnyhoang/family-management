@@ -10,7 +10,7 @@ export enum CalendarEventType {
   REMINDER = 'REMINDER',
 }
 
-@Entity('calendar_events')
+@Entity('fml_calendar_events')
 export class CalendarEvent extends BaseEntity {
   @Column()
   familyId: string;

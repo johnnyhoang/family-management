@@ -21,7 +21,7 @@ export enum PermissionAction {
   DELETE = 'delete',
 }
 
-@Entity('permissions')
+@Entity('fml_permissions')
 @Index(['moduleKey', 'action'], { unique: true })
 export class Permission {
   @PrimaryGeneratedColumn('uuid')

@@ -2,7 +2,7 @@ import { Entity, Column, ManyToOne, JoinColumn, Index } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { User } from '../../common/entities/user.entity';
 
-@Entity('notifications')
+@Entity('fml_notifications')
 @Index(['familyId', 'userId'])
 export class Notification extends BaseEntity {
   @Index()

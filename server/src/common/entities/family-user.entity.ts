@@ -10,7 +10,7 @@ export enum FamilyUserStatus {
   REMOVED = 'REMOVED',
 }
 
-@Entity('family_users')
+@Entity('fml_family_users')
 @Index(['familyId', 'userId'], { unique: true })
 export class FamilyUser extends BaseEntity {
   @Column()

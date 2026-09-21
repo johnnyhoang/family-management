@@ -11,7 +11,7 @@ export enum AssetStatus {
   ARCHIVED = 'ARCHIVED',
 }
 
-@Entity('assets')
+@Entity('fml_assets')
 @Index(['familyId', 'status'])
 @Index(['familyId', 'warrantyExpiredAt'])
 export class Asset extends BaseEntity {

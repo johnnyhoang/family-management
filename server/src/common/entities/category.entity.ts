@@ -1,7 +1,7 @@
 import { Entity, Column, ManyToOne, OneToMany, JoinColumn } from 'typeorm';
 import { BaseEntity } from './base.entity';
 
-@Entity('categories')
+@Entity('fml_categories')
 export class Category extends BaseEntity {
   @Column()
   familyId: string;

@@ -14,7 +14,7 @@ export enum AssetMaintenanceType {
   LIABILITY = 'liability',
 }
 
-@Entity('asset_maintenances')
+@Entity('fml_asset_maintenances')
 @Index(['familyId', 'scheduledDate'])
 @Index(['familyId', 'assetId'])
 export class AssetMaintenance extends BaseEntity {

@@ -3,7 +3,7 @@ import { BaseEntity } from '../../../common/entities/base.entity';
 import { Family } from '../../../common/entities/family.entity';
 import { User } from '../../../common/entities/user.entity';
 
-@Entity('natural_input_history')
+@Entity('fml_natural_input_history')
 export class NaturalInputHistory extends BaseEntity {
   @Column()
   familyId: string;

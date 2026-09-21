@@ -8,7 +8,7 @@ export enum ExpenseEntryType {
   EXPENSE = 'EXPENSE',
 }
 
-@Entity('expenses')
+@Entity('fml_expenses')
 @Index(['familyId', 'expenseDate'])
 export class Expense extends BaseEntity {
   @Index()
