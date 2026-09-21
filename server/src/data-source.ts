@@ -16,6 +16,7 @@ export default new DataSource({
   username: url ? undefined : configService.get<string>('DB_USERNAME'),
   password: url ? undefined : configService.get<string>('DB_PASSWORD'),
   database: url ? undefined : configService.get<string>('DB_DATABASE'),
+  entityPrefix: configService.get<string>('DB_PREFIX', 'fm_'),
   entities: [path.join(process.cwd(), 'src/**/entities/*.entity{.ts,.js}')],
   migrations: [path.join(process.cwd(), 'src/migrations/*{.ts,.js}')],
   synchronize: false,
