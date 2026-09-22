@@ -42,15 +42,26 @@ export class AuthService {
 
   getAuthConfig() {
     return {
-      supabaseUrl: this.configService.get<string>('SUPABASE_URL') || '',
-      supabaseAnonKey: this.configService.get<string>('SUPABASE_ANON_KEY') || '',
+      supabaseUrl:
+        this.configService.get<string>('SUPABASE_URL') ||
+        this.configService.get<string>('VITE_SUPABASE_URL') ||
+        '',
+      supabaseAnonKey:
+        this.configService.get<string>('SUPABASE_ANON_KEY') ||
+        this.configService.get<string>('VITE_SUPABASE_ANON_KEY') ||
+        '',
     };
   }
 
   private getSupabase(): SupabaseClient {
     if (!this.supabaseClient) {
-      const url = this.configService.get<string>('SUPABASE_URL');
-      const key = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') || this.configService.get<string>('SUPABASE_ANON_KEY');
+      const url =
+        this.configService.get<string>('SUPABASE_URL') ||
+        this.configService.get<string>('VITE_SUPABASE_URL');
+      const key =
+        this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
+        this.configService.get<string>('SUPABASE_ANON_KEY') ||
+        this.configService.get<string>('VITE_SUPABASE_ANON_KEY');
       if (!url || !key) {
         throw new UnauthorizedException('Chưa cấu hình SUPABASE_URL hoặc SUPABASE_ANON_KEY trên máy chủ');
       }

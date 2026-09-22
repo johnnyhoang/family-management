@@ -65,11 +65,7 @@ async function getApp(): Promise<INestApplication> {
 }
 
 export default async (req: any, res: any) => {
-  // If request was rewritten by Vercel, restore original path so Express routes match properly
-  const matchedPath = req.headers['x-matched-path'];
-  if (matchedPath && typeof matchedPath === 'string') {
-    req.url = matchedPath;
-  }
+  // Clean up req.url if needed (Vercel preserves the incoming URL path)
 
   // Diagnostic route
   if (req.url?.includes('/api/v1/diagnostic') || req.url?.includes('/api/diagnostic')) {

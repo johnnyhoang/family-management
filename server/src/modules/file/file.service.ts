@@ -17,8 +17,8 @@ export class FileService {
   // để thiếu biến môi trường chỉ làm hỏng chính tính năng upload, không sập toàn bộ app.
   private getClient(): SupabaseClient {
     if (!this.supabase) {
-      const url = this.configService.get<string>('SUPABASE_URL');
-      const serviceRoleKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY');
+      const url = this.configService.get<string>('SUPABASE_URL') || this.configService.get<string>('VITE_SUPABASE_URL');
+      const serviceRoleKey = this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') || this.configService.get<string>('SUPABASE_ANON_KEY') || this.configService.get<string>('VITE_SUPABASE_ANON_KEY');
       if (!url || !serviceRoleKey) {
         throw new InternalServerErrorException('Chưa cấu hình SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY cho tính năng upload file');
       }
