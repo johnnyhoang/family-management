@@ -26,7 +26,7 @@ import { Invite } from '../../common/entities/invite.entity';
       useFactory: (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET') || 'default-secret-key-change-in-prod',
         signOptions: {
-          expiresIn: configService.get('JWT_EXPIRES_IN') || '7d',
+          expiresIn: configService.get('JWT_EXPIRES_IN') || '1h',
         },
       }),
     }),
@@ -36,3 +36,4 @@ import { Invite } from '../../common/entities/invite.entity';
   exports: [AuthService],
 })
 export class AuthModule {}
+
