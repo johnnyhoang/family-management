@@ -4,13 +4,17 @@ import { apiBaseUrl } from '../api/client';
 
 let supabaseClient: SupabaseClient | null = null;
 
+const DEFAULT_SUPABASE_URL = 'https://msozshwatonyxnkaqjfs.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zb3pzaHdhdG9ueXhua2FxamZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjU5MzYsImV4cCI6MjA4ODIwMTkzNn0.lbfHxn4YxXNLHB0uVBDInrHh8wsCbusDr1_SroACHgk';
+
 export async function getSupabaseClient(): Promise<SupabaseClient> {
   if (supabaseClient) {
     return supabaseClient;
   }
 
-  const envUrl = import.meta.env.VITE_SUPABASE_URL;
-  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const envUrl = import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY || DEFAULT_SUPABASE_ANON_KEY;
 
   if (envUrl && envKey && !envUrl.includes('placeholder')) {
     supabaseClient = createClient(envUrl, envKey);
@@ -29,5 +33,6 @@ export async function getSupabaseClient(): Promise<SupabaseClient> {
     console.warn('Không thể tải cấu hình Supabase từ backend:', err);
   }
 
-  throw new Error('Chưa cấu hình SUPABASE_URL và SUPABASE_ANON_KEY trong Environment Variables trên Vercel!');
+  supabaseClient = createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY);
+  return supabaseClient;
 }

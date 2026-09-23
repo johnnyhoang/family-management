@@ -45,11 +45,11 @@ export class AuthService {
       supabaseUrl:
         this.configService.get<string>('SUPABASE_URL') ||
         this.configService.get<string>('VITE_SUPABASE_URL') ||
-        '',
+        'https://msozshwatonyxnkaqjfs.supabase.co',
       supabaseAnonKey:
         this.configService.get<string>('SUPABASE_ANON_KEY') ||
         this.configService.get<string>('VITE_SUPABASE_ANON_KEY') ||
-        '',
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zb3pzaHdhdG9ueXhua2FxamZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjU5MzYsImV4cCI6MjA4ODIwMTkzNn0.lbfHxn4YxXNLHB0uVBDInrHh8wsCbusDr1_SroACHgk',
     };
   }
 
@@ -57,11 +57,13 @@ export class AuthService {
     if (!this.supabaseClient) {
       const url =
         this.configService.get<string>('SUPABASE_URL') ||
-        this.configService.get<string>('VITE_SUPABASE_URL');
+        this.configService.get<string>('VITE_SUPABASE_URL') ||
+        'https://msozshwatonyxnkaqjfs.supabase.co';
       const key =
         this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
         this.configService.get<string>('SUPABASE_ANON_KEY') ||
-        this.configService.get<string>('VITE_SUPABASE_ANON_KEY');
+        this.configService.get<string>('VITE_SUPABASE_ANON_KEY') ||
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zb3pzaHdhdG9ueXhua2FxamZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjU5MzYsImV4cCI6MjA4ODIwMTkzNn0.lbfHxn4YxXNLHB0uVBDInrHh8wsCbusDr1_SroACHgk';
       if (!url || !key) {
         throw new UnauthorizedException('Chưa cấu hình SUPABASE_URL hoặc SUPABASE_ANON_KEY trên máy chủ');
       }
