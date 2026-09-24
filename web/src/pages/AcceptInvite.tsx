@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import { Button, Spin } from 'antd';
 import { UserPlus, AlertTriangle, LogIn } from 'lucide-react';
 import { authApi } from '../api/auth';
-import { apiBaseUrl } from '../api/client';
 
 const roleLabel = (role: string | null) => (role === 'FAMILY_ADMIN' ? 'Quản trị viên' : 'Thành viên');
 
@@ -42,7 +41,7 @@ export const AcceptInvite = () => {
 
     const handleLoginToAccept = () => {
         localStorage.setItem('pendingInviteToken', token);
-        window.location.href = `${apiBaseUrl}/auth/google`;
+        window.location.href = '/login'; // Supabase Google login; LoginSuccess resumes the invite
     };
 
     const handleAccept = async () => {

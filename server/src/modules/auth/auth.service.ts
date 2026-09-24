@@ -19,6 +19,11 @@ interface OAuthProfile {
   avatarUrl?: string | null;
 }
 
+// Public URL + anon key of Supabase "Data 01" (family web signs in and stores data here).
+const SUPABASE_URL = 'https://msozshwatonyxnkaqjfs.supabase.co';
+const SUPABASE_ANON_KEY =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zb3pzaHdhdG9ueXhua2FxamZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjU5MzYsImV4cCI6MjA4ODIwMTkzNn0.lbfHxn4YxXNLHB0uVBDInrHh8wsCbusDr1_SroACHgk';
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -41,34 +46,11 @@ export class AuthService {
   ) {}
 
   getAuthConfig() {
-    return {
-      supabaseUrl:
-        this.configService.get<string>('SUPABASE_URL') ||
-        this.configService.get<string>('VITE_SUPABASE_URL') ||
-        'https://msozshwatonyxnkaqjfs.supabase.co',
-      supabaseAnonKey:
-        this.configService.get<string>('SUPABASE_ANON_KEY') ||
-        this.configService.get<string>('VITE_SUPABASE_ANON_KEY') ||
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zb3pzaHdhdG9ueXhua2FxamZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjU5MzYsImV4cCI6MjA4ODIwMTkzNn0.lbfHxn4YxXNLHB0uVBDInrHh8wsCbusDr1_SroACHgk',
-    };
+    return { supabaseUrl: SUPABASE_URL, supabaseAnonKey: SUPABASE_ANON_KEY };
   }
 
   private getSupabase(): SupabaseClient {
-    if (!this.supabaseClient) {
-      const url =
-        this.configService.get<string>('SUPABASE_URL') ||
-        this.configService.get<string>('VITE_SUPABASE_URL') ||
-        'https://msozshwatonyxnkaqjfs.supabase.co';
-      const key =
-        this.configService.get<string>('SUPABASE_SERVICE_ROLE_KEY') ||
-        this.configService.get<string>('SUPABASE_ANON_KEY') ||
-        this.configService.get<string>('VITE_SUPABASE_ANON_KEY') ||
-        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zb3pzaHdhdG9ueXhua2FxamZzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI2MjU5MzYsImV4cCI6MjA4ODIwMTkzNn0.lbfHxn4YxXNLHB0uVBDInrHh8wsCbusDr1_SroACHgk';
-      if (!url || !key) {
-        throw new UnauthorizedException('Chưa cấu hình SUPABASE_URL hoặc SUPABASE_ANON_KEY trên máy chủ');
-      }
-      this.supabaseClient = createClient(url, key);
-    }
+    this.supabaseClient ??= createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     return this.supabaseClient;
   }
 
