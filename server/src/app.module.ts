@@ -44,7 +44,6 @@ import { GoUsModule } from './modules/gous/gous.module';
           username: url ? undefined : configService.get<string>('DB_USERNAME'),
           password: url ? undefined : configService.get<string>('DB_PASSWORD'),
           database: url ? undefined : configService.get<string>('DB_DATABASE'),
-          entityPrefix: configService.get<string>('DB_PREFIX', 'fm_'),
           autoLoadEntities: true,
           synchronize: configService.get<string>('DB_SYNCHRONIZE') === 'true',
           migrationsRun: configService.get<string>('DB_MIGRATIONS_RUN') === 'true',
