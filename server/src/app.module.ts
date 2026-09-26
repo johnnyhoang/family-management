@@ -23,6 +23,7 @@ import { CalendarModule } from './modules/calendar/calendar.module';
 import { NaturalInputModule } from './modules/natural-input/natural-input.module';
 import { MaintenanceModule } from './modules/maintenance/maintenance.module';
 import { GoUsModule } from './modules/gous/gous.module';
+import { DocumentModule } from './modules/document/document.module';
 
 @Module({
   imports: [
@@ -107,6 +108,7 @@ import { GoUsModule } from './modules/gous/gous.module';
     NaturalInputModule,
     MaintenanceModule,
     GoUsModule,
+    DocumentModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

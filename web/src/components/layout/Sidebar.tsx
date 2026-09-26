@@ -13,6 +13,7 @@ import {
     Wrench,
     Plus,
     Users,
+    FolderArchive,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useSession } from '../auth/SessionProvider';
@@ -23,6 +24,7 @@ const navigation = [
     { name: 'Quản lý tài sản', href: '/assets', icon: Package, moduleKey: 'ASSET' as const },
     { name: 'Bảo trì khai thác và nợ', href: '/maintenance', icon: Wrench, moduleKey: 'ASSET' as const },
     { name: 'Quản lý tài chính', href: '/expenses', icon: Receipt, moduleKey: 'TRANSACTION' as const },
+    { name: 'Kho tài liệu', href: '/documents', icon: FolderArchive, moduleKey: 'DOCUMENT' as const },
     { name: 'Lịch gia đình', href: '/calendar', icon: CalendarDays, moduleKey: 'CALENDAR' as const },
     { name: 'Quản trị hệ thống', href: '/admin', icon: ShieldCheck, moduleKey: 'ADMIN' as const },
     { name: 'Thiết lập', href: '/settings', icon: Settings, moduleKey: null },

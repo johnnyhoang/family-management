@@ -63,6 +63,10 @@ const FAMILY_ADMIN_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionActi
   { moduleKey: AppModule.GOUS, action: PermissionAction.CREATE },
   { moduleKey: AppModule.GOUS, action: PermissionAction.UPDATE },
   { moduleKey: AppModule.GOUS, action: PermissionAction.DELETE },
+  { moduleKey: AppModule.DOCUMENT, action: PermissionAction.VIEW },
+  { moduleKey: AppModule.DOCUMENT, action: PermissionAction.CREATE },
+  { moduleKey: AppModule.DOCUMENT, action: PermissionAction.UPDATE },
+  { moduleKey: AppModule.DOCUMENT, action: PermissionAction.DELETE },
 ];
 
 const MEMBER_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> = [
@@ -86,6 +90,10 @@ const MEMBER_ALLOWED: Array<{ moduleKey: AppModule; action: PermissionAction }> 
   { moduleKey: AppModule.GOUS, action: PermissionAction.CREATE },
   { moduleKey: AppModule.GOUS, action: PermissionAction.UPDATE },
   { moduleKey: AppModule.GOUS, action: PermissionAction.DELETE },
+  { moduleKey: AppModule.DOCUMENT, action: PermissionAction.VIEW },
+  { moduleKey: AppModule.DOCUMENT, action: PermissionAction.CREATE },
+  { moduleKey: AppModule.DOCUMENT, action: PermissionAction.UPDATE },
+  { moduleKey: AppModule.DOCUMENT, action: PermissionAction.DELETE },
 ];
 
 @Injectable()
@@ -322,6 +330,8 @@ export class PermissionService implements OnModuleInit {
       expense: AppModule.TRANSACTION,
       transaction: AppModule.TRANSACTION,
       gous: AppModule.GOUS,
+      document: AppModule.DOCUMENT,
+      documents: AppModule.DOCUMENT,
     };
 
     const actionAliases: Record<string, PermissionAction> = {

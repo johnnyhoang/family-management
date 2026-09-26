@@ -3,13 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { message } from 'antd';
 import { authApi, type FamilyRole, type SessionMembership, type SessionResponse, type SessionUser, type SystemRole } from '../../api/auth';
 
-type ModuleKey = 'DASHBOARD' | 'CATEGORY' | 'CALENDAR' | 'ASSET' | 'TRANSACTION' | 'USER' | 'FAMILY' | 'PERMISSION' | 'ADMIN' | 'GOUS';
+type ModuleKey = 'DASHBOARD' | 'CATEGORY' | 'CALENDAR' | 'ASSET' | 'TRANSACTION' | 'USER' | 'FAMILY' | 'PERMISSION' | 'ADMIN' | 'GOUS' | 'DOCUMENT';
 type PermissionAction = 'view' | 'create' | 'update' | 'delete';
 
 type PermissionMatrix = Record<Exclude<FamilyRole, null>, Partial<Record<ModuleKey, PermissionAction[]>>>;
 
 const SYSTEM_SCOPED_MODULES = new Set<ModuleKey>(['ADMIN', 'PERMISSION']);
-const FAMILY_SCOPED_MODULES = new Set<ModuleKey>(['FAMILY', 'USER', 'DASHBOARD', 'CATEGORY', 'CALENDAR', 'ASSET', 'TRANSACTION', 'GOUS']);
+const FAMILY_SCOPED_MODULES = new Set<ModuleKey>(['FAMILY', 'USER', 'DASHBOARD', 'CATEGORY', 'CALENDAR', 'ASSET', 'TRANSACTION', 'GOUS', 'DOCUMENT']);
 
 const ROLE_PERMISSIONS: PermissionMatrix = {
   APP_ADMIN: {
@@ -18,6 +18,7 @@ const ROLE_PERMISSIONS: PermissionMatrix = {
     USER: ['view', 'update'],
     PERMISSION: ['view', 'create', 'update', 'delete'],
     GOUS: ['view', 'create', 'update', 'delete'],
+    DOCUMENT: ['view', 'create', 'update', 'delete'],
   },
   FAMILY_ADMIN: {
     FAMILY: ['view', 'update'],
@@ -28,6 +29,7 @@ const ROLE_PERMISSIONS: PermissionMatrix = {
     ASSET: ['view', 'create', 'update', 'delete'],
     TRANSACTION: ['view', 'create', 'update', 'delete'],
     GOUS: ['view', 'create', 'update', 'delete'],
+    DOCUMENT: ['view', 'create', 'update', 'delete'],
   },
   MEMBER: {
     FAMILY: ['view'],
@@ -38,6 +40,7 @@ const ROLE_PERMISSIONS: PermissionMatrix = {
     ASSET: ['view', 'create', 'update', 'delete'],
     TRANSACTION: ['view', 'create', 'update', 'delete'],
     GOUS: ['view', 'create', 'update', 'delete'],
+    DOCUMENT: ['view', 'create', 'update', 'delete'],
   },
 };
 
